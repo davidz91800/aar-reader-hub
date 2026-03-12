@@ -21,6 +21,7 @@ const processing = new Set();
 let autoPushTimer = null;
 let autoPushRequested = false;
 let autoPushRunning = false;
+let lastDataSnapshot = "";
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -47,6 +48,12 @@ function hasStagedChangesOutsideData() {
   if (out.status !== 0) return false;
   const lines = String(out.stdout || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
   return lines.some((name) => !name.startsWith("AAR Reader Data/"));
+}
+
+function hasPendingDataChanges() {
+  const out = runGit(["status", "--porcelain", "--", "AAR Reader Data"]);
+  if (out.status !== 0) return false;
+  return String(out.stdout || "").trim().length > 0;
 }
 
 function scheduleAutoPush(reason) {
@@ -425,6 +432,21 @@ function rebuildStaticIndex() {
   fs.writeFileSync(INDEX_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
+function computeDataSnapshot() {
+  const entries = fs.readdirSync(DATA_DIR, { withFileTypes: true });
+  const lines = entries
+    .filter((e) => e.isFile())
+    .map((e) => e.name)
+    .filter((name) => /\.json$/i.test(name) && name.toLowerCase() !== "index.json")
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => {
+      const full = path.join(DATA_DIR, name);
+      const stat = fs.statSync(full);
+      return `${name}|${stat.size}|${Math.floor(stat.mtimeMs)}`;
+    });
+  return lines.join("\n");
+}
+
 function readAarsFromFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const buffer = fs.readFileSync(filePath);
@@ -462,10 +484,8 @@ async function processFile(fileName) {
 
     const aars = readAarsFromFile(source);
     const created = writeAarFiles(aars);
-    rebuildStaticIndex();
     const moved = moveTo(DONE_DIR, source);
     log(`OK ${fileName} -> ${created.length} JSON (${created.join(", ")}) | archive: ${path.basename(moved)}`);
-    scheduleAutoPush(fileName);
   } catch (error) {
     let movedName = "n/a";
     try {
@@ -483,12 +503,23 @@ async function scanOnce() {
   ensureDir(DROP_DIR);
   ensureDir(DONE_DIR);
   ensureDir(ERROR_DIR);
-  rebuildStaticIndex();
+
+  if (!lastDataSnapshot) {
+    lastDataSnapshot = computeDataSnapshot();
+  }
 
   const entries = fs.readdirSync(DROP_DIR, { withFileTypes: true });
   const files = entries.filter((e) => e.isFile()).map((e) => e.name).filter(isCandidateFile);
   for (const fileName of files) {
     await processFile(fileName);
+  }
+
+  const newSnapshot = computeDataSnapshot();
+  const indexMissing = !fs.existsSync(INDEX_FILE);
+  if (indexMissing || newSnapshot !== lastDataSnapshot) {
+    rebuildStaticIndex();
+    lastDataSnapshot = newSnapshot;
+    scheduleAutoPush(indexMissing ? "index manquant" : "AAR Reader Data modifie");
   }
 }
 
@@ -500,9 +531,12 @@ async function startWatcher() {
 
   log("Watcher actif.");
   log(`Drop dossier: ${DROP_DIR}`);
-  log(`Output JSON: ${DATA_DIR}`);
+  log(`Data dossier: ${DATA_DIR}`);
   log("Extensions supportees: .eml, .msg, .txt, .json");
   if (AUTO_PUSH_ENABLED) log("Auto-push GitHub: ACTIVE");
+  if (AUTO_PUSH_ENABLED && hasPendingDataChanges()) {
+    scheduleAutoPush("changements data deja presents au demarrage");
+  }
   await scanOnce();
 
   setInterval(() => {

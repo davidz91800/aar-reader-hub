@@ -75,6 +75,7 @@ Extensions supportees en entree: `.eml`, `.msg`, `.txt`, `.json`.
 
 Le watcher fait maintenant l'auto-push GitHub apres extraction (commit + push automatiques des fichiers `AAR Reader Data`).
 Important: ne lancer qu'une seule instance du watcher (un lock est applique pour eviter les doublons).
+Il surveille aussi les ajouts/suppressions/modifications manuels de `.json` dans `AAR Reader Data` et publie automatiquement.
 
 Note: le watcher met aussi a jour `AAR Reader Data/index.json` automatiquement pour la source statique.
 

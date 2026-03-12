@@ -6,3 +6,4 @@ AAR Reader Data/_EMAIL_DONE/*
 !AAR Reader Data/_EMAIL_DONE/.gitkeep
 AAR Reader Data/_EMAIL_ERROR/*
 !AAR Reader Data/_EMAIL_ERROR/.gitkeep
+.email-drop-watcher.lock
