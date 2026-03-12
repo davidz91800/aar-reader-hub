@@ -5,7 +5,8 @@ const LAST_SYNC_KEY = "aar_reader_last_sync_v1";
 const state = {
   reports: [],
   expandModes: {},
-  mode: "consult"
+  mode: "consult",
+  driveDownloadMode: ""
 };
 
 const el = {};
@@ -359,6 +360,32 @@ function driveMediaUrl(fileId, apiKey, resourceKey = "") {
   return `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&key=${encodeURIComponent(apiKey)}${extra}`;
 }
 
+function driveDownloadOrder(cfg) {
+  if (!cfg.apiKey) return ["public"];
+  if (state.driveDownloadMode === "api") return ["api", "public"];
+  if (state.driveDownloadMode === "public") return ["public", "api"];
+  return ["public", "api"];
+}
+
+async function downloadDriveJson(cfg, file) {
+  const order = driveDownloadOrder(cfg);
+  const errors = [];
+
+  for (const mode of order) {
+    try {
+      const payload = mode === "api"
+        ? await fetchJsonOrThrow(driveMediaUrl(file.id, cfg.apiKey, file.resourceKey))
+        : await fetchJsonOrThrow(drivePublicDownloadUrl(file.id, file.resourceKey));
+      state.driveDownloadMode = mode;
+      return payload;
+    } catch (e) {
+      errors.push(`${mode}: ${e.message}`);
+    }
+  }
+
+  throw new Error(errors.join(" | "));
+}
+
 async function fetchJsonOrThrow(url, timeoutMs = 20000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -460,12 +487,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
 
     for (const f of files) {
       try {
-        let payload;
-        if (cfg.apiKey) {
-          payload = await fetchJsonOrThrow(driveMediaUrl(f.id, cfg.apiKey, f.resourceKey));
-        } else {
-          payload = await fetchJsonOrThrow(drivePublicDownloadUrl(f.id, f.resourceKey));
-        }
+        const payload = await downloadDriveJson(cfg, f);
         const rec = buildRecord(parseAarObject(payload), "drive_file", f.name || f.id);
         rec.updatedAt = f.modifiedTime || new Date().toISOString();
         records.push(rec);
