@@ -1,2 +1,8 @@
 desktop.ini
 Desktop.ini
+AAR Reader Data/_EMAIL_DROP/*
+!AAR Reader Data/_EMAIL_DROP/.gitkeep
+AAR Reader Data/_EMAIL_DONE/*
+!AAR Reader Data/_EMAIL_DONE/.gitkeep
+AAR Reader Data/_EMAIL_ERROR/*
+!AAR Reader Data/_EMAIL_ERROR/.gitkeep

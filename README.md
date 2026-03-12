@@ -55,6 +55,23 @@ Le Reader telecharge les JSON via `drive.usercontent.google.com` (compatible COR
 - Bouton `Synchroniser Drive` pour forcer la synchro.
 - Application en lecture seule (pas d'edition des AAR).
 
+## Mode "ultra ergonomique" (drag/drop email)
+
+Objectif: glisser un email dans un dossier et avoir automatiquement un JSON AAR exploitable par tous les iPads.
+
+1. Lancer `start-email-drop-watcher.bat` sur ton poste admin (celui qui synchronise Google Drive).
+2. Glisser/deposer tes emails dans:
+   - `AAR Reader Data/_EMAIL_DROP`
+3. Le watcher extrait le bloc JSON (`---BEGIN-AAR-JSON--- ... ---END-AAR-JSON---`) et cree un fichier `.json` dans:
+   - `AAR Reader Data`
+4. Les emails traites sont archives dans:
+   - `AAR Reader Data/_EMAIL_DONE`
+5. Si echec d'extraction:
+   - `AAR Reader Data/_EMAIL_ERROR`
+6. Sur les iPads: ouvrir la PWA et cliquer `Synchroniser Drive` (ou relancer l'app si auto-sync active).
+
+Extensions supportees en entree: `.eml`, `.msg`, `.txt`, `.json`.
+
 ## Lancement
 
 Ouvrir `index.html` depuis un serveur HTTP local ou un hebergement statique (GitHub Pages, SharePoint static, etc.).
