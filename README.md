@@ -75,6 +75,18 @@ Extensions supportees en entree: `.eml`, `.msg`, `.txt`, `.json`.
 
 Note: le watcher met aussi a jour `AAR Reader Data/index.json` automatiquement pour la source statique.
 
+## Publication en 1 clic (apres ajout manuel de JSON)
+
+Si tu ajoutes un `.json` directement dans `AAR Reader Data`, lance:
+- `publish-reader-data.bat`
+
+Ce script:
+1. reconstruit `AAR Reader Data/index.json`
+2. commit les JSON + index
+3. push sur GitHub
+
+Sans ce push, les iPads ne verront pas les nouveaux AAR.
+
 ## Lancement
 
 Ouvrir `index.html` depuis un serveur HTTP local ou un hebergement statique (GitHub Pages, SharePoint static, etc.).
