@@ -90,14 +90,14 @@
 
   <div id="toast" class="toast"></div>
 
-  <script src="./config.js?v=20260312d"></script>
-  <script src="./app.js?v=20260312d"></script>
+  <script src="./config.js?v=20260312e"></script>
+  <script src="./app.js?v=20260312e"></script>
   <script>
     (function registerPwa() {
       if (!('serviceWorker' in navigator)) return;
       window.addEventListener('load', async () => {
         try {
-          const registration = await navigator.serviceWorker.register('./sw.js?v=20260312d', { scope: './' });
+          const registration = await navigator.serviceWorker.register('./sw.js?v=20260312e', { scope: './' });
           await registration.update();
         } catch (error) {
           console.warn('Service worker registration failed:', error);
