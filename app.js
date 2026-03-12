@@ -5,8 +5,7 @@ const LAST_SYNC_KEY = "aar_reader_last_sync_v1";
 const state = {
   reports: [],
   expandModes: {},
-  mode: "consult",
-  driveDownloadMode: ""
+  mode: "consult"
 };
 
 const el = {};
@@ -362,9 +361,7 @@ function driveMediaUrl(fileId, apiKey, resourceKey = "") {
 
 function driveDownloadOrder(cfg) {
   if (!cfg.apiKey) return ["public"];
-  if (state.driveDownloadMode === "api") return ["api", "public"];
-  if (state.driveDownloadMode === "public") return ["public", "api"];
-  return ["public", "api"];
+  return ["api", "public"];
 }
 
 function isGoogleAntiBotMessage(msg) {
@@ -384,7 +381,6 @@ async function downloadDriveJson(cfg, file) {
       const payload = mode === "api"
         ? await fetchJsonOrThrow(driveMediaUrl(file.id, cfg.apiKey, file.resourceKey))
         : await fetchJsonOrThrow(drivePublicDownloadUrl(file.id, file.resourceKey));
-      state.driveDownloadMode = mode;
       return payload;
     } catch (e) {
       errors.push(`${mode}: ${e.message}`);
