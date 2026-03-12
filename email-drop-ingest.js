@@ -296,7 +296,6 @@ function rebuildStaticIndex() {
     .sort((a, b) => a.localeCompare(b));
 
   const payload = {
-    generatedAt: nowIso(),
     files: files.map((name) => {
       const full = path.join(DATA_DIR, name);
       const stat = fs.statSync(full);
