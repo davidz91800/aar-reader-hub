@@ -341,11 +341,28 @@ function driveMediaUrl(fileId, apiKey, resourceKey = "") {
   return `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&key=${encodeURIComponent(apiKey)}${extra}`;
 }
 
-async function fetchJsonOrThrow(url) {
-  const response = await fetch(url, { cache: "no-store" });
+async function fetchJsonOrThrow(url, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(url, { cache: "no-store", signal: controller.signal });
+  } catch (e) {
+    if (e && e.name === "AbortError") {
+      throw new Error(`Timeout reseau (${Math.round(timeoutMs / 1000)}s)`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+
   if (!response.ok) {
     const txt = await response.text().catch(() => "");
-    throw new Error(`HTTP ${response.status} ${response.statusText} ${txt.slice(0, 120)}`);
+    const compact = txt.replace(/\s+/g, " ").trim();
+    if (/referer\s+null/i.test(compact) || /referer.*blocked/i.test(compact)) {
+      throw new Error("API key bloquee par referer (mode iPad PWA). Dans Google Cloud: Application restrictions = Aucun.");
+    }
+    throw new Error(`HTTP ${response.status} ${response.statusText} ${compact.slice(0, 180)}`);
   }
   return response.json();
 }

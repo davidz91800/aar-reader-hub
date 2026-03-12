@@ -1,4 +1,4 @@
-const CACHE_NAME = "aar-reader-shell-v3";
+const CACHE_NAME = "aar-reader-shell-v4";
 const SHELL_URL = "./index.html";
 const CORE_ASSETS = [
   "./",
