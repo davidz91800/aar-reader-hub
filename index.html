@@ -1,0 +1,109 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AAR Reader Hub</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">AR</div>
+      <div>
+        <h1>AAR Reader Hub</h1>
+        <p>Consultation centralisee, lecture seule, analyse globale</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="left">
+      <section class="card import-card">
+        <h2 class="import-title-static">Source Google Drive</h2>
+        <p id="source-status">Source: en attente</p>
+        <p id="last-sync">Derniere synchro: jamais</p>
+        <div class="row row-full">
+          <button id="sync-drive-btn" class="btn primary">Synchroniser Drive</button>
+        </div>
+      </section>
+
+      <section class="card import-card">
+        <input id="import-files-input" type="file" multiple accept=".json,.eml,.txt" style="display:none">
+        <input id="import-folder-input" type="file" webkitdirectory directory multiple style="display:none">
+        <h2 class="import-title-static">Import Local</h2>
+        <div id="dropzone" class="dropzone import-dropzone">
+          <strong>Glisse ici</strong>
+          <span>JSON, email texte, ou dossier</span>
+        </div>
+        <div class="row row-full">
+          <button id="import-files-btn" class="btn">Importer fichiers (.json/.eml/.txt)</button>
+        </div>
+        <div class="row row-full">
+          <button id="import-folder-btn" class="btn">Importer dossier local</button>
+        </div>
+        <div class="reset-wrap">
+          <button id="reset-app-btn" class="btn subtle" title="Efface le cache local">Reinitialiser cache</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Coller Email Brut</h2>
+        <textarea id="raw-email-input" placeholder="Colle ici le contenu brut d'un email contenant ---BEGIN-AAR-JSON---"></textarea>
+        <div class="row">
+          <button id="import-raw-btn" class="btn">Importer texte</button>
+          <button id="paste-clipboard-btn" class="btn">Coller presse-papiers</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Filtres</h2>
+        <input id="search-input" placeholder="Recherche titre, redacteur, unite, analyse...">
+        <div class="row">
+          <select id="classif-filter">
+            <option value="ALL">Classif: Tous</option>
+            <option value="NON PROTEGE">NON PROTEGE</option>
+            <option value="DIFFUSION RESTREINTE">DIFFUSION RESTREINTE</option>
+            <option value="SECRET SPECIAL FRANCE">SECRET SPECIAL FRANCE</option>
+            <option value="UNKNOWN">UNKNOWN</option>
+          </select>
+          <select id="sort-filter">
+            <option value="DATE_DESC">Date desc</option>
+            <option value="DATE_ASC">Date asc</option>
+            <option value="TITLE_ASC">Titre A-Z</option>
+            <option value="UPDATED_DESC">Maj recente</option>
+          </select>
+        </div>
+      </section>
+    </aside>
+
+    <section class="right">
+      <nav class="tabs">
+        <button class="tab active" data-mode="consult">Consultation</button>
+        <button class="tab" data-mode="analyze">Analyse</button>
+      </nav>
+      <section id="panel-consult" class="panel active"></section>
+      <section id="panel-analyze" class="panel"></section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+  <script>
+    (function registerPwa() {
+      if (!('serviceWorker' in navigator)) return;
+      window.addEventListener('load', async () => {
+        try {
+          const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+          await registration.update();
+        } catch (error) {
+          console.warn('Service worker registration failed:', error);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

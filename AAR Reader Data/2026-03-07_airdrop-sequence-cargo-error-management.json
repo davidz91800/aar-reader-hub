@@ -1,0 +1,36 @@
+﻿{
+  "meta": {
+    "title": "Airdrop Sequence - Cargo Error Management",
+    "date": "2026-03-07",
+    "grade": "LTT",
+    "gradeAutre": "",
+    "nom": "DUPONT",
+    "prenom": "Nicolas",
+    "unite": "ET 3/61 Poitou",
+    "uniteAutre": "",
+    "classification": "DIFFUSION RESTREINTE"
+  },
+  "facts": {
+    "what": "Incorrect cargo release timing on first pass.",
+    "why": "Mismatch between stopwatch cue and navigator call.",
+    "when": "Drop run 1, 14:32 local.",
+    "where": "DZ Falcon.",
+    "who": "Crew 03 + loadmaster.",
+    "how": "Release initiated 3 seconds late, corrected on pass 2.",
+    "narrative": "No incident. Second pass successful after quick recalibration and concise cockpit brief."
+  },
+  "analysis": {
+    "content": "Root cause: timing ownership not clearly assigned. Contributing factor: high radio traffic during final run-in."
+  },
+  "recos": {
+    "doctrine": "Define single timing authority for each drop run.",
+    "organisation": "Add explicit 'arming/timing/release' verbal sequence.",
+    "rh": "Coach crew on short, unambiguous challenge-response.",
+    "equipements": "Test alternate timer placement for better visibility.",
+    "soutien": "Include timing contingency in mission folder.",
+    "entrainement": "Repeat dry runs with induced comms saturation."
+  },
+  "qwi": {
+    "advice": "Strong adaptation after first error. Keep one owner for timing and maintain sterile cockpit in final 30 seconds."
+  }
+}
