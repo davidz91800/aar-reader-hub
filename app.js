@@ -367,6 +367,14 @@ function driveDownloadOrder(cfg) {
   return ["public", "api"];
 }
 
+function isGoogleAntiBotMessage(msg) {
+  const text = String(msg || "").toLowerCase();
+  return text.includes("automated queries")
+    || text.includes("we're sorry")
+    || text.includes("google help")
+    || text.includes("protect our users");
+}
+
 async function downloadDriveJson(cfg, file) {
   const order = driveDownloadOrder(cfg);
   const errors = [];
@@ -404,6 +412,9 @@ async function fetchJsonOrThrow(url, timeoutMs = 20000) {
   if (!response.ok) {
     const txt = await response.text().catch(() => "");
     const compact = txt.replace(/\s+/g, " ").trim();
+    if (isGoogleAntiBotMessage(compact)) {
+      throw new Error("Google bloque temporairement les telechargements (automated queries). Reessaye dans 2-10 minutes.");
+    }
     if (/referer\s+null/i.test(compact) || /referer.*blocked/i.test(compact)) {
       throw new Error("API key bloquee par referer (mode iPad PWA). Dans Google Cloud: Application restrictions = Aucun.");
     }
@@ -482,18 +493,56 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       return;
     }
 
+    const existingDriveById = new Map(
+      state.reports
+        .filter((r) => r.source === "drive_file" && r.driveFileId)
+        .map((r) => [r.driveFileId, r])
+    );
+
     const records = [];
     const errors = [];
+    let blockedByGoogle = false;
 
     for (const f of files) {
+      const existing = existingDriveById.get(f.id);
+      const sameVersion = existing
+        && existing.driveModifiedTime
+        && f.modifiedTime
+        && existing.driveModifiedTime === f.modifiedTime;
+
+      if (sameVersion) {
+        records.push(existing);
+        continue;
+      }
+
+      if (blockedByGoogle) {
+        if (existing) records.push(existing);
+        else errors.push(`${f.name || f.id}: telechargement saute (blocage Google temporaire).`);
+        continue;
+      }
+
       try {
         const payload = await downloadDriveJson(cfg, f);
         const rec = buildRecord(parseAarObject(payload), "drive_file", f.name || f.id);
         rec.updatedAt = f.modifiedTime || new Date().toISOString();
+        rec.driveFileId = f.id;
+        rec.driveModifiedTime = f.modifiedTime || "";
+        if (existing) {
+          rec.id = existing.id;
+          rec.createdAt = existing.createdAt || rec.createdAt;
+        }
         records.push(rec);
       } catch (e) {
         errors.push(`${f.name || f.id}: ${e.message}`);
+        if (existing) records.push(existing);
+        if (isGoogleAntiBotMessage(e.message)) blockedByGoogle = true;
       }
+    }
+
+    if (!records.length && state.reports.length) {
+      setSourceStatus("Source: echec sync Drive, conservation du cache local");
+      if (!silent) toast("Sync Drive en echec: cache local conserve.");
+      return;
     }
 
     await dbReplaceAll(records);
@@ -504,7 +553,11 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
     const now = new Date().toISOString();
     localStorage.setItem(LAST_SYNC_KEY, now);
     updateLastSyncLabel(now);
-    setSourceStatus(`Source: Google Drive (${records.length} AAR)`);
+    setSourceStatus(
+      blockedByGoogle
+        ? `Source: Google Drive (${records.length} AAR, blocage Google temporaire detecte)`
+        : `Source: Google Drive (${records.length} AAR)`
+    );
 
     if (!silent) {
       if (errors.length) toast(`Synchro OK: ${records.length} AAR, ${errors.length} erreur(s).`);
