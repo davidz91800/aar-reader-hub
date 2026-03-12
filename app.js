@@ -347,6 +347,20 @@ function getDriveConfig() {
   };
 }
 
+function getStaticConfig() {
+  const cfg = window.AAR_READER_CONFIG || {};
+  const s = cfg.staticRepo || {};
+  const indexUrl = String(s.indexUrl || "./AAR Reader Data/index.json").trim() || "./AAR Reader Data/index.json";
+  return {
+    enabled: s.enabled !== false,
+    indexUrl
+  };
+}
+
+function hasDriveSource(cfg = getDriveConfig()) {
+  return !!cfg.indexFileId || (!!cfg.apiKey && !!cfg.folderId);
+}
+
 function drivePublicDownloadUrl(fileId, resourceKey = "") {
   const rk = String(resourceKey || "").trim();
   const extra = rk ? `&resourcekey=${encodeURIComponent(rk)}` : "";
@@ -361,7 +375,7 @@ function driveMediaUrl(fileId, apiKey, resourceKey = "") {
 
 function driveDownloadOrder(cfg) {
   if (!cfg.apiKey) return ["public"];
-  return ["api", "public"];
+  return ["api"];
 }
 
 function isGoogleAntiBotMessage(msg) {
@@ -384,6 +398,9 @@ async function downloadDriveJson(cfg, file) {
       return payload;
     } catch (e) {
       errors.push(`${mode}: ${e.message}`);
+      if (mode === "api" && /failed to fetch/i.test(String(e?.message || ""))) {
+        break;
+      }
     }
   }
 
@@ -457,6 +474,133 @@ async function listDriveFilesFromIndex(indexFileId) {
     })).filter((x) => x.id);
   }
   throw new Error("index.json invalide (attendu: array ou {files:[...]})");
+}
+
+function toStaticUrl(pathLike) {
+  return encodeURI(String(pathLike || "").replace(/\\/g, "/"));
+}
+
+async function listStaticFilesFromIndex(indexUrl) {
+  const data = await fetchJsonOrThrow(toStaticUrl(indexUrl));
+  const rows = Array.isArray(data) ? data : (Array.isArray(data.files) ? data.files : []);
+  return rows.map((item, i) => {
+    if (typeof item === "string") {
+      const raw = item.replace(/\\/g, "/");
+      return {
+        path: raw.includes("/") ? raw : `AAR Reader Data/${raw}`,
+        name: raw.split("/").pop() || `aar_${i + 1}.json`,
+        modifiedTime: ""
+      };
+    }
+    const obj = item || {};
+    const pathVal = String(obj.path || "").trim();
+    const nameVal = String(obj.name || "").trim();
+    const finalPath = pathVal
+      ? pathVal.replace(/\\/g, "/")
+      : (nameVal ? `AAR Reader Data/${nameVal}` : "");
+    if (!finalPath) return null;
+    return {
+      path: finalPath,
+      name: nameVal || finalPath.split("/").pop() || `aar_${i + 1}.json`,
+      modifiedTime: String(obj.modifiedTime || "").trim()
+    };
+  }).filter((x) => x && x.path && /\.json$/i.test(x.path));
+}
+
+async function syncFromStaticRepo({ silent = false, manageButton = true } = {}) {
+  const staticCfg = getStaticConfig();
+  if (!staticCfg.enabled) throw new Error("Source statique desactivee.");
+
+  setSourceStatus("Source: synchronisation en cours...");
+  if (manageButton && el.syncDriveBtn) el.syncDriveBtn.disabled = true;
+
+  try {
+    const files = await listStaticFilesFromIndex(staticCfg.indexUrl);
+    if (!files.length) {
+      if (state.reports.length) {
+        setSourceStatus("Source: data statique vide, cache conserve");
+        if (!silent) toast("Aucun fichier dans l'index statique, cache local conserve.");
+        return;
+      }
+      await dbReplaceAll([]);
+      state.reports = [];
+      renderAll();
+      setSourceStatus("Source: data statique (0 JSON)");
+      const now = new Date().toISOString();
+      localStorage.setItem(LAST_SYNC_KEY, now);
+      updateLastSyncLabel(now);
+      if (!silent) toast("Aucun AAR JSON trouve dans la source statique.");
+      return;
+    }
+
+    const existingByPath = new Map(
+      state.reports
+        .filter((r) => r.source === "static_file" && r.staticPath)
+        .map((r) => [r.staticPath, r])
+    );
+
+    const records = [];
+    const errors = [];
+
+    for (const f of files) {
+      const existing = existingByPath.get(f.path);
+      const sameVersion = existing
+        && existing.staticModifiedTime
+        && f.modifiedTime
+        && existing.staticModifiedTime === f.modifiedTime;
+      if (sameVersion) {
+        records.push(existing);
+        continue;
+      }
+      try {
+        const payload = await fetchJsonOrThrow(toStaticUrl(f.path));
+        const rec = buildRecord(parseAarObject(payload), "static_file", f.name || f.path);
+        rec.updatedAt = f.modifiedTime || new Date().toISOString();
+        rec.staticPath = f.path;
+        rec.staticModifiedTime = f.modifiedTime || "";
+        if (existing) {
+          rec.id = existing.id;
+          rec.createdAt = existing.createdAt || rec.createdAt;
+        }
+        records.push(rec);
+      } catch (e) {
+        errors.push(`${f.name || f.path}: ${e.message}`);
+        if (existing) records.push(existing);
+      }
+    }
+
+    if (!records.length && state.reports.length) {
+      setSourceStatus("Source: echec sync statique, conservation du cache local");
+      if (!silent) toast("Sync statique en echec: cache local conserve.");
+      return;
+    }
+
+    await dbReplaceAll(records);
+    state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    state.expandModes = {};
+    renderAll();
+
+    const now = new Date().toISOString();
+    localStorage.setItem(LAST_SYNC_KEY, now);
+    updateLastSyncLabel(now);
+    setSourceStatus(`Source: data statique (${records.length} AAR)`);
+
+    if (!silent) {
+      if (errors.length) toast(`Synchro statique OK: ${records.length} AAR, ${errors.length} erreur(s).`);
+      else toast(`Synchro statique OK: ${records.length} AAR.`);
+    }
+  } finally {
+    if (manageButton && el.syncDriveBtn) el.syncDriveBtn.disabled = false;
+  }
+}
+
+async function syncPreferred({ silent = false } = {}) {
+  const driveCfg = getDriveConfig();
+  if (hasDriveSource(driveCfg)) {
+    await syncFromGoogleDrive({ silent });
+    return;
+  }
+  await syncFromStaticRepo({ silent });
 }
 
 async function syncFromGoogleDrive({ silent = false } = {}) {
@@ -560,6 +704,14 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       else toast(`Synchro OK: ${records.length} AAR.`);
     }
   } catch (e) {
+    const staticCfg = getStaticConfig();
+    if (staticCfg.enabled) {
+      try {
+        await syncFromStaticRepo({ silent, manageButton: false });
+        if (!silent) toast("Drive indisponible: bascule sur la source statique.");
+        return;
+      } catch {}
+    }
     setSourceStatus(`Source: erreur Drive (${e.message})`);
     if (!silent) toast(`Erreur sync Drive: ${e.message}`);
   } finally {
@@ -1039,14 +1191,17 @@ async function init() {
   updateLastSyncLabel(lastSync);
 
   const cfg = getDriveConfig();
-  if (cfg.indexFileId || (cfg.apiKey && cfg.folderId)) {
+  const staticCfg = getStaticConfig();
+  if (hasDriveSource(cfg)) {
     setSourceStatus("Source: Google Drive configure");
+  } else if (staticCfg.enabled) {
+    setSourceStatus("Source: data statique configuree");
   } else {
-    setSourceStatus("Source: config invalide (mettre indexFileId, ou apiKey+folderId)");
+    setSourceStatus("Source: config invalide (Drive ou source statique)");
   }
 
   if (el.syncDriveBtn) {
-    el.syncDriveBtn.onclick = () => syncFromGoogleDrive();
+    el.syncDriveBtn.onclick = () => syncPreferred();
   }
 
   el.dropzone.addEventListener("dragover", (ev) => { ev.preventDefault(); el.dropzone.classList.add("drag-over"); });
@@ -1131,7 +1286,7 @@ async function init() {
 
   if (cfg.autoSyncOnStartup) {
     if (navigator.onLine) {
-      await syncFromGoogleDrive({ silent: true });
+      await syncPreferred({ silent: true });
     } else {
       setSourceStatus("Source: hors ligne, lecture cache local");
     }

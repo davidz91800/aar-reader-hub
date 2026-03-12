@@ -1,11 +1,11 @@
-const CACHE_NAME = "aar-reader-shell-v13";
+const CACHE_NAME = "aar-reader-shell-v14";
 const SHELL_URL = "./index.html";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
-  "./config.js?v=20260312h",
-  "./app.js?v=20260312h",
+  "./config.js?v=20260312i",
+  "./app.js?v=20260312i",
   "./manifest.webmanifest",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"

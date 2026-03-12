@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "title": "TEST",
+    "date": "2026-02-11",
+    "grade": "",
+    "gradeAutre": "GAL",
+    "nom": "ZEMMOUR",
+    "prenom": "David",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "classification": "NON PROTEGE"
+  },
+  "facts": {
+    "what": "<div><br></div>",
+    "why": "",
+    "when": "",
+    "where": "",
+    "who": "",
+    "how": "",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": "<div><br></div><div><br></div>"
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}

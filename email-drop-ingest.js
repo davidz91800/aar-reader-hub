@@ -9,6 +9,7 @@ const DATA_DIR = path.join(ROOT_DIR, "AAR Reader Data");
 const DROP_DIR = path.join(DATA_DIR, "_EMAIL_DROP");
 const DONE_DIR = path.join(DATA_DIR, "_EMAIL_DONE");
 const ERROR_DIR = path.join(DATA_DIR, "_EMAIL_ERROR");
+const INDEX_FILE = path.join(DATA_DIR, "index.json");
 const POLL_MS = 3000;
 
 const processing = new Set();
@@ -286,6 +287,31 @@ function moveTo(dirPath, sourceFilePath) {
   return target;
 }
 
+function rebuildStaticIndex() {
+  const entries = fs.readdirSync(DATA_DIR, { withFileTypes: true });
+  const files = entries
+    .filter((e) => e.isFile())
+    .map((e) => e.name)
+    .filter((name) => /\.json$/i.test(name) && name.toLowerCase() !== "index.json")
+    .sort((a, b) => a.localeCompare(b));
+
+  const payload = {
+    generatedAt: nowIso(),
+    files: files.map((name) => {
+      const full = path.join(DATA_DIR, name);
+      const stat = fs.statSync(full);
+      return {
+        path: `AAR Reader Data/${name}`,
+        name,
+        modifiedTime: new Date(stat.mtimeMs).toISOString(),
+        size: stat.size
+      };
+    })
+  };
+
+  fs.writeFileSync(INDEX_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
 function readAarsFromFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const buffer = fs.readFileSync(filePath);
@@ -323,6 +349,7 @@ async function processFile(fileName) {
 
     const aars = readAarsFromFile(source);
     const created = writeAarFiles(aars);
+    rebuildStaticIndex();
     const moved = moveTo(DONE_DIR, source);
     log(`OK ${fileName} -> ${created.length} JSON (${created.join(", ")}) | archive: ${path.basename(moved)}`);
   } catch (error) {
@@ -342,6 +369,7 @@ async function scanOnce() {
   ensureDir(DROP_DIR);
   ensureDir(DONE_DIR);
   ensureDir(ERROR_DIR);
+  rebuildStaticIndex();
 
   const entries = fs.readdirSync(DROP_DIR, { withFileTypes: true });
   const files = entries.filter((e) => e.isFile()).map((e) => e.name).filter(isCandidateFile);

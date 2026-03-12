@@ -46,6 +46,7 @@ Mode recommande iPad:
 - tous les fichiers AAR doivent etre partages en lecture ("Toute personne ayant le lien")
 
 Le Reader telecharge les JSON via `drive.usercontent.google.com` (compatible CORS navigateur, y compris iPad PWA).
+En mode hybride, l'app peut basculer automatiquement sur un index statique GitHub (`AAR Reader Data/index.json`) si Drive est temporairement bloque.
 
 ## Fonctionnement
 
@@ -71,6 +72,8 @@ Objectif: glisser un email dans un dossier et avoir automatiquement un JSON AAR 
 6. Sur les iPads: ouvrir la PWA et cliquer `Synchroniser Drive` (ou relancer l'app si auto-sync active).
 
 Extensions supportees en entree: `.eml`, `.msg`, `.txt`, `.json`.
+
+Note: le watcher met aussi a jour `AAR Reader Data/index.json` automatiquement pour la source statique.
 
 ## Lancement
 
