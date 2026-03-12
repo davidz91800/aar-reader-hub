@@ -1,11 +1,11 @@
-const CACHE_NAME = "aar-reader-shell-v6";
+const CACHE_NAME = "aar-reader-shell-v7";
 const SHELL_URL = "./index.html";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
-  "./config.js",
-  "./app.js",
+  "./config.js?v=20260312b",
+  "./app.js?v=20260312b",
   "./manifest.webmanifest",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
@@ -64,7 +64,7 @@ self.addEventListener("fetch", (event) => {
       }
       return response;
     } catch {
-      const cached = await caches.match(request, { ignoreSearch: true });
+      const cached = await caches.match(request);
       if (cached) return cached;
       return new Response("", { status: 503, statusText: "Offline" });
     }
