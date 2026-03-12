@@ -1,8 +1,8 @@
-﻿window.AAR_READER_CONFIG = {
+window.AAR_READER_CONFIG = {
   autoSyncOnStartup: true,
   googleDrive: {
-    apiKey: "AIzaSyA0rrL__Ah7rfAXFcHhZzp1JY-EsuzeSz4",
-    folderId: "1uMqVNCwc82BFdw2Wq2wFw3-zhUkpMI0a",
-    indexFileId: ""
+    apiKey: "TON_API_KEY_OPTIONNEL",
+    folderId: "",
+    indexFileId: "ID_INDEX_JSON_PUBLIC"
   }
 };

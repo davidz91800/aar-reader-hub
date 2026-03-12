@@ -335,10 +335,10 @@ function getDriveConfig() {
   };
 }
 
-function driveMediaUrl(fileId, apiKey, resourceKey = "") {
+function drivePublicDownloadUrl(fileId, resourceKey = "") {
   const rk = String(resourceKey || "").trim();
-  const extra = rk ? `&resourceKey=${encodeURIComponent(rk)}` : "";
-  return `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&key=${encodeURIComponent(apiKey)}${extra}`;
+  const extra = rk ? `&resourcekey=${encodeURIComponent(rk)}` : "";
+  return `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&authuser=0&confirm=t${extra}`;
 }
 
 async function fetchJsonOrThrow(url, timeoutMs = 20000) {
@@ -364,7 +364,18 @@ async function fetchJsonOrThrow(url, timeoutMs = 20000) {
     }
     throw new Error(`HTTP ${response.status} ${response.statusText} ${compact.slice(0, 180)}`);
   }
-  return response.json();
+  const raw = await response.text();
+  const trimmed = raw.trim();
+  if (!trimmed) throw new Error("Reponse vide");
+  if (/^\s*<!doctype html/i.test(trimmed) || /^\s*<html/i.test(trimmed)) {
+    throw new Error("Le fichier n'est pas accessible publiquement (reponse HTML).");
+  }
+  const payload = trimmed.replace(/^\)\]\}'\s*\n?/, "");
+  try {
+    return JSON.parse(payload);
+  } catch {
+    throw new Error("JSON invalide ou non lisible.");
+  }
 }
 
 async function listDriveFiles(apiKey, folderId) {
@@ -374,8 +385,8 @@ async function listDriveFiles(apiKey, folderId) {
   return Array.isArray(data.files) ? data.files : [];
 }
 
-async function listDriveFilesFromIndex(apiKey, indexFileId) {
-  const data = await fetchJsonOrThrow(driveMediaUrl(indexFileId, apiKey));
+async function listDriveFilesFromIndex(indexFileId) {
+  const data = await fetchJsonOrThrow(drivePublicDownloadUrl(indexFileId));
   if (Array.isArray(data)) {
     return data.map((item, i) => {
       if (typeof item === "string") return { id: item, name: `aar_${i + 1}.json`, resourceKey: "" };
@@ -398,9 +409,11 @@ async function listDriveFilesFromIndex(apiKey, indexFileId) {
 
 async function syncFromGoogleDrive({ silent = false } = {}) {
   const cfg = getDriveConfig();
-  if (!cfg.apiKey || (!cfg.folderId && !cfg.indexFileId)) {
-    setSourceStatus("Source: config Google Drive incomplete (config.js)");
-    if (!silent) toast("Config Google Drive incomplete dans config.js");
+  const hasIndexMode = !!cfg.indexFileId;
+  const hasFolderMode = !!cfg.apiKey && !!cfg.folderId;
+  if (!hasIndexMode && !hasFolderMode) {
+    setSourceStatus("Source: config invalide (mettre indexFileId, ou apiKey+folderId)");
+    if (!silent) toast("Config invalide: indexFileId, ou apiKey+folderId.");
     return;
   }
 
@@ -408,8 +421,8 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
   if (el.syncDriveBtn) el.syncDriveBtn.disabled = true;
 
   try {
-    const files = cfg.indexFileId
-      ? await listDriveFilesFromIndex(cfg.apiKey, cfg.indexFileId)
+    const files = hasIndexMode
+      ? await listDriveFilesFromIndex(cfg.indexFileId)
       : await listDriveFiles(cfg.apiKey, cfg.folderId);
 
     if (!files.length) {
@@ -429,7 +442,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
 
     for (const f of files) {
       try {
-        const payload = await fetchJsonOrThrow(driveMediaUrl(f.id, cfg.apiKey, f.resourceKey));
+        const payload = await fetchJsonOrThrow(drivePublicDownloadUrl(f.id, f.resourceKey));
         const rec = buildRecord(parseAarObject(payload), "drive_file", f.name || f.id);
         rec.updatedAt = f.modifiedTime || new Date().toISOString();
         records.push(rec);
@@ -932,10 +945,10 @@ async function init() {
   updateLastSyncLabel(lastSync);
 
   const cfg = getDriveConfig();
-  if (cfg.apiKey && (cfg.folderId || cfg.indexFileId)) {
+  if (cfg.indexFileId || (cfg.apiKey && cfg.folderId)) {
     setSourceStatus("Source: Google Drive configure");
   } else {
-    setSourceStatus("Source: config Google Drive incomplete (config.js)");
+    setSourceStatus("Source: config invalide (mettre indexFileId, ou apiKey+folderId)");
   }
 
   if (el.syncDriveBtn) {

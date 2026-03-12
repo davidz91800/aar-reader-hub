@@ -4,7 +4,7 @@ PWA lecture seule pour consulter et analyser les AAR centralises.
 
 ## Mode Google Drive (gratuit)
 
-Cette app lit des fichiers JSON AAR publics depuis Google Drive via Google Drive API.
+Cette app lit des fichiers JSON AAR publics depuis Google Drive.
 
 ### Setup minimal (admin)
 
@@ -38,6 +38,14 @@ Exemple `index.json`:
   ]
 }
 ```
+
+Mode recommande iPad:
+- `indexFileId` renseigne
+- `folderId` vide
+- `apiKey` peut etre vide si `index.json` et les AAR sont publics
+- tous les fichiers AAR doivent etre partages en lecture ("Toute personne ayant le lien")
+
+Le Reader telecharge les JSON via `drive.usercontent.google.com` (compatible CORS navigateur, y compris iPad PWA).
 
 ## Fonctionnement
 
