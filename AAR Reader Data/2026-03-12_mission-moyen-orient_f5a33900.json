@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "title": "Mission Moyen Orient",
+    "date": "2026-03-12",
+    "grade": "CDT",
+    "gradeAutre": "",
+    "nom": "ZEMMOUR",
+    "prenom": "David",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "classification": "NON PROTEGE"
+  },
+  "facts": {
+    "what": "Parti au moyen orient au pied levé",
+    "why": "Parce que l’on me l’a demandé",
+    "when": "Aujourd’hui tiens!",
+    "where": "Au moyen orient, t’es sourd?",
+    "who": "<h1>Moi</h1><h2>Moi</h2><h3>Et moi</h3><div>Et encore moi</div>",
+    "how": "Bah en avion connard",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": "Tout s’est très bien passé. Des questions?"
+  },
+  "recos": {
+    "doctrine": "Continuer comme ça : pas de doctrine pas d’emmerdes",
+    "organisation": "Continuer comme ça : pas d’organisation, well.. &nbsp;pas d’organisation",
+    "rh": "De la RH?",
+    "equipements": "Le meilleur avion du monde : le C130J, c’est le S",
+    "soutien": "On est dans l’Aae, vieux. Y’a pas de soutien. Réveil",
+    "entrainement": "Rien"
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
