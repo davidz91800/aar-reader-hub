@@ -60,7 +60,7 @@ En mode hybride, l'app peut basculer automatiquement sur un index statique GitHu
 
 Objectif: glisser un email dans un dossier et avoir automatiquement un JSON AAR exploitable par tous les iPads.
 
-1. Lancer `start-email-drop-watcher.bat` sur ton poste admin (celui qui synchronise Google Drive).
+1. Lancer `start-email-drop-watcher.bat` sur ton poste admin.
 2. Glisser/deposer tes emails dans:
    - `AAR Reader Data/_EMAIL_DROP`
 3. Le watcher extrait le bloc JSON (`---BEGIN-AAR-JSON--- ... ---END-AAR-JSON---`) et cree un fichier `.json` dans:
@@ -72,6 +72,9 @@ Objectif: glisser un email dans un dossier et avoir automatiquement un JSON AAR 
 6. Sur les iPads: ouvrir la PWA et cliquer `Synchroniser Drive` (ou relancer l'app si auto-sync active).
 
 Extensions supportees en entree: `.eml`, `.msg`, `.txt`, `.json`.
+
+Le watcher fait maintenant l'auto-push GitHub apres extraction (commit + push automatiques des fichiers `AAR Reader Data`).
+Important: ne lancer qu'une seule instance du watcher (un lock est applique pour eviter les doublons).
 
 Note: le watcher met aussi a jour `AAR Reader Data/index.json` automatiquement pour la source statique.
 

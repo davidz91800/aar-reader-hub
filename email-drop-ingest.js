@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { spawnSync } = require("child_process");
 
 const ROOT_DIR = __dirname;
 const DATA_DIR = path.join(ROOT_DIR, "AAR Reader Data");
@@ -10,9 +11,16 @@ const DROP_DIR = path.join(DATA_DIR, "_EMAIL_DROP");
 const DONE_DIR = path.join(DATA_DIR, "_EMAIL_DONE");
 const ERROR_DIR = path.join(DATA_DIR, "_EMAIL_ERROR");
 const INDEX_FILE = path.join(DATA_DIR, "index.json");
+const LOCK_FILE = path.join(ROOT_DIR, ".email-drop-watcher.lock");
 const POLL_MS = 3000;
+const AUTO_PUSH_DELAY_MS = 8000;
+const AUTO_PUSH_ENABLED = process.argv.includes("--auto-push");
+const ONCE_MODE = process.argv.includes("--once");
 
 const processing = new Set();
+let autoPushTimer = null;
+let autoPushRequested = false;
+let autoPushRunning = false;
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -24,6 +32,112 @@ function nowIso() {
 
 function log(msg) {
   console.log(`[${nowIso()}] ${msg}`);
+}
+
+function runGit(args) {
+  return spawnSync("git", args, {
+    cwd: ROOT_DIR,
+    encoding: "utf8",
+    windowsHide: true
+  });
+}
+
+function hasStagedChangesOutsideData() {
+  const out = runGit(["diff", "--cached", "--name-only"]);
+  if (out.status !== 0) return false;
+  const lines = String(out.stdout || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  return lines.some((name) => !name.startsWith("AAR Reader Data/"));
+}
+
+function scheduleAutoPush(reason) {
+  if (!AUTO_PUSH_ENABLED) return;
+  autoPushRequested = true;
+  if (autoPushTimer) return;
+  autoPushTimer = setTimeout(() => {
+    autoPushTimer = null;
+    runAutoPush().catch((e) => log(`Auto-push error: ${e.message}`));
+  }, AUTO_PUSH_DELAY_MS);
+  log(`Auto-push planifie (${reason})`);
+}
+
+async function runAutoPush() {
+  if (!AUTO_PUSH_ENABLED || autoPushRunning || !autoPushRequested) return;
+  autoPushRunning = true;
+  autoPushRequested = false;
+
+  try {
+    if (hasStagedChangesOutsideData()) {
+      log("Auto-push annule: changements indexes hors 'AAR Reader Data'.");
+      return;
+    }
+
+    let res = runGit(["add", "--all", "--", "AAR Reader Data"]);
+    if (res.status !== 0) {
+      log(`Auto-push git add echec: ${String(res.stderr || res.stdout || "").trim()}`);
+      return;
+    }
+
+    res = runGit(["diff", "--cached", "--quiet", "--", "AAR Reader Data"]);
+    if (res.status === 0) {
+      log("Auto-push: aucun changement data a publier.");
+      return;
+    }
+
+    const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
+    res = runGit(["commit", "-m", `Auto publish Reader data ${ts}`, "--", "AAR Reader Data"]);
+    if (res.status !== 0) {
+      log(`Auto-push commit echec: ${String(res.stderr || res.stdout || "").trim()}`);
+      return;
+    }
+
+    res = runGit(["push"]);
+    if (res.status !== 0) {
+      log(`Auto-push push echec: ${String(res.stderr || res.stdout || "").trim()}`);
+      return;
+    }
+
+    log("Auto-push: publication GitHub terminee.");
+  } finally {
+    autoPushRunning = false;
+    if (autoPushRequested && !autoPushTimer) {
+      autoPushTimer = setTimeout(() => {
+        autoPushTimer = null;
+        runAutoPush().catch((e) => log(`Auto-push error: ${e.message}`));
+      }, AUTO_PUSH_DELAY_MS);
+    }
+  }
+}
+
+function isPidAlive(pid) {
+  const n = Number(pid);
+  if (!Number.isInteger(n) || n <= 0) return false;
+  try {
+    process.kill(n, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquireLock() {
+  if (ONCE_MODE) return;
+  if (fs.existsSync(LOCK_FILE)) {
+    const raw = fs.readFileSync(LOCK_FILE, "utf8").trim();
+    if (isPidAlive(raw)) {
+      throw new Error(`Watcher deja lance (pid ${raw}).`);
+    }
+  }
+  fs.writeFileSync(LOCK_FILE, String(process.pid), "utf8");
+}
+
+function releaseLock() {
+  if (ONCE_MODE) return;
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const raw = fs.readFileSync(LOCK_FILE, "utf8").trim();
+      if (String(process.pid) === raw) fs.unlinkSync(LOCK_FILE);
+    }
+  } catch {}
 }
 
 function safeDate(v) {
@@ -351,6 +465,7 @@ async function processFile(fileName) {
     rebuildStaticIndex();
     const moved = moveTo(DONE_DIR, source);
     log(`OK ${fileName} -> ${created.length} JSON (${created.join(", ")}) | archive: ${path.basename(moved)}`);
+    scheduleAutoPush(fileName);
   } catch (error) {
     let movedName = "n/a";
     try {
@@ -387,6 +502,7 @@ async function startWatcher() {
   log(`Drop dossier: ${DROP_DIR}`);
   log(`Output JSON: ${DATA_DIR}`);
   log("Extensions supportees: .eml, .msg, .txt, .json");
+  if (AUTO_PUSH_ENABLED) log("Auto-push GitHub: ACTIVE");
   await scanOnce();
 
   setInterval(() => {
@@ -395,11 +511,14 @@ async function startWatcher() {
 }
 
 async function main() {
-  const once = process.argv.includes("--once");
-  if (once) {
+  if (ONCE_MODE) {
     await scanOnce();
     return;
   }
+  acquireLock();
+  process.on("exit", releaseLock);
+  process.on("SIGINT", () => { releaseLock(); process.exit(0); });
+  process.on("SIGTERM", () => { releaseLock(); process.exit(0); });
   await startWatcher();
 }
 
