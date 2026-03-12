@@ -324,14 +324,26 @@ function normalizeDriveId(raw) {
   return out;
 }
 
+function isPlaceholderValue(value) {
+  const v = String(value || "").trim().toUpperCase();
+  if (!v) return false;
+  return v.includes("ID_INDEX_JSON_PUBLIC")
+    || v.includes("ID_DU_DOSSIER_DRIVE")
+    || v.includes("TON_API_KEY")
+    || v.includes("API_KEY_OPTIONNEL");
+}
+
 function getDriveConfig() {
   const cfg = window.AAR_READER_CONFIG || {};
   const g = cfg.googleDrive || {};
+  const apiKeyRaw = String(g.apiKey || "").trim();
+  const folderIdRaw = normalizeDriveId(g.folderId);
+  const indexFileIdRaw = normalizeDriveId(g.indexFileId);
   return {
     autoSyncOnStartup: cfg.autoSyncOnStartup !== false,
-    apiKey: String(g.apiKey || "").trim(),
-    folderId: normalizeDriveId(g.folderId),
-    indexFileId: normalizeDriveId(g.indexFileId)
+    apiKey: isPlaceholderValue(apiKeyRaw) ? "" : apiKeyRaw,
+    folderId: isPlaceholderValue(folderIdRaw) ? "" : folderIdRaw,
+    indexFileId: isPlaceholderValue(indexFileIdRaw) ? "" : indexFileIdRaw
   };
 }
 
