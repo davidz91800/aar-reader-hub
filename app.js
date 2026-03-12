@@ -464,8 +464,12 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
         if (cfg.apiKey) {
           try {
             payload = await fetchJsonOrThrow(driveMediaUrl(f.id, cfg.apiKey, f.resourceKey));
-          } catch {
-            payload = await fetchJsonOrThrow(drivePublicDownloadUrl(f.id, f.resourceKey));
+          } catch (apiErr) {
+            try {
+              payload = await fetchJsonOrThrow(drivePublicDownloadUrl(f.id, f.resourceKey));
+            } catch (publicErr) {
+              throw new Error(`API: ${apiErr.message} | Public: ${publicErr.message}`);
+            }
           }
         } else {
           payload = await fetchJsonOrThrow(drivePublicDownloadUrl(f.id, f.resourceKey));
