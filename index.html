@@ -90,17 +90,22 @@
 
   <div id="toast" class="toast"></div>
 
-  <script src="./config.js?v=20260312i"></script>
-  <script src="./app.js?v=20260312i"></script>
+  <script src="./config.js?v=20260312j"></script>
+  <script src="./app.js?v=20260312j"></script>
   <script>
-    (function registerPwa() {
-      if (!('serviceWorker' in navigator)) return;
-      window.addEventListener('load', async () => {
+    (function disableSwForStability() {
+      if (!("serviceWorker" in navigator)) return;
+      window.addEventListener("load", async () => {
         try {
-          const registration = await navigator.serviceWorker.register('./sw.js?v=20260312i', { scope: './' });
-          await registration.update();
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            const targets = keys.filter((k) => k.includes("aar-reader-shell"));
+            await Promise.all(targets.map((k) => caches.delete(k)));
+          }
         } catch (error) {
-          console.warn('Service worker registration failed:', error);
+          console.warn("Service worker cleanup failed:", error);
         }
       });
     })();
