@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Vraiment Dernier test avant de se coucher",
+    "date": "2026-03-12",
+    "grade": "CDT",
+    "gradeAutre": "",
+    "nom": "ZEMMOUR",
+    "prenom": "David",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "flotte": "C-130J",
+    "flotteAutre": "",
+    "classification": "NON PROTEGE",
+    "missionType": "LOG",
+    "logCountry": "France",
+    "logCountryAutre": "",
+    "logAirfield": "LFOE Evreux",
+    "logAirfieldAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Rien de spécial",
+    "why": "",
+    "when": "",
+    "where": "",
+    "who": "",
+    "how": "",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": "Pas danalyse"
+  },
+  "recos": {
+    "doctrine": "Pas de recommendations",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
