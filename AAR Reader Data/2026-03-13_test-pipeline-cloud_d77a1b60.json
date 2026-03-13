@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "TEST PIPELINE CLOUD",
+    "date": "2026-03-13",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "DUPONT",
+    "prenom": "JEAN",
+    "unite": "ET 1/61 TOURAINE",
+    "uniteAutre": "",
+    "flotte": "A-400M",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "LOG",
+    "logCountry": "France",
+    "logCountryAutre": "",
+    "logAirfield": "LFBO Toulouse",
+    "logAirfieldAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Vol logistique de test",
+    "why": "Validation automatisation",
+    "when": "13/03/2026",
+    "where": "LFBO",
+    "who": "Équipage A400M",
+    "how": "Procédure standard",
+    "narrative": "Mission de test sans incident."
+  },
+  "analysis": {
+    "content": "RAS."
+  },
+  "recos": {
+    "doctrine": "Aucune",
+    "organisation": "Aucune",
+    "rh": "Aucune",
+    "equipements": "Aucune",
+    "soutien": "Aucune",
+    "entrainement": "Aucune"
+  },
+  "qwi": {
+    "advice": "Continuer la surveillance automatique."
+  }
+}
