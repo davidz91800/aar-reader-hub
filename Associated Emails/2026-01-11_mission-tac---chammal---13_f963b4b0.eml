@@ -1,0 +1,70 @@
+Subject: AAR - Mission TAC - Chammal - 13
+From: CNE Pilot13 John <pilot13.john@air.defense.gouv.fr>
+To: david.zemmour3@gmail.com
+X-Unsent: 1
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Bonjour,
+
+Veuillez trouver ci-joint l'After Action Report (AAR) concernant la mission "=
+Mission TAC - Chammal - 13" effectu=C3=A9e le 2026-01-11 par la CIET 340.
+
+---BEGIN-AAR-JSON---
+{
+  "aar": {
+    "meta": {
+      "id": "aar-013-f963b4b0",
+      "date": "2026-01-11",
+      "title": "Mission TAC - Chammal - 13",
+      "nom": "Pilot13",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "CIET 340",
+      "classification": "NON PROTEGE",
+      "flotte": "A400M",
+      "missionType": "TAC",
+      "logCountry": "",
+      "logAirfield": "",
+      "tacContext": "OPERATIONS",
+      "tacOperation": "Chammal",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacit=C3=A9s op=C3=A9rationnelles.",
+      "when": "Le 2026-01-11",
+      "where": "Zone d'op=C3=A9ration d=C3=A9sign=C3=A9e.",
+      "who": "=C3=89quipage de la CIET 340",
+      "how": "Utilisation des proc=C3=A9dures standards OTAN.",
+      "narrative": "La mission s'est d=C3=A9roul=C3=A9e conform=C3=A9ment au =
+plan. Quelques points d'attention sur la m=C3=A9t=C3=A9o locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, r=C3=A9activit=C3=A9 technique.",
+      "challenges": "M=C3=A9t=C3=A9o changeante, communications radio parfois=
+ difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "SOUTIEN",
+          "text": "Am=C3=A9liorer les proc=C3=A9dures de briefing m=C3=A9t=C3=
+=A9o."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente ex=C3=A9cution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}
+---END-AAR-JSON---
+
+Cordialement,
+CNE Pilot13 John
+CIET 340

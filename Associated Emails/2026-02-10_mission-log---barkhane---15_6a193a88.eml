@@ -1,0 +1,71 @@
+Subject: AAR - Mission LOG - Barkhane - 15
+From: CNE Pilot15 John <pilot15.john@air.defense.gouv.fr>
+To: david.zemmour3@gmail.com
+X-Unsent: 1
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Bonjour,
+
+Veuillez trouver ci-joint l'After Action Report (AAR) concernant la mission "=
+Mission LOG - Barkhane - 15" effectu=C3=A9e le 2026-02-10 par la ET 1/64 B=C3=
+=A9arn.
+
+---BEGIN-AAR-JSON---
+{
+  "aar": {
+    "meta": {
+      "id": "aar-015-6a193a88",
+      "date": "2026-02-10",
+      "title": "Mission LOG - Barkhane - 15",
+      "nom": "Pilot15",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "ET 1/64 B=C3=A9arn",
+      "classification": "DIFFUSION RESTREINTE",
+      "flotte": "CN235",
+      "missionType": "LOG",
+      "logCountry": "France",
+      "logAirfield": "Base Alpha",
+      "tacContext": "",
+      "tacOperation": "",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacit=C3=A9s op=C3=A9rationnelles.",
+      "when": "Le 2026-02-10",
+      "where": "Zone d'op=C3=A9ration d=C3=A9sign=C3=A9e.",
+      "who": "=C3=89quipage de la ET 2/64 Anjou",
+      "how": "Utilisation des proc=C3=A9dures standards OTAN.",
+      "narrative": "La mission s'est d=C3=A9roul=C3=A9e conform=C3=A9ment au =
+plan. Quelques points d'attention sur la m=C3=A9t=C3=A9o locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, r=C3=A9activit=C3=A9 technique.",
+      "challenges": "M=C3=A9t=C3=A9o changeante, communications radio parfois=
+ difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "DOCTRINE",
+          "text": "Am=C3=A9liorer les proc=C3=A9dures de briefing m=C3=A9t=C3=
+=A9o."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente ex=C3=A9cution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}
+---END-AAR-JSON---
+
+Cordialement,
+CNE Pilot15 John
+ET 1/64 B=C3=A9arn

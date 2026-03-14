@@ -1,0 +1,71 @@
+Subject: AAR - Mission TAC - Barkhane - 2
+From: CNE Pilot2 John <pilot2.john@air.defense.gouv.fr>
+To: david.zemmour3@gmail.com
+X-Unsent: 1
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Bonjour,
+
+Veuillez trouver ci-joint l'After Action Report (AAR) concernant la mission "=
+Mission TAC - Barkhane - 2" effectu=C3=A9e le 2026-03-01 par la ET 1/61 Toura=
+ine.
+
+---BEGIN-AAR-JSON---
+{
+  "aar": {
+    "meta": {
+      "id": "aar-002-cd934bb2",
+      "date": "2026-03-01",
+      "title": "Mission TAC - Barkhane - 2",
+      "nom": "Pilot2",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "ET 1/61 Touraine",
+      "classification": "NON PROTEGE",
+      "flotte": "A400M",
+      "missionType": "TAC",
+      "logCountry": "",
+      "logAirfield": "",
+      "tacContext": "OPERATIONS",
+      "tacOperation": "Barkhane",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacit=C3=A9s op=C3=A9rationnelles.",
+      "when": "Le 2026-03-01",
+      "where": "Zone d'op=C3=A9ration d=C3=A9sign=C3=A9e.",
+      "who": "=C3=89quipage de la ET 1/61 Touraine",
+      "how": "Utilisation des proc=C3=A9dures standards OTAN.",
+      "narrative": "La mission s'est d=C3=A9roul=C3=A9e conform=C3=A9ment au =
+plan. Quelques points d'attention sur la m=C3=A9t=C3=A9o locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, r=C3=A9activit=C3=A9 technique.",
+      "challenges": "M=C3=A9t=C3=A9o changeante, communications radio parfois=
+ difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "ENTRAINEMENT",
+          "text": "Am=C3=A9liorer les proc=C3=A9dures de briefing m=C3=A9t=C3=
+=A9o."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente ex=C3=A9cution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}
+---END-AAR-JSON---
+
+Cordialement,
+CNE Pilot2 John
+ET 1/61 Touraine
