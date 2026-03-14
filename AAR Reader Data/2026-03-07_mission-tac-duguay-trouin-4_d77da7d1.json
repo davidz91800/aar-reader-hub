@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission TAC - Duguay-Trouin - 4",
+    "date": "2026-03-07",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot4",
+    "prenom": "John",
+    "unite": "ET 2/64 Anjou",
+    "uniteAutre": "",
+    "flotte": "C130J",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "TAC",
+    "logCountry": "",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "tacContext": "OPERATIONS",
+    "tacOperation": "Duguay-Trouin",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-03-07",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la ET 2/64 Anjou",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
