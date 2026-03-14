@@ -1,0 +1,63 @@
+De : CNE Pilot18 John <pilot18.john@air.defense.gouv.fr>
+Envoyé : 2026-02-22
+À : RETEX Hub <retex-hub@mil.fr>
+Objet : AAR - Mission LOG - Barkhane - 18
+
+Bonjour,
+
+Veuillez trouver ci-joint l'After Action Report (AAR) concernant la mission "Mission LOG - Barkhane - 18" effectuée le 2026-02-22 par la ET 1/61 Touraine.
+
+---BEGIN-AAR-JSON---
+{
+  "aar": {
+    "meta": {
+      "id": "aar-018-758f2213",
+      "date": "2026-02-22",
+      "title": "Mission LOG - Barkhane - 18",
+      "nom": "Pilot18",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "ET 1/61 Touraine",
+      "classification": "DIFFUSION RESTREINTE",
+      "flotte": "CN235",
+      "missionType": "LOG",
+      "logCountry": "Mali",
+      "logAirfield": "Base Alpha",
+      "tacContext": "",
+      "tacOperation": "",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacités opérationnelles.",
+      "when": "Le 2026-02-22",
+      "where": "Zone d'opération désignée.",
+      "who": "Équipage de la ET 1/61 Touraine",
+      "how": "Utilisation des procédures standards OTAN.",
+      "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, réactivité technique.",
+      "challenges": "Météo changeante, communications radio parfois difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "ENTRAINEMENT",
+          "text": "Améliorer les procédures de briefing météo."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente exécution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}
+---END-AAR-JSON---
+
+Cordialement,
+CNE Pilot18 John
+ET 1/61 Touraine

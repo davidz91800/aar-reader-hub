@@ -1,0 +1,63 @@
+De : CNE Pilot6 John <pilot6.john@air.defense.gouv.fr>
+Envoyé : 2026-01-02
+À : RETEX Hub <retex-hub@mil.fr>
+Objet : AAR - Mission LOG - Sagittaire - 6
+
+Bonjour,
+
+Veuillez trouver ci-joint l'After Action Report (AAR) concernant la mission "Mission LOG - Sagittaire - 6" effectuée le 2026-01-02 par la CIET 340.
+
+---BEGIN-AAR-JSON---
+{
+  "aar": {
+    "meta": {
+      "id": "aar-006-4eb5042b",
+      "date": "2026-01-02",
+      "title": "Mission LOG - Sagittaire - 6",
+      "nom": "Pilot6",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "CIET 340",
+      "classification": "DIFFUSION RESTREINTE",
+      "flotte": "C130J",
+      "missionType": "LOG",
+      "logCountry": "Djibouti",
+      "logAirfield": "Base Alpha",
+      "tacContext": "",
+      "tacOperation": "",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacités opérationnelles.",
+      "when": "Le 2026-01-02",
+      "where": "Zone d'opération désignée.",
+      "who": "Équipage de la ET 1/64 Béarn",
+      "how": "Utilisation des procédures standards OTAN.",
+      "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, réactivité technique.",
+      "challenges": "Météo changeante, communications radio parfois difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "EQUIPEMENTS",
+          "text": "Améliorer les procédures de briefing météo."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": false,
+      "qwiOpinion": "Avis favorable. Excellente exécution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}
+---END-AAR-JSON---
+
+Cordialement,
+CNE Pilot6 John
+CIET 340

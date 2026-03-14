@@ -1,0 +1,63 @@
+De : CNE Pilot2 John <pilot2.john@air.defense.gouv.fr>
+Envoyé : 2026-03-01
+À : RETEX Hub <retex-hub@mil.fr>
+Objet : AAR - Mission TAC - Barkhane - 2
+
+Bonjour,
+
+Veuillez trouver ci-joint l'After Action Report (AAR) concernant la mission "Mission TAC - Barkhane - 2" effectuée le 2026-03-01 par la ET 1/61 Touraine.
+
+---BEGIN-AAR-JSON---
+{
+  "aar": {
+    "meta": {
+      "id": "aar-002-cd934bb2",
+      "date": "2026-03-01",
+      "title": "Mission TAC - Barkhane - 2",
+      "nom": "Pilot2",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "ET 1/61 Touraine",
+      "classification": "NON PROTEGE",
+      "flotte": "A400M",
+      "missionType": "TAC",
+      "logCountry": "",
+      "logAirfield": "",
+      "tacContext": "OPERATIONS",
+      "tacOperation": "Barkhane",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacités opérationnelles.",
+      "when": "Le 2026-03-01",
+      "where": "Zone d'opération désignée.",
+      "who": "Équipage de la ET 1/61 Touraine",
+      "how": "Utilisation des procédures standards OTAN.",
+      "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, réactivité technique.",
+      "challenges": "Météo changeante, communications radio parfois difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "ENTRAINEMENT",
+          "text": "Améliorer les procédures de briefing météo."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente exécution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}
+---END-AAR-JSON---
+
+Cordialement,
+CNE Pilot2 John
+ET 1/61 Touraine
