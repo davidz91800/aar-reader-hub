@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission TAC - Athena - 19",
+    "date": "2026-01-26",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot19",
+    "prenom": "John",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "flotte": "C130J",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "TAC",
+    "logCountry": "",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "tacContext": "EXERCICE",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "Athena",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-01-26",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la ET 2/64 Anjou",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
