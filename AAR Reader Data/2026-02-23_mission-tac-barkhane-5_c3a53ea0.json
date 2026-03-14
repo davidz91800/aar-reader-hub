@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission TAC - Barkhane - 5",
+    "date": "2026-02-23",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot5",
+    "prenom": "John",
+    "unite": "ET 3/61 Poitou",
+    "uniteAutre": "",
+    "flotte": "MRTT",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "TAC",
+    "logCountry": "",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "tacContext": "OPERATIONS",
+    "tacOperation": "Barkhane",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-02-23",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la CIET 340",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
