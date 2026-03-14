@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission LOG - Serpentaire - 3",
+    "date": "2026-02-06",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot3",
+    "prenom": "John",
+    "unite": "ET 1/64 Béarn",
+    "uniteAutre": "",
+    "flotte": "MRTT",
+    "flotteAutre": "",
+    "classification": "NON PROTEGE",
+    "missionType": "LOG",
+    "logCountry": "Jordanie",
+    "logCountryAutre": "",
+    "logAirfield": "Base Alpha",
+    "logAirfieldAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-02-06",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la ET 1/64 Béarn",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
