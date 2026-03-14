@@ -875,6 +875,18 @@ function renderAnalyze() {
     return;
   }
 
+  const totals = state.reports.reduce((a, r) => {
+    a.facts += r.factsFilled;
+    a.recos += r.recosFilled;
+    a.words += r.wordCount;
+    a.qwi += r.qwiFilled ? 1 : 0;
+    return a;
+  }, { facts: 0, recos: 0, words: 0, qwi: 0 });
+
+  const classifTop = topMap(state.reports, (r) => [r.classification], 5);
+  const unitTop = topMap(state.reports, (r) => [r.unit || "N/A"], 10);
+  const recoTop = topMap(state.reports, (r) => r.recoCats || [], 6);
+  const fleetTop = topMap(state.reports, (r) => [r.fleet].filter(Boolean), 8);
   const mTypeTop = topMap(state.reports, (r) => [r.missionType].filter(Boolean), 10);
   const countryTop = topMap(state.reports, (r) => [r.country].filter(Boolean), 30);
 
@@ -886,12 +898,19 @@ function renderAnalyze() {
   });
 
   el.viewAnalyze.innerHTML = `
-    <div class="stats-grid" style="grid-template-columns: 1fr;">
+    <div class="stats-grid">
       <article class="stat-card"><div class="stat-label">AAR total</div><div class="stat-value">${state.reports.length}</div></article>
+      <article class="stat-card"><div class="stat-label">5W1H remplis</div><div class="stat-value">${totals.facts}</div></article>
+      <article class="stat-card"><div class="stat-label">Recos total</div><div class="stat-value">${totals.recos}</div></article>
+      <article class="stat-card"><div class="stat-label">Avis QWI</div><div class="stat-value">${totals.qwi}</div></article>
     </div>
     <div class="analyze-grid">
-      <section class="analyze-box"><h4>Par type de mission</h4>${mTypeDisplay.length ? barsHtml(mTypeDisplay) : '<p style="color:var(--text-muted)">Aucun AAR avec un type de mission renseigné.</p>'}</section>
-      <section class="analyze-box"><h4>Par pays</h4>${countryTop.length ? barsHtml(countryTop) : '<p style="color:var(--text-muted)">Aucun AAR avec un pays renseigné.</p>'}</section>
+      ${mTypeDisplay.length ? `<section class="analyze-box"><h4>Par type de mission</h4>${barsHtml(mTypeDisplay)}</section>` : ""}
+      ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop)}</section>` : ""}
+      <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop)}</section>
+      <section class="analyze-box"><h4>Par unité</h4>${barsHtml(unitTop)}</section>
+      <section class="analyze-box"><h4>Par catégorie DORESE</h4>${barsHtml(recoTop)}</section>
+      ${fleetTop.length ? `<section class="analyze-box"><h4>Par flotte</h4>${barsHtml(fleetTop)}</section>` : ""}
     </div>`;
 }
 
