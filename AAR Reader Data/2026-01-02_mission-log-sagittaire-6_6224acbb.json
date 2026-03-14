@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission LOG - Sagittaire - 6",
+    "date": "2026-01-02",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot6",
+    "prenom": "John",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "flotte": "C130J",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "LOG",
+    "logCountry": "Djibouti",
+    "logCountryAutre": "",
+    "logAirfield": "Base Alpha",
+    "logAirfieldAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-01-02",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la ET 1/64 Béarn",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
