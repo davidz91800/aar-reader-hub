@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission TAC - Orion 26 - 10",
+    "date": "2026-01-24",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot10",
+    "prenom": "John",
+    "unite": "ET 1/64 Béarn",
+    "uniteAutre": "",
+    "flotte": "A400M",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "TAC",
+    "logCountry": "",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "tacContext": "EXERCICE",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "Orion 26",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-01-24",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la ET 1/61 Touraine",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
