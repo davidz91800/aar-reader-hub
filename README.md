@@ -79,6 +79,15 @@ Il surveille aussi les ajouts/suppressions/modifications manuels de `.json` dans
 
 Note: le watcher met aussi a jour `AAR Reader Data/index.json` automatiquement pour la source statique.
 
+## Mode Cloud 100% (sans PC allume)
+
+Un pipeline Google Apps Script est disponible dans:
+
+- `cloud-automation/README.md`
+- `cloud-automation/apps-script/Code.gs`
+
+Ce mode traite les emails directement dans le cloud, ecrit les JSON dans Drive, puis pousse automatiquement les donnees vers GitHub.
+
 ## Publication en 1 clic (apres ajout manuel de JSON)
 
 Si tu ajoutes un `.json` directement dans `AAR Reader Data`, lance:

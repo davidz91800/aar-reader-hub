@@ -1,100 +1,122 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>AAR Reader Hub</title>
+  <meta name="description" content="Consultation centralisée des After Action Reviews — lecture seule, filtres avancés, analyse globale.">
   <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">AR</div>
-      <div>
-        <h1>AAR Reader Hub</h1>
-        <p>Consultation centralisee, lecture seule, analyse globale</p>
+
+  <!-- ═══ HEADER ═══ -->
+  <header id="app-header">
+    <div class="header-left">
+      <div class="logo-mark">
+        <svg viewBox="0 0 36 36" width="22" height="22" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+          <circle cx="18" cy="18" r="12" opacity="0.35"/>
+          <circle cx="18" cy="18" r="6"/>
+          <line x1="18" y1="2" x2="18" y2="10"/>
+          <line x1="18" y1="26" x2="18" y2="34"/>
+          <line x1="2" y1="18" x2="10" y2="18"/>
+          <line x1="26" y1="18" x2="34" y2="18"/>
+        </svg>
+      </div>
+      <div class="header-text">
+        <h1>RETEX <span class="title-accent">Hub</span></h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="sync-btn" class="btn-icon" title="Synchroniser les données">
+        <svg class="icon-sync" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+      <div class="view-toggle" id="view-toggle">
+        <button class="toggle-btn active" data-view="list" title="Consultation">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+        <button class="toggle-btn" data-view="analyze" title="Analyse globale">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </button>
       </div>
     </div>
   </header>
 
-  <main class="layout">
-    <aside class="left">
-      <section class="card import-card">
-        <h2 class="import-title-static">Source Google Drive</h2>
-        <p id="source-status">Source: en attente</p>
-        <p id="last-sync">Derniere synchro: jamais</p>
-        <div class="row row-full">
-          <button id="sync-drive-btn" class="btn primary">Synchroniser Drive</button>
-        </div>
-      </section>
+  <!-- ═══ FILTERS BAR ═══ -->
+  <section id="filters-bar" class="filters-bar">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search-input" type="search" placeholder="Rechercher titre, rédacteur, unité, analyse…" autocomplete="off">
+    </div>
+    <div class="filter-chips" id="filter-chips">
+      <select id="filter-mission-type" class="chip-select" title="Type de mission">
+        <option value="ALL">Mission: Tous</option>
+        <option value="LOG">LOG</option>
+        <option value="TAC">TAC</option>
+      </select>
+      <select id="filter-classif" class="chip-select" title="Classification">
+        <option value="ALL">Classif: Tous</option>
+        <option value="NON PROTEGE">NON PROTÉGÉ</option>
+        <option value="DIFFUSION RESTREINTE">DIFFUSION RESTREINTE</option>
+        <option value="SECRET SPECIAL FRANCE">SECRET SPÉCIAL FRANCE</option>
+      </select>
+      <select id="filter-fleet" class="chip-select" title="Flotte">
+        <option value="ALL">Flotte: Toutes</option>
+      </select>
+      <select id="filter-unit" class="chip-select" title="Unité">
+        <option value="ALL">Unité: Toutes</option>
+      </select>
+      <select id="filter-country" class="chip-select" title="Pays">
+        <option value="ALL">Pays: Tous</option>
+      </select>
+      <select id="filter-sort" class="chip-select" title="Tri">
+        <option value="DATE_DESC">Date ↓</option>
+        <option value="DATE_ASC">Date ↑</option>
+        <option value="TITLE_ASC">Titre A→Z</option>
+        <option value="UPDATED_DESC">Maj récente</option>
+      </select>
+    </div>
+  </section>
 
-      <section class="card import-card">
-        <input id="import-files-input" type="file" multiple accept=".json,.eml,.txt" style="display:none">
-        <input id="import-folder-input" type="file" webkitdirectory directory multiple style="display:none">
-        <h2 class="import-title-static">Import Local</h2>
-        <div id="dropzone" class="dropzone import-dropzone">
-          <strong>Glisse ici</strong>
-          <span>JSON, email texte, ou dossier</span>
-        </div>
-        <div class="row row-full">
-          <button id="import-files-btn" class="btn">Importer fichiers (.json/.eml/.txt)</button>
-        </div>
-        <div class="row row-full">
-          <button id="import-folder-btn" class="btn">Importer dossier local</button>
-        </div>
-        <div class="reset-wrap">
-          <button id="reset-app-btn" class="btn subtle" title="Efface le cache local">Reinitialiser cache</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Coller Email Brut</h2>
-        <textarea id="raw-email-input" placeholder="Colle ici le contenu brut d'un email contenant ---BEGIN-AAR-JSON---"></textarea>
-        <div class="row">
-          <button id="import-raw-btn" class="btn">Importer texte</button>
-          <button id="paste-clipboard-btn" class="btn">Coller presse-papiers</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Filtres</h2>
-        <input id="search-input" placeholder="Recherche titre, redacteur, unite, analyse...">
-        <div class="row">
-          <select id="classif-filter">
-            <option value="ALL">Classif: Tous</option>
-            <option value="NON PROTEGE">NON PROTEGE</option>
-            <option value="DIFFUSION RESTREINTE">DIFFUSION RESTREINTE</option>
-            <option value="SECRET SPECIAL FRANCE">SECRET SPECIAL FRANCE</option>
-            <option value="UNKNOWN">UNKNOWN</option>
-          </select>
-          <select id="sort-filter">
-            <option value="DATE_DESC">Date desc</option>
-            <option value="DATE_ASC">Date asc</option>
-            <option value="TITLE_ASC">Titre A-Z</option>
-            <option value="UPDATED_DESC">Maj recente</option>
-          </select>
-        </div>
-      </section>
-    </aside>
-
-    <section class="right">
-      <nav class="tabs">
-        <button class="tab active" data-mode="consult">Consultation</button>
-        <button class="tab" data-mode="analyze">Analyse</button>
-      </nav>
-      <section id="panel-consult" class="panel active"></section>
-      <section id="panel-analyze" class="panel"></section>
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <main id="main-content">
+    <!-- LIST VIEW -->
+    <section id="view-list" class="view active">
+      <div id="aar-count" class="count-badge"></div>
+      <div id="aar-grid" class="aar-grid"></div>
     </section>
+
+    <!-- ANALYZE VIEW -->
+    <section id="view-analyze" class="view"></section>
   </main>
 
+  <!-- ═══ DETAIL MODAL ═══ -->
+  <div id="detail-overlay" class="detail-overlay">
+    <div id="detail-sheet" class="detail-sheet">
+      <header class="detail-header">
+        <button id="detail-close" class="btn-icon" title="Fermer">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h2 id="detail-title"></h2>
+        <p id="detail-meta-line" class="subtitle"></p>
+      </header>
+      <div id="detail-body" class="detail-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ TOAST ═══ -->
   <div id="toast" class="toast"></div>
 
-  <script src="./config.js?v=20260312j"></script>
-  <script src="./app.js?v=20260312j"></script>
+  <script src="./config.js?v=20260314a"></script>
+  <script src="./app.js?v=20260314a"></script>
   <script>
+    /* Keep service worker cleanup for stability */
     (function disableSwForStability() {
       if (!("serviceWorker" in navigator)) return;
+      if (location.protocol === "file:") return; // no SW on file://
       window.addEventListener("load", async () => {
         try {
           const regs = await navigator.serviceWorker.getRegistrations();
