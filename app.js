@@ -619,6 +619,35 @@ function setSyncing(on) {
   }
 }
 
+function showFileModeHelp() {
+  const filtersBar = document.getElementById("filters-bar");
+  const mainContent = document.getElementById("main-content");
+  const header = document.getElementById("app-header");
+  const overlay = document.getElementById("detail-overlay");
+  const toastNode = document.getElementById("toast");
+
+  if (filtersBar) filtersBar.style.display = "none";
+  if (header) header.style.position = "sticky";
+  if (overlay) overlay.style.display = "none";
+  if (toastNode) toastNode.style.display = "none";
+
+  if (!mainContent) return;
+  mainContent.innerHTML = `
+    <section class="view active" style="display:block;padding:20px 16px 36px;">
+      <article style="max-width:760px;margin:0 auto;background:var(--surface, #fff);border:1px solid rgba(0,0,0,0.08);border-radius:16px;padding:20px 18px;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+        <h2 style="margin:0 0 10px;">Mauvais mode d'ouverture detecte</h2>
+        <p style="margin:0 0 10px;">Tu as ouvert <code>index.html</code> directement (mode <code>file://</code>). Dans ce mode, le navigateur bloque une partie des chargements reseau.</p>
+        <p style="margin:0 0 8px;"><strong>Fais plutot comme ca :</strong></p>
+        <ol style="margin:0 0 12px 18px;padding:0;">
+          <li>Ferme cet onglet.</li>
+          <li>Dans ce dossier, double-clique <code>0 - OUVRIR AAR READER HUB.bat</code>.</li>
+          <li>Attends l'ouverture de <code>http://localhost:8080/index.html</code>.</li>
+        </ol>
+        <p style="margin:0;color:#555;">Alternative: lance manuellement <code>start-reader-server.bat</code>.</p>
+      </article>
+    </section>`;
+}
+
 /* ═══ IndexedDB ═══ */
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -853,15 +882,58 @@ function topMap(reports, mapper, n) {
   return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
-function barsHtml(rows) {
+function barsHtml(rows, opts = {}) {
   if (!rows.length) return '<p style="color:var(--text-muted)">Aucune donnée.</p>';
+  const {
+    drilldown = "",
+    formatLabel = (k) => k,
+    mapValue = (k) => k
+  } = opts;
   const max = Math.max(...rows.map((x) => x[1]));
   return rows.map(([k, v]) => `
-    <div class="bar-row">
-      <div class="bar-label" title="${esc(k)}">${esc(k)}</div>
+    <div class="bar-row ${drilldown ? "is-clickable" : ""}" ${drilldown ? `data-drilldown="${esc(drilldown)}" data-value="${esc(mapValue(k))}" role="button" tabindex="0"` : ""}>
+      <div class="bar-label" title="${esc(formatLabel(k))}">${esc(formatLabel(k))}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.max(6, Math.round((v / max) * 100))}%"></div></div>
       <div class="bar-value">${v}</div>
     </div>`).join("");
+}
+
+function setSelectFilter(selectEl, value) {
+  if (!selectEl) return;
+  const hasValue = Array.from(selectEl.options || []).some((o) => o.value === value);
+  selectEl.value = hasValue ? value : "ALL";
+  updateChipState(selectEl);
+}
+
+function drilldownFromAnalyze(type, value) {
+  if (!type || !value) return;
+
+  if (type === "missionType") setSelectFilter(el.filterMissionType, value);
+  else if (type === "classification") setSelectFilter(el.filterClassif, value);
+  else if (type === "country") setSelectFilter(el.filterCountry, value);
+  else if (type === "unit") setSelectFilter(el.filterUnit, value);
+  else if (type === "operation" || type === "reco") {
+    if (el.searchInput) el.searchInput.value = value;
+  }
+
+  setView("list");
+  if (el.viewList) el.viewList.scrollTop = 0;
+  toast(`Filtre appliqué : ${value}`);
+}
+
+function bindAnalyzeDrilldown() {
+  if (!el.viewAnalyze) return;
+  const rows = el.viewAnalyze.querySelectorAll(".bar-row.is-clickable");
+  rows.forEach((row) => {
+    const run = () => drilldownFromAnalyze(row.dataset.drilldown, row.dataset.value);
+    row.addEventListener("click", run);
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        run();
+      }
+    });
+  });
 }
 
 function renderAnalyze() {
@@ -887,26 +959,20 @@ function renderAnalyze() {
   const countryTop = topMap(state.reports, (r) => [r.country].filter(Boolean), 30);
   const opsExTop = topMap(state.reports, (r) => [r.tacDetail].filter(Boolean), 30);
 
-  // Rename LOG / TAC for display
-  const mTypeDisplay = mTypeTop.map(([k, v]) => {
-    if (k === "LOG") return ["Logistique (LOG)", v];
-    if (k === "TAC") return ["Tactique (TAC)", v];
-    return [k, v];
-  });
-
   el.viewAnalyze.innerHTML = `
     <div class="stats-grid">
       <article class="stat-card"><div class="stat-label">AAR total</div><div class="stat-value">${state.reports.length}</div></article>
       <article class="stat-card"><div class="stat-label">Avis QWI</div><div class="stat-value">${totals.qwi}</div></article>
     </div>
     <div class="analyze-grid">
-      ${mTypeDisplay.length ? `<section class="analyze-box"><h4>Logistique / Tactique</h4>${barsHtml(mTypeDisplay)}</section>` : ""}
-      ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop)}</section>` : ""}
-      ${opsExTop.length ? `<section class="analyze-box"><h4>Par opération / exercice</h4>${barsHtml(opsExTop)}</section>` : ""}
-      <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop)}</section>
-      <section class="analyze-box"><h4>Par unité</h4>${barsHtml(unitTop)}</section>
-      <section class="analyze-box"><h4>Par catégorie DORESE</h4>${barsHtml(recoTop)}</section>
+      ${mTypeTop.length ? `<section class="analyze-box"><h4>Logistique / Tactique</h4>${barsHtml(mTypeTop, { drilldown: "missionType", formatLabel: (k) => (k === "LOG" ? "Logistique (LOG)" : k === "TAC" ? "Tactique (TAC)" : k) })}</section>` : ""}
+      ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop, { drilldown: "country" })}</section>` : ""}
+      ${opsExTop.length ? `<section class="analyze-box"><h4>Par opération / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
+      <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop, { drilldown: "classification" })}</section>
+      <section class="analyze-box"><h4>Par unité</h4>${barsHtml(unitTop, { drilldown: "unit" })}</section>
+      <section class="analyze-box"><h4>Par catégorie DORESE</h4>${barsHtml(recoTop, { drilldown: "reco" })}</section>
     </div>`;
+  bindAnalyzeDrilldown();
 }
 
 /* ═══ VIEW SWITCHING ═══ */
@@ -1002,7 +1068,7 @@ async function init() {
 
   // Detect file:// protocol — fetch won't work
   if (location.protocol === "file:") {
-    toast("Ouverture locale détectée. Utilise un serveur HTTP (ex: localhost:8888) pour charger les données.");
+    showFileModeHelp();
     return;
   }
 

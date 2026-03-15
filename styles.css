@@ -49,7 +49,8 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -237,13 +238,15 @@ body {
 /* ═══ MAIN CONTENT ═══ */
 #main-content {
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
   position: relative;
+  min-height: 0;
 }
 .view {
   display: none;
-  height: 100%;
-  overflow-y: auto;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
   padding: 1rem 1.25rem 6rem;
 }
 .view.active {
@@ -583,6 +586,17 @@ body {
   align-items: center;
   margin: 0.35rem 0;
   font-size: 0.78rem;
+}
+.bar-row.is-clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.2rem 0.35rem;
+  transition: background 0.16s ease;
+}
+.bar-row.is-clickable:hover,
+.bar-row.is-clickable:focus-visible {
+  background: rgba(59, 130, 246, 0.12);
+  outline: none;
 }
 .bar-label {
   white-space: nowrap;

@@ -112,25 +112,5 @@
 
   <script src="./config.js?v=20260314a"></script>
   <script src="./app.js?v=20260314a"></script>
-  <script>
-    /* Keep service worker cleanup for stability */
-    (function disableSwForStability() {
-      if (!("serviceWorker" in navigator)) return;
-      if (location.protocol === "file:") return; // no SW on file://
-      window.addEventListener("load", async () => {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map((r) => r.unregister()));
-          if ("caches" in window) {
-            const keys = await caches.keys();
-            const targets = keys.filter((k) => k.includes("aar-reader-shell"));
-            await Promise.all(targets.map((k) => caches.delete(k)));
-          }
-        } catch (error) {
-          console.warn("Service worker cleanup failed:", error);
-        }
-      });
-    })();
-  </script>
 </body>
 </html>
