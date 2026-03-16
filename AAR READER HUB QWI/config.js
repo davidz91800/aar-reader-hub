@@ -18,7 +18,7 @@
   };
 
   global.AAR_READER_CONFIG = {
-    autoSyncOnStartup: local.autoSyncOnStartup,
+    autoSyncOnStartup: typeof shared.autoSyncOnStartup === "boolean" ? shared.autoSyncOnStartup : local.autoSyncOnStartup,
     googleDrive: {
       oauthClientId: local.googleDrive.oauthClientId || sharedDrive.oauthClientId || "",
       apiKey: local.googleDrive.apiKey || sharedDrive.apiKey || "",

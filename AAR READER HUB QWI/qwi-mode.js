@@ -498,9 +498,16 @@
   const baseSyncPreferred = syncPreferred;
   syncPreferred = async function patchedSyncPreferred(opts = {}) {
     const localRecords = state.reports.filter((x) => x.source === LOCAL_SOURCE || x.qwiDirty);
-    const deletedIds = getDeletedIds();
+    let deletedIds = getDeletedIds();
 
     await baseSyncPreferred(opts);
+
+    // If Drive sync is unavailable and we are on static source, do not keep stale local deletions.
+    const hasDriveRecords = state.reports.some((x) => x.source === "drive_file");
+    if (!hasDriveRecords && deletedIds.size) {
+      saveDeletedIds(new Set());
+      deletedIds = new Set();
+    }
 
     let merged = state.reports.filter((x) => !deletedIds.has(x.id));
     for (const localRec of localRecords) {
@@ -533,9 +540,14 @@
 
   const deletedIds = getDeletedIds();
   if (deletedIds.size) {
-    const next = state.reports.filter((x) => !deletedIds.has(x.id));
-    if (next.length !== state.reports.length) {
-      persistRecords(next).catch((e) => console.warn("Failed to apply deleted IDs", e));
+    const hasDriveRecords = state.reports.some((x) => x.source === "drive_file");
+    if (!hasDriveRecords) {
+      saveDeletedIds(new Set());
+    } else {
+      const next = state.reports.filter((x) => !deletedIds.has(x.id));
+      if (next.length !== state.reports.length) {
+        persistRecords(next).catch((e) => console.warn("Failed to apply deleted IDs", e));
+      }
     }
   }
 
