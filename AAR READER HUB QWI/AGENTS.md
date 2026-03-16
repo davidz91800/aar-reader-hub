@@ -6,13 +6,15 @@ Ce dossier est la variante editable du Reader Hub.
 - Edition AAR: formulaire source `C - AAR PWA/AAR.html`
 
 ## Couplage obligatoire
-- Ne pas dupliquer le formulaire AAR ici: l'edition doit passer par `C - AAR PWA/AAR.html`.
+- Le formulaire source reste `C - AAR PWA/AAR.html`.
+- Le sous-dossier `aar-pwa/` de ce hub est une copie de deploiement (web/iPad) et doit etre synchronise a chaque evolution du formulaire source.
 - Protocole d'echange a maintenir:
   - Requete: `localStorage["aar_qwi_editor_request:<session>"]`
-  - Ouverture: `AAR.html?externalEditor=1&session=<session>`
+  - Ouverture: `aar-pwa/AAR.html?externalEditor=1&session=<session>`
   - Retour: `window.postMessage({ type: "aar-qwi-save", session, aar })`
 - Si ce protocole change, mettre a jour **en meme temps**:
   - `C - AAR PWA/AAR.html`
+  - `AAR READER HUB QWI/aar-pwa/AAR.html`
   - `AAR READER HUB QWI/qwi-mode.js`
 
 ## Regle de livraison

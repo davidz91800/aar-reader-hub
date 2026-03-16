@@ -3,7 +3,7 @@
   const LOCAL_SOURCE = "qwi_local";
   const REQUEST_PREFIX = "aar_qwi_editor_request:";
   const DELETED_KEY = "aar_qwi_deleted_ids_v1";
-  const EDITOR_RELATIVE_URL = "../../C - AAR PWA/AAR.html";
+  const EDITOR_RELATIVE_URL = "./aar-pwa/AAR.html";
   const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
   const sessions = new Map();
 

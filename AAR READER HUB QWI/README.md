@@ -21,7 +21,8 @@ Si `index.html` est ouvert en `file://`, l'app affiche maintenant une aide a l'e
 
 ## Edition QWI
 
-- `Nouveau` / `Modifier` ouvrent le formulaire source: `C - AAR PWA/AAR.html`.
+- `Nouveau` / `Modifier` ouvrent le formulaire embarque: `aar-pwa/AAR.html` (compatible web/iPad).
+- Le dossier `aar-pwa/` est une copie de deploiement du formulaire source `C - AAR PWA`.
 - `Supprimer` retire l'AAR localement et sur Drive (si configure).
 - Le retour d'edition se fait automatiquement vers le hub QWI.
 

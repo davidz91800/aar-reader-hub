@@ -1,0 +1,3019 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>After Action Review V1.0</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <style>
+        /* --- THEME & VARIABLES --- */
+        :root {
+            --bg-main: #0f172a;
+            /* Slate 900 */
+            --bg-card: #1e293b;
+            /* Slate 800 */
+            --bg-input: #020617;
+            /* Slate 950 */
+            --text-main: #f8fafc;
+            /* Slate 50 */
+            --text-muted: #94a3b8;
+            /* Slate 400 */
+            --accent: #3b82f6;
+            /* Blue 500 */
+            --accent-hover: #2563eb;
+            /* Blue 600 */
+            --border: #334155;
+            /* Slate 700 */
+            --success: #10b981;
+            /* Emerald 500 */
+            --danger: #ef4444;
+            /* Red 500 */
+            --warning: #f59e0b;
+            /* Amber 500 */
+            --radius: 6px;
+            --font-stack: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- LAYOUT --- */
+        header {
+            height: 60px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .brand {
+            font-weight: 800;
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            color: var(--accent);
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand span {
+            color: var(--text-main);
+            font-weight: 400;
+            opacity: 0.7;
+            font-size: 0.8rem;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* --- SIDEBAR NAV --- */
+        .sidebar {
+            width: 280px;
+            background: #0f172a;
+            /* Deep nav background */
+            border-right: 1px solid var(--border);
+            padding: 1.5rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        .nav-item {
+            padding: 0.8rem 1rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .nav-item:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active {
+            color: #fff;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.1),
+                inset 0 0 0 1px rgba(59, 130, 246, 0.3);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 20%;
+            height: 60%;
+            width: 3px;
+            background: var(--accent);
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .nav-item i {
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+
+        .nav-item.nav-preview-link {
+            margin-top: auto;
+            border: 1px dashed rgba(59, 130, 246, 0.3);
+            color: var(--accent);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* --- CONTENT AREA --- */
+        .content-pane {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .content-pane.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- FORMS & CARDS --- */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* --- CLASSIFICATION SELECTOR --- */
+        .classif-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .classif-item {
+            padding: 1rem;
+            text-align: center;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            user-select: none;
+        }
+
+        .classif-item .level {
+            font-size: 0.9rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        /* Colors for different levels */
+        .classif-item[data-level="NON PROTÉGÉ"]:hover,
+        .classif-item[data-level="NON PROTÉGÉ"].active {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+        }
+
+        .classif-item[data-level="DIFFUSION RESTREINTE"]:hover,
+        .classif-item[data-level="DIFFUSION RESTREINTE"].active {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+        }
+
+        .classif-item[data-level="SECRET SPÉCIAL FRANCE"]:hover,
+        .classif-item[data-level="SECRET SPÉCIAL FRANCE"].active {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        .classif-item.active {
+            transform: translateY(-2px);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+        }
+
+        .required-star {
+            color: var(--danger);
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.6rem;
+            border-radius: var(--radius);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+            overflow-y: hidden;
+            /* Prevent internal scrollbars */
+        }
+
+        textarea {
+            resize: none;
+            min-height: 40px;
+            line-height: 1.5;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .is-invalid {
+            border-color: var(--danger) !important;
+            box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.3);
+        }
+
+        .combo-box {
+            position: relative;
+        }
+
+        .combo-box input {
+            padding-right: 2rem;
+        }
+
+        .combo-toggle {
+            position: absolute;
+            right: 0.35rem;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1;
+            padding: 0.2rem 0.35rem;
+            border-radius: 6px;
+        }
+
+        .combo-toggle:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--text-main);
+        }
+
+        .combo-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 240px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            z-index: 100;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+        }
+
+        .combo-menu.open {
+            display: block;
+        }
+
+        .combo-option {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            padding: 0.55rem 0.7rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .combo-option:hover,
+        .combo-option.active {
+            background: rgba(59, 130, 246, 0.14);
+        }
+
+        .combo-empty {
+            padding: 0.55rem 0.7rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* --- BUTTONS --- */
+        .btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            border-color: var(--text-muted);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-danger {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+        }
+
+        .btn-back {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 1rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-back:hover {
+            color: var(--accent);
+            background: rgba(59, 130, 246, 0.05);
+            border-color: rgba(59, 130, 246, 0.2);
+            transform: translateX(-4px);
+        }
+
+        .btn-back i {
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        /* --- DORESE PILLS --- */
+        .dorese-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .pill {
+            padding: 4px 12px;
+            border-radius: 99px;
+            border: 1px solid var(--border);
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .pill.active {
+            opacity: 1;
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+        }
+
+        /* --- MODERN DOCUMENT STYLES (PREVIEW & PRINT) --- */
+        #view-preview {
+            display: none;
+        }
+
+        #view-preview.active {
+            background: #475569;
+            /* Darker grey "desk" background */
+            padding: 40px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            /* Gap between physical sheets */
+            overflow-y: auto;
+        }
+
+        .preview-page {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 1cm 1.5cm;
+            margin: 0 auto 40px auto;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            position: relative;
+            box-sizing: border-box;
+            line-height: 1.6;
+            color: #1e293b;
+        }
+
+
+        .doc-classification {
+            text-align: center;
+            font-weight: 900;
+            font-size: 1rem;
+            letter-spacing: 4px;
+            padding: 12px 40px;
+            margin: 0 auto 20px auto;
+            width: fit-content;
+            min-width: 350px;
+            text-transform: uppercase;
+            border-radius: 8px;
+            border: 2px solid currentColor;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            box-sizing: border-box;
+        }
+
+        .print-container thead {
+            display: none;
+        }
+
+        .doc-classification[data-level="NON PROTÉGÉ"] {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .doc-classification[data-level="DIFFUSION RESTREINTE"] {
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .doc-classification[data-level="SECRET SPÉCIAL FRANCE"] {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 3px solid #ef4444;
+        }
+
+        .doc-header {
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .doc-header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin: 0;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+        }
+
+        .doc-header .doc-type {
+            font-size: 0.9rem;
+            color: #3b82f6;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .info-item label {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .info-item span {
+            font-size: 1rem;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .doc-section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            background: #f1f5f9;
+            padding: 8px 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .section-title h2 {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .section-content {
+            padding: 0 5px;
+        }
+
+        /* Specialized Content Blocks */
+        .w6-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .w6-item {
+            background: #fff;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .w6-item.full {
+            grid-column: span 1;
+        }
+
+        .w6-item label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #3b82f6;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #dbeafe;
+            padding-bottom: 4px;
+        }
+
+        .analysis-box {
+            background: #fffcf0;
+            border: 1px solid #fde68a;
+            padding: 20px;
+            border-radius: 8px;
+            color: #78350f;
+        }
+
+        .reco-block {
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .reco-tag {
+            background: #1e293b;
+            color: white;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .reco-text {
+            padding: 12px 15px;
+            font-size: 0.95rem;
+        }
+
+        /* Rich Text overrides for print */
+        .doc-section h1 {
+            font-size: 1.6rem;
+            color: #1e293b;
+            margin: 18px 0 12px;
+            font-weight: 800;
+        }
+
+        .doc-section h2 {
+            font-size: 1.3rem;
+            color: #334155;
+            margin: 15px 0 10px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 700;
+        }
+
+        .print-only-header {
+            display: none;
+        }
+
+        .doc-section h3 {
+            font-size: 1.1rem;
+            color: #64748b;
+            margin: 12px 0 6px;
+            font-weight: 700;
+        }
+
+        .doc-section ul,
+        .doc-section ol {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .doc-section li {
+            margin-bottom: 4px;
+        }
+
+        /* --- PRINT MEDIA --- */
+        @media print {
+            body {
+                background: white;
+                height: auto;
+                display: block;
+                overflow: visible;
+            }
+
+            .no-print-force {
+                display: none !important;
+            }
+
+            .print-only-header {
+                display: table-header-group !important;
+            }
+
+            .preview-page {
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 auto !important;
+                width: 210mm !important;
+                max-width: 100% !important;
+                min-height: auto !important;
+            }
+
+            .print-container {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin: 0 auto !important;
+                table-layout: fixed !important;
+            }
+
+            .print-container td {
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Force page breaks in PDF */
+            .preview-page+.preview-page {
+                page-break-before: always;
+                break-before: page;
+            }
+
+            .doc-classification {
+                display: none !important;
+                /* Hide individual page headers in print */
+            }
+
+            .print-only-header .doc-classification {
+                display: block !important;
+                margin: 0 0 0.5cm 0 !important;
+                position: static !important;
+                width: 100% !important;
+                padding: 12px 0 !important;
+                border: 2px solid currentColor !important;
+                visibility: visible !important;
+                text-align: center !important;
+                box-sizing: border-box !important;
+                font-weight: 900 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 3px !important;
+            }
+
+            header,
+            .sidebar,
+            .toolbar,
+            .no-print {
+                display: none !important;
+            }
+
+            .content-pane {
+                display: none !important;
+                padding: 0;
+                margin: 0;
+            }
+
+            #view-preview {
+                display: block !important;
+            }
+
+            .page-break {
+                page-break-before: always;
+                break-before: page;
+            }
+
+            .preview-box {
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+                width: 100%;
+                border: none;
+            }
+
+            .preview-box .page-break {
+                margin: 0;
+                border: none;
+            }
+
+            .preview-box .page-break::before {
+                display: none;
+            }
+
+            @page {
+                size: A4;
+                margin: 1.5cm;
+            }
+        }
+
+        /* --- W6 SUB-TABS --- */
+        .w6-tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .w6-tab {
+            flex: 1;
+            padding: 0.8rem 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .w6-tab:hover {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .w6-tab.active {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.15);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+        }
+
+        .print-only-header {
+            display: none;
+        }
+
+        .preview-desk-container {
+            width: 100%;
+        }
+
+        /* --- DORESE SUB-TABS --- */
+        .dorese-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .dorese-tab {
+            flex: 1;
+            padding: 1rem 0.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dorese-tab .letter {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+
+        .dorese-tab .label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .dorese-tab:hover {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .dorese-tab.active {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.1);
+        }
+
+        .dorese-tab.active .letter {
+            color: var(--accent);
+        }
+
+        .dorese-tab.active .label {
+            color: var(--accent);
+        }
+
+        .dorese-pane {
+            display: none;
+            width: 100%;
+        }
+
+        .dorese-pane.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        /* --- RICH TEXT EDITOR --- */
+        .editor-container {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-input);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px;
+            background: #1e293b;
+            /* Solid slate 800 */
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .editor-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            min-width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .editor-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .editor-btn.active {
+            color: var(--accent);
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-bold {
+            font-weight: 900;
+        }
+
+        .btn-italic {
+            font-style: italic;
+            font-family: "serif";
+        }
+
+        .btn-underline {
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .btn-h {
+            font-weight: 800;
+            font-family: var(--font-stack);
+        }
+
+        .btn-list {
+            font-weight: 600;
+            font-size: 0.75rem;
+            padding: 0 8px;
+            width: auto !important;
+        }
+
+        .toolbar-sep {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 6px;
+            opacity: 0.5;
+        }
+
+        .editor-content {
+            padding: 1rem;
+            min-height: 120px;
+            color: var(--text-main);
+            outline: none;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+
+        .editor-content h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.8rem;
+            color: var(--accent);
+        }
+
+        .editor-content h2 {
+            font-size: 1.4rem;
+            margin-bottom: 0.6rem;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+        }
+
+        .editor-content h3 {
+            font-size: 1.15rem;
+            margin-bottom: 0.4rem;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .editor-content p {
+            margin-bottom: 0.5rem;
+        }
+
+        .editor-content ul,
+        .editor-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .editor-content li {
+            margin-bottom: 0.2rem;
+        }
+
+        button,
+        .btn,
+        .nav-item,
+        .classif-item,
+        .w6-tab,
+        .dorese-tab,
+        .combo-option,
+        .combo-toggle,
+        .editor-btn {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 1280px) {
+            body {
+                height: 100dvh;
+            }
+
+            header {
+                height: auto;
+                min-height: 64px;
+                padding: 0.65rem 0.75rem;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+                align-items: flex-start;
+            }
+
+            .brand {
+                flex: 1 1 240px;
+                font-size: 1.05rem;
+                letter-spacing: 1px;
+            }
+
+            .toolbar {
+                width: 100%;
+                overflow-x: auto;
+                gap: 0.45rem;
+                padding-bottom: 0.2rem;
+            }
+
+            .toolbar .btn {
+                white-space: nowrap;
+                min-height: 42px;
+                padding: 0.55rem 0.85rem;
+                font-size: 0.82rem;
+            }
+
+            main {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                padding: 0.55rem 0.5rem;
+                display: flex;
+                flex-direction: row;
+                gap: 0.45rem;
+                overflow-x: auto;
+                box-shadow: none;
+            }
+
+            .nav-item {
+                min-width: 170px;
+                justify-content: center;
+                font-size: 0.8rem;
+                padding: 0.7rem 0.8rem;
+            }
+
+            .nav-item.nav-preview-link {
+                margin-top: 0;
+            }
+
+            .nav-item:hover {
+                transform: none;
+            }
+
+            .nav-item.active::before {
+                display: none;
+            }
+
+            .content-pane {
+                max-width: 100%;
+                padding: 1rem;
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+            }
+
+            #view-facts,
+            #view-reco {
+                max-height: none !important;
+                padding-bottom: 7rem !important;
+            }
+
+            .classif-selector {
+                grid-template-columns: repeat(3, minmax(150px, 1fr));
+                gap: 0.65rem;
+            }
+
+            .w6-tabs,
+            .dorese-tabs {
+                overflow-x: auto;
+                padding-bottom: 2px;
+            }
+
+            .w6-tab,
+            .dorese-tab {
+                flex: 0 0 auto;
+                min-width: 120px;
+            }
+
+            .editor-btn {
+                min-width: 40px;
+                height: 40px;
+            }
+
+            .editor-content {
+                min-height: 150px;
+            }
+
+            .combo-menu {
+                max-height: 45vh;
+            }
+
+            .combo-option {
+                padding: 0.75rem 0.8rem;
+                font-size: 0.95rem;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .btn-back {
+                padding: 0.45rem 0.65rem;
+                font-size: 0.9rem;
+            }
+
+            .brand {
+                font-size: 0.95rem;
+            }
+
+            .toolbar .btn {
+                font-size: 0.8rem;
+            }
+
+            .classif-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            input,
+            textarea,
+            select {
+                font-size: 16px;
+            }
+
+            .combo-menu {
+                position: fixed;
+                left: 12px;
+                right: 12px;
+                bottom: calc(12px + env(safe-area-inset-bottom));
+                top: auto;
+                max-height: 52vh;
+                z-index: 1000;
+                border-radius: 10px;
+                border-width: 1px;
+            }
+
+            #view-preview.active {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .preview-page {
+                width: 100%;
+                min-height: auto;
+                margin: 0 0 18px 0;
+                padding: 0.9rem;
+            }
+
+            .doc-classification {
+                min-width: 0;
+                width: 100%;
+                letter-spacing: 2px;
+                font-size: 0.82rem;
+                padding: 10px 12px;
+            }
+
+            .doc-header {
+                display: block;
+            }
+
+            .doc-header h1 {
+                font-size: 1.35rem;
+                margin-bottom: 0.35rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 12px;
+            }
+
+            .section-title h2 {
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .btn,
+            .nav-item,
+            .classif-item,
+            .w6-tab,
+            .dorese-tab,
+            .editor-btn,
+            .combo-toggle {
+                min-height: 44px;
+            }
+
+            input,
+            textarea,
+            select {
+                min-height: 44px;
+                padding: 0.72rem 0.75rem;
+            }
+
+            .editor-toolbar {
+                gap: 6px;
+                padding: 8px;
+            }
+
+            .combo-toggle {
+                width: 36px;
+                font-size: 1rem;
+            }
+
+            .combo-box input {
+                padding-right: 2.4rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+            <a href="../index.html" class="btn-back">
+            <i class="ph ph-arrow-left"></i> Retour
+        </a>
+        <div class="brand">
+            AFTER ACTION REVIEW TAT V1.0
+        </div>
+        <div class="toolbar">
+            <input type="file" id="file-input" style="display: none;" accept=".json">
+            <button class="btn" onclick="document.getElementById('file-input').click()">📂 Charger JSON</button>
+            <button class="btn" onclick="App.exportJSON()">💾 Exporter JSON</button>
+            <button class="btn" onclick="App.sendQwiEmail()">📧 Send to QWI</button>
+            <button class="btn btn-primary" onclick="App.printReport()">🖨️ Imprimer / PDF</button>
+            <button class="btn btn-danger" onclick="App.reset()" title="Effacer tout">🗑️</button>
+        </div>
+    </header>
+
+    <main>
+        <nav class="sidebar">
+            <div class="nav-item active" onclick="App.nav(0)"><span>⚙️</span> 1. CONFIGURATION</div>
+            <div class="nav-item" onclick="App.nav(1)"><span>📝</span> 2. FAITS</div>
+            <div class="nav-item" onclick="App.nav(2)"><span>🔬</span> 3. ANALYSE</div>
+            <div class="nav-item" onclick="App.nav(3)"><span>🎯</span> 4. RECOMMANDATIONS</div>
+            <div class="nav-item nav-preview-link" onclick="App.nav(4)">
+                <span>👁️</span> VISUALISATION / PDF
+            </div>
+        </nav>
+
+        <div id="view-header" class="content-pane active">
+            <h2 style="margin-bottom: 1.5rem;">1. CONFIGURATION</h2>
+
+            <div class="form-group">
+                <div class="classif-selector">
+                    <div class="classif-item" data-level="NON PROTÉGÉ"
+                        onclick="App.updateClassification('NON PROTÉGÉ')">
+                        <span class="level">NON PROTÉGÉ</span>
+                    </div>
+                    <div class="classif-item" data-level="DIFFUSION RESTREINTE"
+                        onclick="App.updateClassification('DIFFUSION RESTREINTE')">
+                        <span class="level">DIFFUSION RESTREINTE</span>
+                    </div>
+                    <div class="classif-item" data-level="SECRET SPÉCIAL FRANCE"
+                        onclick="App.updateClassification('SECRET SPÉCIAL FRANCE')">
+                        <span class="level">SECRET SPÉCIAL FRANCE</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">Informations Administratives</div>
+                <div class="form-group">
+                    <label>Titre de l'événement <span class="required-star">*</span></label>
+                    <input type="text" id="meta-title" placeholder="Ex: Echec HAHO sur PIKNE 2"
+                        onchange="App.update('meta.title', this.value)">
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Date <span class="required-star">*</span></label>
+                        <input type="date" id="meta-date" onchange="App.update('meta.date', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Grade <span class="required-star">*</span></label>
+                        <select id="meta-grade" onchange="App.updateRank(this.value)" title="Grade du rédacteur">
+                            <option value="">-- Sélectionner --</option>
+                            <option value="ASP">ASP</option>
+                            <option value="LTT">LTT</option>
+                            <option value="CNE">CNE</option>
+                            <option value="CDT">CDT</option>
+                            <option value="LCL">LCL</option>
+                            <option value="COL">COL</option>
+                            <option value="AUTRE">AUTRE</option>
+                        </select>
+                        <input type="text" id="meta-grade-autre" placeholder="Précisez le grade..."
+                            style="display:none; margin-top: 8px;" oninput="App.update('meta.gradeAutre', this.value)">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Nom <span class="required-star">*</span></label>
+                        <input type="text" id="meta-nom" placeholder="NOM" oninput="App.formatName('nom', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Prénom <span class="required-star">*</span></label>
+                        <input type="text" id="meta-prenom" placeholder="Prénom"
+                            oninput="App.formatName('prenom', this.value)">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Escadron <span class="required-star">*</span></label>
+                        <select id="meta-unite" onchange="App.updateUnit(this.value)" title="Escadron du rédacteur">
+                            <option value="">-- Sélectionner --</option>
+                            <option value="Binational Air Transport Squadron C-130J">BATS (Binational Air Transport Squadron
+                                C-130J)</option>
+                            <option value="ET 1/61 Touraine">ET 1/61 Touraine</option>
+                            <option value="ET 3/61 Poitou">ET 3/61 Poitou</option>
+                            <option value="ET 4/61 Béarn">ET 4/61 Béarn</option>
+                            <option value="ET 3/62 Ventoux">ET 3/62 Ventoux</option>
+                            <option value="ET 1/62 Vercors">ET 1/62 Vercors</option>
+                            <option value="CIET 340">CIET 340 (Centre d'Instruction des Equipages de Transport)</option>
+                            <option value="EMATT">EMATT (Équipe de Marque Avions de Transport Tactique)</option>
+                            <option value="AUTRE">AUTRE</option>
+                        </select>
+                        <input type="text" id="meta-unite-autre" placeholder="Précisez l'escadron..."
+                            style="display:none; margin-top: 8px;" oninput="App.update('meta.uniteAutre', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Flotte <span class="required-star">*</span></label>
+                        <select id="meta-flotte" onchange="App.updateFleet(this.value)" title="Flotte concernée">
+                            <option value="">-- Sélectionner --</option>
+                            <option value="A-400M">A-400M</option>
+                            <option value="C-130J">C-130J</option>
+                            <option value="CN-235">CN-235</option>
+                            <option value="AUTRE">AUTRE</option>
+                        </select>
+                        <input type="text" id="meta-flotte-autre" placeholder="Précisez la flotte..."
+                            style="display:none; margin-top: 8px;" oninput="App.update('meta.flotteAutre', this.value)">
+                    </div>
+                </div>
+
+                <div class="card-header" style="margin-top: 1.5rem;">Contexte Mission</div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="meta-mission-type" onchange="App.updateMissionType(this.value)">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="LOG">LOG</option>
+                        <option value="TAC">TAC</option>
+                    </select>
+                </div>
+
+                <div id="log-config-block" style="display:none;">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>PAYS</label>
+                            <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
+                                oninput="App.filterLogCountries(this.value)">
+                            <select id="meta-log-country" onchange="App.updateLogCountrySelection(this.value)">
+                                <option value="">-- Sélectionner --</option>
+                            </select>
+                            <input type="text" id="meta-log-country-autre" placeholder="Précisez le pays..."
+                                style="display:none; margin-top: 8px;" oninput="App.updateLogCountryAutre(this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label>Terrain OACI</label>
+                            <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
+                                oninput="App.filterLogAirfields(this.value)">
+                            <select id="meta-log-airfield" onchange="App.updateLogAirfieldSelection(this.value)">
+                                <option value="">-- Sélectionner --</option>
+                            </select>
+                            <input type="text" id="meta-log-airfield-autre" placeholder="Précisez le terrain OACI..."
+                                style="display:none; margin-top: 8px;" oninput="App.updateLogAirfieldAutre(this.value)">
+                            <div id="meta-log-airfield-hint"
+                                style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tac-config-block" style="display:none;">
+                    <div class="form-group">
+                        <label>Cadre TAC</label>
+                        <select id="meta-tac-context" onchange="App.updateTacContext(this.value)">
+                            <option value="">-- Sélectionner --</option>
+                            <option value="OPERATIONS">OPERATIONS</option>
+                            <option value="EXERCICE">EXERCICE</option>
+                        </select>
+                    </div>
+
+                    <div id="tac-operations-block" class="form-group" style="display:none;">
+                        <label>Opération</label>
+                        <select id="meta-tac-operation" onchange="App.updateTacOperation(this.value)">
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                        <input type="text" id="meta-tac-operation-autre" placeholder="Précisez l'opération..."
+                            style="display:none; margin-top: 8px;" oninput="App.update('meta.tacOperationAutre', this.value)">
+                    </div>
+
+                    <div id="tac-exercises-block" class="form-group" style="display:none;">
+                        <label>Exercice</label>
+                        <select id="meta-tac-exercise" onchange="App.updateTacExercise(this.value)">
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                        <input type="text" id="meta-tac-exercise-autre" placeholder="Précisez l'exercice..."
+                            style="display:none; margin-top: 8px;" oninput="App.update('meta.tacExerciseAutre', this.value)">
+                    </div>
+                </div>
+                </div>
+
+        </div>
+
+        <div id="view-facts" class="content-pane"
+            style="overflow-y: auto; max-height: calc(100vh - 120px); padding-bottom: 100px; padding-top: 0;">
+            <div
+                style="position: sticky; top: 0; background: var(--bg-main); z-index: 10; padding-bottom: 1rem; padding-top: 2rem;">
+                <h2 style="margin-bottom: 0.5rem;">2. FAITS</h2>
+                <div class="w6-tabs">
+                    <div id="tab-what" class="w6-tab" onclick="App.scrollToW6('section-what')">WHAT?</div>
+                    <div id="tab-why" class="w6-tab" onclick="App.scrollToW6('section-why')">WHY?</div>
+                    <div id="tab-when" class="w6-tab" onclick="App.scrollToW6('section-when')">WHEN?</div>
+                    <div id="tab-where" class="w6-tab" onclick="App.scrollToW6('section-where')">WHERE?</div>
+                    <div id="tab-who" class="w6-tab" onclick="App.scrollToW6('section-who')">WHO?</div>
+                    <div id="tab-how" class="w6-tab" onclick="App.scrollToW6('section-how')">HOW?</div>
+                </div>
+            </div>
+
+            <style>
+                .w6-section {
+                    margin-bottom: 2rem;
+                    scroll-margin-top: 210px;
+                    /* Offset for sticky header */
+                }
+
+                .dorese-section {
+                    margin-bottom: 2rem;
+                    scroll-margin-top: 210px;
+                    /* Match W6 offset */
+                }
+
+                .w6-label {
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    color: var(--accent);
+                    margin-bottom: 0.5rem;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+            </style>
+
+            <!-- WHAT -->
+            <div id="section-what" class="w6-section card" style="padding: 1rem;">
+                <div class="w6-label">WHAT / QUOI ?</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="fact-what" class="editor-content" contenteditable="true" onfocus="App.highlightW6('what')"
+                        onblur="App.highlightW6(null)" oninput="App.update('facts.what', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- WHY -->
+            <div id="section-why" class="w6-section card" style="padding: 1rem;">
+                <div class="w6-label">WHY / POURQUOI ?</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="fact-why" class="editor-content" contenteditable="true" onfocus="App.highlightW6('why')"
+                        onblur="App.highlightW6(null)" oninput="App.update('facts.why', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- WHEN -->
+            <div id="section-when" class="w6-section card" style="padding: 1rem;">
+                <div class="w6-label">WHEN / QUAND ?</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="fact-when" class="editor-content" contenteditable="true" onfocus="App.highlightW6('when')"
+                        onblur="App.highlightW6(null)" oninput="App.update('facts.when', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- WHERE -->
+            <div id="section-where" class="w6-section card" style="padding: 1rem;">
+                <div class="w6-label">WHERE / OÙ ?</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="fact-where" class="editor-content" contenteditable="true"
+                        onfocus="App.highlightW6('where')" onblur="App.highlightW6(null)"
+                        oninput="App.update('facts.where', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- WHO -->
+            <div id="section-who" class="w6-section card" style="padding: 1rem;">
+                <div class="w6-label">WHO / QUI ?</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="fact-who" class="editor-content" contenteditable="true" onfocus="App.highlightW6('who')"
+                        onblur="App.highlightW6(null)" oninput="App.update('facts.who', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- HOW -->
+            <div id="section-how" class="w6-section card" style="padding: 1rem;">
+                <div class="w6-label">HOW / COMMENT ?</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="fact-how" class="editor-content" contenteditable="true" onfocus="App.highlightW6('how')"
+                        onblur="App.highlightW6(null)" oninput="App.update('facts.how', this.innerHTML)"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-analysis" class="content-pane">
+            <h2 style="margin-bottom: 1.5rem;">3. ANALYSE</h2>
+            <div class="card" style="border-left: 4px solid var(--warning);">
+                <div class="card-header"
+                    style="color: var(--warning); text-transform: none; font-size: 0.85rem; line-height: 1.4;">
+                    QUELS POINTS N’ONT PAS ETE EXECUTES NOMINALEMENT ET POURQUOI ?
+                </div>
+                <div class="form-group" style="margin-top: 1rem;">
+                    <div class="editor-container">
+                        <div class="editor-toolbar">
+                            <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                            <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                            <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                                title="Underline">U</button>
+                            <div class="toolbar-sep"></div>
+                            <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                            <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                            <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                            <div class="toolbar-sep"></div>
+                            <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                                title="Bullet List">• List</button>
+                        </div>
+                        <div id="analysis-content" class="editor-content" contenteditable="true"
+                            oninput="App.update('analysis.content', this.innerHTML)"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-reco" class="content-pane"
+            style="overflow-y: auto; max-height: calc(100vh - 120px); padding-bottom: 100px; padding-top: 0;">
+            <div
+                style="position: sticky; top: 0; background: var(--bg-main); z-index: 10; padding-bottom: 1rem; padding-top: 2rem;">
+                <h2 style="margin-bottom: 0.5rem;">4. RECOMMANDATIONS</h2>
+                <div class="dorese-tabs">
+                    <div id="tab-doctrine" class="dorese-tab" onclick="App.scrollToDorese('section-doctrine')">
+                        <span class="letter">D</span> <span class="label">Doctrine</span>
+                    </div>
+                    <div id="tab-organisation" class="dorese-tab" onclick="App.scrollToDorese('section-organisation')">
+                        <span class="letter">O</span> <span class="label">Organisation</span>
+                    </div>
+                    <div id="tab-rh" class="dorese-tab" onclick="App.scrollToDorese('section-rh')">
+                        <span class="letter">R</span> <span class="label">RH</span>
+                    </div>
+                    <div id="tab-equipements" class="dorese-tab" onclick="App.scrollToDorese('section-equipements')">
+                        <span class="letter">E</span> <span class="label">Equipements</span>
+                    </div>
+                    <div id="tab-soutien" class="dorese-tab" onclick="App.scrollToDorese('section-soutien')">
+                        <span class="letter">S</span> <span class="label">Soutien</span>
+                    </div>
+                    <div id="tab-entrainement" class="dorese-tab" onclick="App.scrollToDorese('section-entrainement')">
+                        <span class="letter">E</span> <span class="label">Entrainement</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DOCTRINE -->
+            <div id="section-doctrine" class="dorese-section card" style="padding: 1rem;">
+                <div class="w6-label">DOCTRINE</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="reco-doctrine" class="editor-content" contenteditable="true"
+                        onfocus="App.highlightDorese('doctrine')" onblur="App.highlightDorese(null)"
+                        oninput="App.update('recos.doctrine', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- ORGANISATION -->
+            <div id="section-organisation" class="dorese-section card" style="padding: 1rem;">
+                <div class="w6-label">ORGANISATION</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="reco-organisation" class="editor-content" contenteditable="true"
+                        onfocus="App.highlightDorese('organisation')" onblur="App.highlightDorese(null)"
+                        oninput="App.update('recos.organisation', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- RH -->
+            <div id="section-rh" class="dorese-section card" style="padding: 1rem;">
+                <div class="w6-label">RH</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="reco-rh" class="editor-content" contenteditable="true" onfocus="App.highlightDorese('rh')"
+                        onblur="App.highlightDorese(null)" oninput="App.update('recos.rh', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- EQUIPEMENTS -->
+            <div id="section-equipements" class="dorese-section card" style="padding: 1rem;">
+                <div class="w6-label">EQUIPEMENTS</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="reco-equipements" class="editor-content" contenteditable="true"
+                        onfocus="App.highlightDorese('equipements')" onblur="App.highlightDorese(null)"
+                        oninput="App.update('recos.equipements', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- SOUTIEN -->
+            <div id="section-soutien" class="dorese-section card" style="padding: 1rem;">
+                <div class="w6-label">SOUTIEN</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="reco-soutien" class="editor-content" contenteditable="true"
+                        onfocus="App.highlightDorese('soutien')" onblur="App.highlightDorese(null)"
+                        oninput="App.update('recos.soutien', this.innerHTML)"></div>
+                </div>
+            </div>
+
+            <!-- ENTRAINEMENT -->
+            <div id="section-entrainement" class="dorese-section card" style="padding: 1rem;">
+                <div class="w6-label">ENTRAINEMENT</div>
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
+                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
+                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
+                            title="Underline">U</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
+                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
+                            title="Paragraphe">P</button>
+                        <div class="toolbar-sep"></div>
+                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
+                            title="Bullet List">• List</button>
+                    </div>
+                    <div id="reco-entrainement" class="editor-content" contenteditable="true"
+                        onfocus="App.highlightDorese('entrainement')" onblur="App.highlightDorese(null)"
+                        oninput="App.update('recos.entrainement', this.innerHTML)"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-preview" class="content-pane" style="max-width: none; padding: 0;">
+            <div class="preview-desk-container">
+                <table class="print-container">
+                    <thead class="print-only-header">
+                        <tr>
+                            <td>
+                                <div class="doc-classification sect-classif">NON PROTÉGÉ</div>
+                            </td>
+                        </tr>
+                    </thead>
+                    <tbody class="print-body">
+                        <tr>
+                            <td>
+                                <!-- PAGE 1 -->
+                                <div class="preview-page">
+                                    <div class="doc-classification sect-classif no-print-force">NON PROTÉGÉ</div>
+                                    <div class="doc-header">
+                                        <div>
+                                            <div class="doc-type">After Action Review</div>
+                                            <h1 id="prev-title">AFTER ACTION REVIEW</h1>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-grid">
+                                        <div class="info-item">
+                                            <label>Date de l'événement</label>
+                                            <span id="prev-date"></span>
+                                        </div>
+                                        <div class="info-item">
+                                            <label>Rédacteur</label>
+                                            <span id="prev-redacteur"></span>
+                                        </div>
+                                        </div>
+
+                                    <section class="doc-section">
+                                        <div class="section-title">
+                                            <h2>01. FAITS</h2>
+                                        </div>
+                                        <div class="section-content w6-grid">
+                                            <div class="w6-item full">
+                                                <label>WHAT happened?</label>
+                                                <div id="prev-what"></div>
+                                            </div>
+                                            <div class="w6-item">
+                                                <label>WHY did it happen?</label>
+                                                <div id="prev-why"></div>
+                                            </div>
+                                            <div class="w6-item">
+                                                <label>WHEN did it happen?</label>
+                                                <div id="prev-when"></div>
+                                            </div>
+                                            <div class="w6-item">
+                                                <label>WHERE did it happen?</label>
+                                                <div id="prev-where"></div>
+                                            </div>
+                                            <div class="w6-item">
+                                                <label>WHO was involved?</label>
+                                                <div id="prev-who"></div>
+                                            </div>
+                                            <div class="w6-item full">
+                                                <label>HOW did it happen?</label>
+                                                <div id="prev-how"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <!-- PAGE 2 -->
+                                <div class="preview-page">
+                                    <div class="doc-classification sect-classif">NON PROTÉGÉ</div>
+                                    <section class="doc-section">
+                                        <div class="section-title" style="border-left-color: var(--warning);">
+                                            <h2>02. ANALYSE</h2>
+                                        </div>
+                                        <div class="section-content">
+                                            <div class="analysis-box">
+                                                <label
+                                                    style="display:block; font-size: 0.8rem; font-weight:800; margin-bottom:12px; color: #d97706;">
+                                                    QUELS POINTS N’ONT PAS ETE EXECUTES NOMINALEMENT ET POURQUOI ?
+                                                </label>
+                                                <div id="prev-analysis"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+
+                                <!-- PAGE 3 -->
+                                <div class="preview-page">
+                                    <div class="doc-classification sect-classif">NON PROTÉGÉ</div>
+                                    <section class="doc-section">
+                                        <div class="section-title" style="border-left-color: var(--success);">
+                                            <h2>03. RECOMMANDATIONS (DORESE)</h2>
+                                        </div>
+                                        <div class="section-content" id="prev-recos">
+                                        </div>
+                                    </section>
+
+                                    <section class="doc-section" style="margin-top: 32px;">
+                                        <div class="section-title" style="border-left-color: var(--accent);">
+                                            <h2>04. AVIS QWI / WEAPONS SCHOOL</h2>
+                                        </div>
+                                        <div class="section-content">
+                                            <div id="prev-qwi"><span style="opacity:0.3">Aucun avis QWI.</span></div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="./mission-config.js"></script>
+    <script>
+        const META_DEFAULTS = {
+            title: "",
+            date: "",
+            grade: "",
+            gradeAutre: "",
+            nom: "",
+            prenom: "",
+            unite: "",
+            uniteAutre: "",
+            flotte: "",
+            flotteAutre: "",
+            classification: "NON PROTÉGÉ",
+            missionType: "",
+            logCountry: "",
+            logCountryAutre: "",
+            logAirfield: "",
+            logAirfieldAutre: "",
+            tacContext: "",
+            tacOperation: "",
+            tacOperationAutre: "",
+            tacExercise: "",
+            tacExerciseAutre: ""
+        };
+
+        const FACTS_DEFAULTS = { what: "", why: "", when: "", where: "", who: "", how: "", narrative: "" };
+        const ANALYSIS_DEFAULTS = { content: "" };
+        const RECOS_DEFAULTS = { doctrine: "", organisation: "", rh: "", equipements: "", soutien: "", entrainement: "" };
+        const QWI_DEFAULTS = { advice: "" };
+
+        const FALLBACK_MISSION_CONFIG = {
+            allCountries: ['France'],
+            tacOperations: ['Proche et Moyen Orient (PMO)'],
+            tacExercises: ['TRAINING', 'ATLC', 'TLP', 'ETAP-C Single Ship', 'ETAP-C Multiple Ship'],
+            logAirfieldsByCountry: {
+                France: [
+                    'LFOE Evreux',
+                    'LFOJ Orleans-Bricy',
+                    'LFBM Mont-de-Marsan',
+                    'LFBO Toulouse-Blagnac',
+                    'LFOA Avord',
+                    'LFMI Istres',
+                    'LFSI Saint-Dizier',
+                    'LFMO Orange-Caritat',
+                    'LFMY Salon-de-Provence',
+                    'LFKS Solenzara',
+                    'LFBF Toulouse-Francazal'
+                ]
+            }
+        };
+
+        const App = {
+            data: {
+                meta: { ...META_DEFAULTS },
+                facts: { ...FACTS_DEFAULTS },
+                analysis: { ...ANALYSIS_DEFAULTS },
+                recos: { ...RECOS_DEFAULTS },
+                qwi: { ...QWI_DEFAULTS }
+            },
+            missionConfig: { ...FALLBACK_MISSION_CONFIG },
+            countryNameLookup: {},
+            ui: {
+                currentTab: 0,
+                currentCategory: 'DOCTRINE',
+                currentW6Tab: 0,
+                currentDoreseTab: 0,
+                logCountrySearch: "",
+                logAirfieldSearch: ""
+            },
+
+            normalizeKey: (value) => {
+                return (value || '')
+                    .toString()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .trim()
+                    .toUpperCase();
+            },
+
+            isFilled: (value) => {
+                return typeof value === 'string' ? value.trim().length > 0 : Boolean(value);
+            },
+
+            getMissingRequiredFields: () => {
+                const m = App.data.meta;
+                const missing = [];
+
+                if (!App.isFilled(m.title)) missing.push("Titre de l'événement");
+                if (!App.isFilled(m.date)) missing.push('Date');
+                if (!App.isFilled(m.nom)) missing.push('Nom');
+                if (!App.isFilled(m.prenom)) missing.push('Prénom');
+
+                if (!App.isFilled(m.grade)) {
+                    missing.push('Grade');
+                } else if (m.grade === 'AUTRE' && !App.isFilled(m.gradeAutre)) {
+                    missing.push('Grade (précision AUTRE)');
+                }
+
+                if (!App.isFilled(m.unite)) {
+                    missing.push('Escadron');
+                } else if (m.unite === 'AUTRE' && !App.isFilled(m.uniteAutre)) {
+                    missing.push('Escadron (précision AUTRE)');
+                }
+
+                if (!App.isFilled(m.flotte)) {
+                    missing.push('Flotte');
+                } else if (m.flotte === 'AUTRE' && !App.isFilled(m.flotteAutre)) {
+                    missing.push('Flotte (précision AUTRE)');
+                }
+
+                return missing;
+            },
+
+            setInvalidState: (id, invalid) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.toggle('is-invalid', invalid);
+            },
+
+            refreshRequiredFieldHighlights: () => {
+                const m = App.data.meta;
+                App.setInvalidState('meta-title', !App.isFilled(m.title));
+                App.setInvalidState('meta-date', !App.isFilled(m.date));
+                App.setInvalidState('meta-nom', !App.isFilled(m.nom));
+                App.setInvalidState('meta-prenom', !App.isFilled(m.prenom));
+                App.setInvalidState('meta-grade', !App.isFilled(m.grade));
+                App.setInvalidState('meta-grade-autre', m.grade === 'AUTRE' && !App.isFilled(m.gradeAutre));
+                App.setInvalidState('meta-unite', !App.isFilled(m.unite));
+                App.setInvalidState('meta-unite-autre', m.unite === 'AUTRE' && !App.isFilled(m.uniteAutre));
+                App.setInvalidState('meta-flotte', !App.isFilled(m.flotte));
+                App.setInvalidState('meta-flotte-autre', m.flotte === 'AUTRE' && !App.isFilled(m.flotteAutre));
+            },
+
+            validateRequiredFields: (actionLabel) => {
+                const missing = App.getMissingRequiredFields();
+                App.refreshRequiredFieldHighlights();
+                if (!missing.length) return true;
+
+                alert(`Champs obligatoires manquants (${actionLabel}) :\n- ${missing.join('\n- ')}`);
+                App.nav(0);
+                return false;
+            },
+
+            setupMissionConfig: () => {
+                const external = (window.AARMissionConfig && typeof window.AARMissionConfig === 'object')
+                    ? window.AARMissionConfig
+                    : {};
+
+                const logAirfieldsByCountry = (external.logAirfieldsByCountry && typeof external.logAirfieldsByCountry === 'object')
+                    ? external.logAirfieldsByCountry
+                    : FALLBACK_MISSION_CONFIG.logAirfieldsByCountry;
+
+                const allCountries = (Array.isArray(external.allCountries) && external.allCountries.length)
+                    ? [...new Set(external.allCountries.filter(Boolean))]
+                    : [...new Set(Object.keys(logAirfieldsByCountry))];
+
+                const tacOperations = (Array.isArray(external.tacOperations) && external.tacOperations.length)
+                    ? external.tacOperations.filter(Boolean)
+                    : FALLBACK_MISSION_CONFIG.tacOperations;
+
+                const tacExercises = (Array.isArray(external.tacExercises) && external.tacExercises.length)
+                    ? external.tacExercises.filter(Boolean)
+                    : FALLBACK_MISSION_CONFIG.tacExercises;
+
+                allCountries.sort((a, b) => a.localeCompare(b));
+
+                App.missionConfig = {
+                    allCountries,
+                    tacOperations,
+                    tacExercises,
+                    logAirfieldsByCountry
+                };
+
+                App.countryNameLookup = {};
+                App.missionConfig.allCountries.forEach((country) => {
+                    App.countryNameLookup[App.normalizeKey(country)] = country;
+                });
+                Object.keys(App.missionConfig.logAirfieldsByCountry).forEach((country) => {
+                    App.countryNameLookup[App.normalizeKey(country)] = country;
+                });
+            },
+
+            ensureDataShape: () => {
+                if (!App.data || typeof App.data !== 'object') App.data = {};
+
+                App.data.meta = { ...META_DEFAULTS, ...(App.data.meta || {}) };
+                App.data.facts = { ...FACTS_DEFAULTS, ...(App.data.facts || {}) };
+                App.data.analysis = { ...ANALYSIS_DEFAULTS, ...(App.data.analysis || {}) };
+                App.data.recos = { ...RECOS_DEFAULTS, ...(App.data.recos || {}) };
+                App.data.qwi = { ...QWI_DEFAULTS, ...(App.data.qwi || {}) };
+
+                if (Object.prototype.hasOwnProperty.call(App.data.meta, 'pj')) delete App.data.meta.pj;
+
+                const knownCountries = new Set(App.missionConfig.allCountries || []);
+                if (App.data.meta.logCountry && App.data.meta.logCountry !== 'AUTRE' && !knownCountries.has(App.data.meta.logCountry)) {
+                    if (!App.data.meta.logCountryAutre) App.data.meta.logCountryAutre = App.data.meta.logCountry;
+                    App.data.meta.logCountry = 'AUTRE';
+                }
+
+                const knownAirfields = new Set(App.getLogAirfieldsForCurrentCountry());
+                if (App.data.meta.logAirfield && App.data.meta.logAirfield !== 'AUTRE' && knownAirfields.size && !knownAirfields.has(App.data.meta.logAirfield)) {
+                    if (!App.data.meta.logAirfieldAutre) App.data.meta.logAirfieldAutre = App.data.meta.logAirfield;
+                    App.data.meta.logAirfield = 'AUTRE';
+                }
+            },
+
+            createOption: (value, label) => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = label;
+                return option;
+            },
+
+            fillSelectOptions: (selectId, values, includeAutre = false) => {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+
+                const currentValue = select.value;
+                const cleanedValues = values.filter((value) => value && value !== 'AUTRE');
+
+                select.innerHTML = '';
+                select.appendChild(App.createOption('', '-- Sélectionner --'));
+                cleanedValues.forEach((value) => {
+                    select.appendChild(App.createOption(value, value));
+                });
+                if (includeAutre) {
+                    select.appendChild(App.createOption('AUTRE', 'AUTRE'));
+                }
+
+                const allowed = includeAutre ? [...cleanedValues, 'AUTRE'] : cleanedValues;
+                if (allowed.includes(currentValue)) select.value = currentValue;
+            },
+
+            getEffectiveLogCountry: () => {
+                const m = App.data.meta;
+                return m.logCountry === 'AUTRE' ? (m.logCountryAutre || '') : (m.logCountry || '');
+            },
+
+            filterValues: (values, query) => {
+                const normalized = App.normalizeKey(query || '');
+                if (!normalized) return [...values];
+
+                const startsWith = [];
+                const includes = [];
+                values.forEach((value) => {
+                    const norm = App.normalizeKey(value);
+                    if (norm.startsWith(normalized)) startsWith.push(value);
+                    else if (norm.includes(normalized)) includes.push(value);
+                });
+                return [...startsWith, ...includes];
+            },
+
+            renderLogCountrySelect: () => {
+                const select = document.getElementById('meta-log-country');
+                const otherInput = document.getElementById('meta-log-country-autre');
+                if (!select) return;
+
+                const current = App.data.meta.logCountry || '';
+                const baseCountries = App.missionConfig.allCountries || [];
+                let countries = App.filterValues(baseCountries, App.ui.logCountrySearch);
+                if (current && current !== 'AUTRE' && !countries.includes(current)) countries = [current, ...countries];
+
+                select.innerHTML = '';
+                select.appendChild(App.createOption('', '-- Sélectionner --'));
+                select.appendChild(App.createOption('AUTRE', 'AUTRE'));
+                countries.forEach((country) => {
+                    if (country !== 'AUTRE') select.appendChild(App.createOption(country, country));
+                });
+                select.value = current;
+
+                if (otherInput) {
+                    otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
+                    if (current !== 'AUTRE') otherInput.value = '';
+                }
+            },
+
+            renderLogAirfieldSelect: () => {
+                const select = document.getElementById('meta-log-airfield');
+                const otherInput = document.getElementById('meta-log-airfield-autre');
+                if (!select) return;
+
+                const current = App.data.meta.logAirfield || '';
+                const baseAirfields = App.getLogAirfieldsForCurrentCountry();
+                let airfields = App.filterValues(baseAirfields, App.ui.logAirfieldSearch);
+                if (current && current !== 'AUTRE' && !airfields.includes(current)) airfields = [current, ...airfields];
+
+                select.innerHTML = '';
+                select.appendChild(App.createOption('', '-- Sélectionner --'));
+                select.appendChild(App.createOption('AUTRE', 'AUTRE'));
+                airfields.forEach((airfield) => {
+                    if (airfield !== 'AUTRE') select.appendChild(App.createOption(airfield, airfield));
+                });
+                select.value = current;
+
+                if (otherInput) {
+                    otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
+                    if (current !== 'AUTRE') otherInput.value = '';
+                }
+            },
+
+            filterLogCountries: (query) => {
+                App.ui.logCountrySearch = query || '';
+                App.renderLogCountrySelect();
+            },
+
+            filterLogAirfields: (query) => {
+                App.ui.logAirfieldSearch = query || '';
+                App.renderLogAirfieldSelect();
+            },
+
+            renderMissionSelectors: () => {
+                App.fillSelectOptions('meta-tac-operation', App.missionConfig.tacOperations, true);
+                App.fillSelectOptions('meta-tac-exercise', App.missionConfig.tacExercises, true);
+                App.renderLogCountrySelect();
+                App.renderLogAirfieldSelect();
+            },
+
+            resolveCountryName: (inputCountry) => {
+                if (!inputCountry) return '';
+                const trimmed = inputCountry.trim();
+                if (!trimmed) return '';
+                if (App.missionConfig.logAirfieldsByCountry[trimmed]) return trimmed;
+                return App.countryNameLookup[App.normalizeKey(trimmed)] || trimmed;
+            },
+
+            getLogAirfieldsForCurrentCountry: () => {
+                const resolvedCountry = App.resolveCountryName(App.getEffectiveLogCountry());
+                return App.missionConfig.logAirfieldsByCountry[resolvedCountry] || [];
+            },
+
+            renderLogAirfieldOptions: () => {
+                const hint = document.getElementById('meta-log-airfield-hint');
+
+                const effectiveCountry = App.getEffectiveLogCountry();
+                const resolvedCountry = App.resolveCountryName(effectiveCountry);
+                const options = App.getLogAirfieldsForCurrentCountry();
+
+                if (hint) {
+                    if (!effectiveCountry) {
+                        hint.textContent = "Sélectionnez un pays pour afficher les terrains OACI proposés.";
+                    } else if (options.length) {
+                        hint.textContent = `${options.length} terrain(s) proposé(s) pour ${resolvedCountry}.`;
+                    } else {
+                        hint.textContent = "Aucun terrain préconfiguré pour ce pays. Vous pouvez saisir un terrain manuellement.";
+                    }
+                }
+            },
+
+            refreshMissionVisibility: () => {
+                const m = App.data.meta;
+                const isLog = m.missionType === 'LOG';
+                const isTac = m.missionType === 'TAC';
+                const isTacOperations = isTac && m.tacContext === 'OPERATIONS';
+                const isTacExercise = isTac && m.tacContext === 'EXERCICE';
+
+                const toggle = (id, visible) => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = visible ? 'block' : 'none';
+                };
+
+                toggle('log-config-block', isLog);
+                toggle('tac-config-block', isTac);
+                toggle('tac-operations-block', isTacOperations);
+                toggle('tac-exercises-block', isTacExercise);
+                toggle('meta-log-country-autre', isLog && m.logCountry === 'AUTRE');
+                toggle('meta-log-airfield-autre', isLog && m.logAirfield === 'AUTRE');
+                toggle('meta-tac-operation-autre', isTacOperations && m.tacOperation === 'AUTRE');
+                toggle('meta-tac-exercise-autre', isTacExercise && m.tacExercise === 'AUTRE');
+            },
+
+            updateMissionType: (val) => {
+                App.data.meta.missionType = val;
+
+                if (val !== 'LOG') {
+                    App.data.meta.logCountry = "";
+                    App.data.meta.logCountryAutre = "";
+                    App.data.meta.logAirfield = "";
+                    App.data.meta.logAirfieldAutre = "";
+                    App.ui.logCountrySearch = "";
+                    App.ui.logAirfieldSearch = "";
+                    const countrySearch = document.getElementById('meta-log-country-search');
+                    const airfieldSearch = document.getElementById('meta-log-airfield-search');
+                    if (countrySearch) countrySearch.value = "";
+                    if (airfieldSearch) airfieldSearch.value = "";
+                }
+                if (val !== 'TAC') {
+                    App.data.meta.tacContext = "";
+                    App.data.meta.tacOperation = "";
+                    App.data.meta.tacOperationAutre = "";
+                    App.data.meta.tacExercise = "";
+                    App.data.meta.tacExerciseAutre = "";
+                }
+
+                App.refreshMissionVisibility();
+                App.renderLogCountrySelect();
+                App.renderLogAirfieldSelect();
+                App.renderLogAirfieldOptions();
+                App.save();
+            },
+
+            updateLogCountrySelection: (value) => {
+                const previousCountry = App.resolveCountryName(App.getEffectiveLogCountry());
+                App.data.meta.logCountry = value;
+                if (value !== 'AUTRE') App.data.meta.logCountryAutre = "";
+                App.ui.logCountrySearch = "";
+                const countrySearch = document.getElementById('meta-log-country-search');
+                if (countrySearch) countrySearch.value = "";
+
+                const nextCountryRaw = value === 'AUTRE' ? App.data.meta.logCountryAutre : value;
+                const nextCountry = App.resolveCountryName(nextCountryRaw);
+                if (previousCountry !== nextCountry) {
+                    App.data.meta.logAirfield = "";
+                    App.data.meta.logAirfieldAutre = "";
+                    App.ui.logAirfieldSearch = "";
+                    const airfieldSearch = document.getElementById('meta-log-airfield-search');
+                    if (airfieldSearch) airfieldSearch.value = "";
+                }
+
+                App.renderLogCountrySelect();
+                App.renderLogAirfieldSelect();
+                App.renderLogAirfieldOptions();
+                App.save();
+            },
+
+            updateLogAirfieldSelection: (value) => {
+                App.data.meta.logAirfield = value;
+                if (value !== 'AUTRE') App.data.meta.logAirfieldAutre = "";
+                App.ui.logAirfieldSearch = "";
+                const airfieldSearch = document.getElementById('meta-log-airfield-search');
+                if (airfieldSearch) airfieldSearch.value = "";
+                App.renderLogAirfieldSelect();
+                App.save();
+            },
+
+            updateLogCountryAutre: (value) => {
+                App.data.meta.logCountryAutre = value;
+                App.renderLogAirfieldOptions();
+                App.save();
+            },
+
+            updateLogAirfieldAutre: (value) => {
+                App.data.meta.logAirfieldAutre = value;
+                App.save();
+            },
+
+            updateTacContext: (val) => {
+                App.data.meta.tacContext = val;
+
+                if (val !== 'OPERATIONS') {
+                    App.data.meta.tacOperation = "";
+                    App.data.meta.tacOperationAutre = "";
+                }
+                if (val !== 'EXERCICE') {
+                    App.data.meta.tacExercise = "";
+                    App.data.meta.tacExerciseAutre = "";
+                }
+
+                App.refreshMissionVisibility();
+                App.save();
+            },
+
+            updateTacOperation: (val) => {
+                App.data.meta.tacOperation = val;
+                if (val !== 'AUTRE') App.data.meta.tacOperationAutre = "";
+                App.refreshMissionVisibility();
+                App.save();
+            },
+
+            updateTacExercise: (val) => {
+                App.data.meta.tacExercise = val;
+                if (val !== 'AUTRE') App.data.meta.tacExerciseAutre = "";
+                App.refreshMissionVisibility();
+                App.save();
+            },
+
+            init: () => {
+                App.setupMissionConfig();
+
+                // Load from storage
+                const saved = localStorage.getItem('aar_forge_data');
+                if (saved) {
+                    try {
+                        App.data = JSON.parse(saved);
+                    } catch (e) { console.error("Load error", e); }
+                }
+                App.ensureDataShape();
+                if (!App.data.meta.date) App.data.meta.date = new Date().toISOString().split('T')[0];
+
+                // Bind Input Change Listener for Import
+                document.getElementById('file-input').addEventListener('change', App.importJSON);
+
+                App.renderForm();
+                App.nav(0);
+            },
+
+            save: () => {
+                localStorage.setItem('aar_forge_data', JSON.stringify(App.data));
+                App.refreshRequiredFieldHighlights();
+                App.renderPreview(); // Auto update preview on save
+            },
+
+            update: (path, value) => {
+                const parts = path.split('.');
+                let current = App.data;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    current = current[parts[i]];
+                }
+                current[parts[parts.length - 1]] = value;
+                App.save();
+            },
+
+            updateRank: (val) => {
+                App.data.meta.grade = val;
+                if (val !== 'AUTRE') App.data.meta.gradeAutre = "";
+                const otherGrade = document.getElementById('meta-grade-autre');
+                if (otherGrade) {
+                    otherGrade.style.display = (val === 'AUTRE') ? 'block' : 'none';
+                    if (val !== 'AUTRE') otherGrade.value = "";
+                }
+                App.save();
+            },
+
+            updateUnit: (val) => {
+                App.data.meta.unite = val;
+                if (val !== 'AUTRE') App.data.meta.uniteAutre = "";
+                const otherUnit = document.getElementById('meta-unite-autre');
+                if (otherUnit) {
+                    otherUnit.style.display = (val === 'AUTRE') ? 'block' : 'none';
+                    if (val !== 'AUTRE') otherUnit.value = "";
+                }
+                App.save();
+            },
+
+            updateFleet: (val) => {
+                App.data.meta.flotte = val;
+                if (val !== 'AUTRE') App.data.meta.flotteAutre = "";
+                const otherFleet = document.getElementById('meta-flotte-autre');
+                if (otherFleet) {
+                    otherFleet.style.display = (val === 'AUTRE') ? 'block' : 'none';
+                    if (val !== 'AUTRE') otherFleet.value = "";
+                }
+                App.save();
+            },
+
+            updateClassification: (level) => {
+                App.data.meta.classification = level;
+                App.save();
+                App.renderForm();
+            },
+
+            formatName: (type, val) => {
+                let formatted = val;
+                if (type === 'nom') {
+                    formatted = val.toUpperCase();
+                } else if (type === 'prenom') {
+                    if (val.length > 0) {
+                        formatted = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+                    }
+                }
+                App.data.meta[type] = formatted;
+                document.getElementById(`meta-${type}`).value = formatted;
+                App.save();
+            },
+
+            nav: (index) => {
+                App.ui.currentTab = index;
+                // Update Sidebar
+                document.querySelectorAll('.nav-item').forEach((el, i) => {
+                    el.classList.toggle('active', i === index);
+                });
+                // Update Views
+                const views = ['view-header', 'view-facts', 'view-analysis', 'view-reco', 'view-preview'];
+                views.forEach((id, i) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.classList.toggle('active', i === index);
+                    }
+                });
+
+                if (index === 4) App.renderPreview();
+            },
+
+            placeCaretAtEnd: (el) => {
+                el.focus();
+                if (typeof window.getSelection != "undefined" && typeof document.createRange != "undefined") {
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            },
+
+            formatDate: (iso) => {
+                try {
+                    if (!iso || typeof iso !== 'string') return '-';
+                    const parts = iso.split('-');
+                    if (parts.length !== 3) return iso;
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                } catch (e) {
+                    return iso || '-';
+                }
+            },
+
+            scrollToW6: (id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Highlight effect
+                    el.style.transition = 'background 0.5s';
+                    el.style.background = 'rgba(59, 130, 246, 0.1)';
+                    setTimeout(() => {
+                        el.style.background = 'transparent';
+                    }, 1000);
+
+                    // Focus corresponding editor
+                    const editorId = id.replace('section-', 'fact-');
+                    const editor = document.getElementById(editorId);
+                    if (editor) App.placeCaretAtEnd(editor);
+                }
+            },
+
+            scrollToDorese: (id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Highlight effect
+                    el.style.transition = 'background 0.5s';
+                    el.style.background = 'rgba(59, 130, 246, 0.1)';
+                    setTimeout(() => {
+                        el.style.background = 'transparent';
+                    }, 1000);
+
+                    // Focus corresponding editor
+                    const editorId = id.replace('section-', 'reco-');
+                    const editor = document.getElementById(editorId);
+                    if (editor) App.placeCaretAtEnd(editor);
+                }
+            },
+
+            highlightDorese: (cat) => {
+                document.querySelectorAll('.dorese-tab').forEach(el => el.classList.remove('active'));
+                if (cat) {
+                    const tab = document.getElementById('tab-' + cat);
+                    if (tab) tab.classList.add('active');
+                }
+            },
+
+            highlightW6: (cat) => {
+                document.querySelectorAll('.w6-tab').forEach(el => el.classList.remove('active'));
+                if (cat) {
+                    const tab = document.getElementById('tab-' + cat);
+                    if (tab) tab.classList.add('active');
+                }
+            },
+
+
+
+            // --- FORM BINDING ---
+            renderForm: () => {
+                const d = App.data;
+                App.renderMissionSelectors();
+
+                document.getElementById('meta-title').value = d.meta.title;
+                document.getElementById('meta-date').value = d.meta.date;
+                document.getElementById('meta-grade').value = d.meta.grade || '';
+                document.getElementById('meta-grade-autre').value = d.meta.gradeAutre || '';
+                document.getElementById('meta-grade-autre').style.display = (d.meta.grade === 'AUTRE') ? 'block' : 'none';
+                document.getElementById('meta-prenom').value = d.meta.prenom || '';
+                document.getElementById('meta-nom').value = d.meta.nom || '';
+                document.getElementById('meta-unite').value = d.meta.unite || '';
+                document.getElementById('meta-unite-autre').value = d.meta.uniteAutre || '';
+                document.getElementById('meta-unite-autre').style.display = (d.meta.unite === 'AUTRE') ? 'block' : 'none';
+                document.getElementById('meta-flotte').value = d.meta.flotte || '';
+                document.getElementById('meta-flotte-autre').value = d.meta.flotteAutre || '';
+                document.getElementById('meta-flotte-autre').style.display = (d.meta.flotte === 'AUTRE') ? 'block' : 'none';
+                document.getElementById('meta-mission-type').value = d.meta.missionType || '';
+                document.getElementById('meta-log-country-search').value = App.ui.logCountrySearch || '';
+                document.getElementById('meta-log-airfield-search').value = App.ui.logAirfieldSearch || '';
+                document.getElementById('meta-log-country').value = d.meta.logCountry || '';
+                document.getElementById('meta-log-country-autre').value = d.meta.logCountryAutre || '';
+                document.getElementById('meta-log-airfield').value = d.meta.logAirfield || '';
+                document.getElementById('meta-log-airfield-autre').value = d.meta.logAirfieldAutre || '';
+                document.getElementById('meta-tac-context').value = d.meta.tacContext || '';
+                document.getElementById('meta-tac-operation').value = d.meta.tacOperation || '';
+                document.getElementById('meta-tac-operation-autre').value = d.meta.tacOperationAutre || '';
+                document.getElementById('meta-tac-exercise').value = d.meta.tacExercise || '';
+                document.getElementById('meta-tac-exercise-autre').value = d.meta.tacExerciseAutre || '';
+                App.refreshMissionVisibility();
+                App.renderLogCountrySelect();
+                App.renderLogAirfieldSelect();
+                App.renderLogAirfieldOptions();
+                App.refreshRequiredFieldHighlights();
+
+                // Update Classification UI
+                document.querySelectorAll('.classif-item').forEach(el => {
+                    el.classList.toggle('active', el.dataset.level === d.meta.classification);
+                });
+
+                document.getElementById('fact-what').innerHTML = d.facts.what || '';
+                document.getElementById('fact-why').innerHTML = d.facts.why || '';
+                document.getElementById('fact-when').innerHTML = d.facts.when || '';
+                document.getElementById('fact-where').innerHTML = d.facts.where || '';
+                document.getElementById('fact-who').innerHTML = d.facts.who || '';
+                document.getElementById('fact-how').innerHTML = d.facts.how || '';
+
+                document.getElementById('analysis-content').innerHTML = d.analysis.content || '';
+
+                document.getElementById('reco-doctrine').innerHTML = d.recos.doctrine || '';
+                document.getElementById('reco-organisation').innerHTML = d.recos.organisation || '';
+                document.getElementById('reco-rh').innerHTML = d.recos.rh || '';
+                document.getElementById('reco-equipements').innerHTML = d.recos.equipements || '';
+                document.getElementById('reco-soutien').innerHTML = d.recos.soutien || '';
+                document.getElementById('reco-entrainement').innerHTML = d.recos.entrainement || '';
+            },
+
+            // --- PREVIEW RENDERER ---
+            renderPreview: () => {
+                const d = App.data;
+                const setHtml = (id, html) => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = html || '<span style="opacity:0.3">-</span>';
+                };
+
+                const redacteurText = () => {
+                    const g = d.meta.grade === 'AUTRE' ? d.meta.gradeAutre : d.meta.grade;
+                    const u = d.meta.unite === 'AUTRE' ? d.meta.uniteAutre : d.meta.unite;
+                    const f = d.meta.flotte === 'AUTRE' ? d.meta.flotteAutre : d.meta.flotte;
+                    const parts = [];
+                    if (g) parts.push(g);
+                    if (d.meta.nom) parts.push(d.meta.nom);
+                    if (d.meta.prenom) parts.push(d.meta.prenom);
+
+                    let text = parts.length ? parts.join(' ') : '-';
+                    const unitAndFleet = [u, f].filter(Boolean).join(' | ');
+                    if (unitAndFleet) {
+                        text += '<br><span style="font-weight: normal; opacity: 0.8; font-size: 0.85em;">' + unitAndFleet + '</span>';
+                    }
+                    return text;
+                };
+
+                document.querySelectorAll('.sect-classif').forEach(el => {
+                    el.textContent = d.meta.classification;
+                    el.setAttribute('data-level', d.meta.classification);
+                });
+
+                const titleEl = document.getElementById('prev-title');
+                if (titleEl) titleEl.textContent = d.meta.title || 'AFTER ACTION REVIEW';
+
+                const dateEl = document.getElementById('prev-date');
+                if (dateEl) dateEl.textContent = App.formatDate(d.meta.date);
+
+                setHtml('prev-redacteur', redacteurText());
+
+                setHtml('prev-what', d.facts.what);
+                setHtml('prev-why', d.facts.why);
+                setHtml('prev-when', d.facts.when);
+                setHtml('prev-where', d.facts.where);
+                setHtml('prev-who', d.facts.who);
+                setHtml('prev-how', d.facts.how);
+                setHtml('prev-analysis', d.analysis.content);
+
+                // Render Recos in Preview
+                const recElements = [];
+                const catLabels = {
+                    doctrine: 'DOCTRINE',
+                    organisation: 'ORGANISATION',
+                    rh: 'RH',
+                    equipements: 'EQUIPEMENTS',
+                    soutien: 'SOUTIEN',
+                    entrainement: 'ENTRAINEMENT'
+                };
+
+                for (const cat in d.recos) {
+                    if (d.recos[cat] && d.recos[cat] !== '<br>' && d.recos[cat] !== '<div><br></div>') {
+                        recElements.push(`
+                            <div class="reco-block">
+                                <div class="reco-tag">${catLabels[cat]}</div>
+                                <div class="reco-text">${d.recos[cat]}</div>
+                            </div>
+                        `);
+                    }
+                }
+                document.getElementById('prev-recos').innerHTML = recElements.length ? recElements.join('') : '<span style="opacity:0.3">Aucune recommandation saisie.</span>';
+                setHtml('prev-qwi', d.qwi?.advice || '');
+            },
+
+            // --- EXPORT / IMPORT ---
+            exportJSON: () => {
+                if (!App.validateRequiredFields('export JSON')) return;
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(App.data, null, 2));
+                const dlAnchor = document.createElement('a');
+                dlAnchor.setAttribute("href", dataStr);
+                const safeName = (App.data.meta.title || 'aar').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                dlAnchor.setAttribute("download", `${safeName}_${new Date().toISOString().split('T')[0]}.json`);
+                document.body.appendChild(dlAnchor);
+                dlAnchor.click();
+                dlAnchor.remove();
+            },
+            sendQwiEmail: () => {
+                if (!App.validateRequiredFields('envoi QWI')) return;
+                const title = App.data.meta.title || "AAR";
+                const date = App.data.meta.date || "Unknown Date";
+                const rank = App.data.meta.grade === 'AUTRE' ? (App.data.meta.gradeAutre || "") : (App.data.meta.grade || "");
+                const identity = [rank, App.data.meta.nom || "", App.data.meta.prenom || ""].filter(Boolean).join(" ").trim() || "Unknown";
+                const payload = JSON.stringify(App.data);
+                const payloadBlock = `\n==================== AAR JSON PAYLOAD ====================\n---BEGIN-AAR-JSON---\n${payload}\n---END-AAR-JSON---\n==========================================================`;
+
+                const subject = `[AAR] ${date} - ${title}`;
+                const body = `Bonjour,\n\nAAR:\n\n- Date : ${date}\n- Titre : ${title}\n- Redacteur : ${identity}\n\nCordialement.${payloadBlock}`;
+                const mailto = `mailto:ciet-qwi.contact.fct@intradef.gouv.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+                window.location.href = mailto;
+            },
+            printReport: () => {
+                if (!App.validateRequiredFields('impression / PDF')) return;
+                window.print();
+            },
+
+            importJSON: (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        App.data = JSON.parse(e.target.result);
+                        App.ensureDataShape();
+                        App.save();
+                        App.renderForm();
+                        App.renderPreview();
+                        alert("AAR chargé avec succès !");
+                    } catch (err) {
+                        alert("Erreur de lecture du fichier JSON.");
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = ''; // Reset
+            },
+
+            reset: () => {
+                if (confirm("Voulez-vous vraiment effacer toutes les données ?")) {
+                    localStorage.removeItem('aar_forge_data');
+                    location.reload();
+                }
+            },
+
+            autoExpand: (el) => {
+                // Not strictly needed for contenteditable, but kept for inputs if any
+                if (el.tagName === 'TEXTAREA') {
+                    el.style.height = 'auto';
+                    el.style.height = el.scrollHeight + 'px';
+                }
+            },
+
+            exec: (cmd, arg) => {
+                document.execCommand(cmd, false, arg);
+                // Maintain focus
+                document.querySelector('.editor-content:focus')?.focus();
+            }
+        };
+
+        // Start
+        App.init();
+
+        // Initial trigger for textareas
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('textarea').forEach(el => App.autoExpand(el));
+        });
+    </script>
+    <script>
+        (function externalQwiEditorBridge() {
+            const params = new URLSearchParams(window.location.search);
+            const isExternalEditor = params.get('externalEditor') === '1';
+            const session = (params.get('session') || '').trim();
+            if (!isExternalEditor || !session) return;
+
+            const requestKey = `aar_qwi_editor_request:${session}`;
+            let request = null;
+            try {
+                const raw = localStorage.getItem(requestKey);
+                request = raw ? JSON.parse(raw) : null;
+            } catch (error) {
+                console.warn('QWI external request parse failed:', error);
+            }
+
+            if (request && request.aar && typeof request.aar === 'object') {
+                App.data = request.aar;
+            } else {
+                App.data = {};
+            }
+            App.ensureDataShape();
+            if (!App.data.meta.date) App.data.meta.date = new Date().toISOString().split('T')[0];
+            App.save();
+            App.renderForm();
+            App.renderPreview();
+
+            document.title = 'AAR Editor QWI';
+
+            const bar = document.createElement('div');
+            bar.style.position = 'fixed';
+            bar.style.right = '16px';
+            bar.style.bottom = '16px';
+            bar.style.display = 'flex';
+            bar.style.gap = '8px';
+            bar.style.zIndex = '3000';
+            bar.innerHTML = `
+                <button id="ext-qwi-save" class="btn btn-primary" style="padding: 10px 14px;">Enregistrer vers HUB QWI</button>
+                <button id="ext-qwi-close" class="btn" style="padding: 10px 14px;">Fermer</button>
+            `;
+            document.body.appendChild(bar);
+
+            const sendToOpener = () => {
+                App.ensureDataShape();
+                const payload = JSON.parse(JSON.stringify(App.data || {}));
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({
+                        type: 'aar-qwi-save',
+                        session,
+                        aar: payload
+                    }, '*');
+                    return true;
+                }
+                return false;
+            };
+
+            const saveBtn = document.getElementById('ext-qwi-save');
+            const closeBtn = document.getElementById('ext-qwi-close');
+
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    if (sendToOpener()) {
+                        alert('AAR envoye au HUB QWI.');
+                        window.close();
+                        return;
+                    }
+                    alert('Impossible de contacter la fenetre HUB QWI (popup fermee ?).');
+                });
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => window.close());
+            }
+        })();
+    </script>
+    <script>
+        (function registerPwa() {
+            if (!('serviceWorker' in navigator)) return;
+
+            const activateWaitingWorker = (registration) => {
+                if (registration && registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+            };
+
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+                    activateWaitingWorker(registration);
+                    await registration.update();
+
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        if (!newWorker) return;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed') {
+                                activateWaitingWorker(registration);
+                            }
+                        });
+                    });
+                } catch (error) {
+                    console.warn('Service worker registration failed:', error);
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>
+
+
+
+
+
+
