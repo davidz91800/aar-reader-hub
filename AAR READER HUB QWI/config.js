@@ -1,6 +1,7 @@
 window.AAR_READER_CONFIG = {
   autoSyncOnStartup: false,
   googleDrive: {
+    oauthClientId: "",
     apiKey: "",
     folderId: "",
     indexFileId: ""

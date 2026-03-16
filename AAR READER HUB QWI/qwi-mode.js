@@ -1,10 +1,16 @@
-/* QWI mode: add / edit / delete AARs with external editor bridge */
+/* QWI mode: add / edit / delete AARs and push to Google Drive */
 (function () {
   const LOCAL_SOURCE = "qwi_local";
   const REQUEST_PREFIX = "aar_qwi_editor_request:";
   const DELETED_KEY = "aar_qwi_deleted_ids_v1";
   const EDITOR_RELATIVE_URL = "../../C - AAR PWA/AAR.html";
+  const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
   const sessions = new Map();
+
+  let tokenClient = null;
+  let accessToken = "";
+  let tokenExpiryAt = 0;
+  let gsiLoader = null;
 
   function sortRecords(rows) {
     return [...rows].sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
@@ -60,6 +66,273 @@
     return `${Date.now()}_${rand}`;
   }
 
+  function getWriteDriveConfig() {
+    const base = typeof getDriveConfig === "function" ? getDriveConfig() : {};
+    const raw = (window.AAR_READER_CONFIG && window.AAR_READER_CONFIG.googleDrive) || {};
+    return {
+      folderId: String(base.folderId || raw.folderId || "").trim(),
+      indexFileId: String(base.indexFileId || raw.indexFileId || "").trim(),
+      oauthClientId: String(raw.oauthClientId || raw.clientId || "").trim()
+    };
+  }
+
+  function setDriveButtonState({ connected = false, busy = false } = {}) {
+    const btn = document.getElementById("qwi-drive-btn");
+    if (!btn) return;
+    btn.classList.toggle("is-connected", !!connected);
+    btn.classList.toggle("is-busy", !!busy);
+    btn.disabled = !!busy;
+    btn.title = connected ? "Google Drive connecte" : "Connexion Google Drive";
+  }
+
+  function getIsoToday() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function toDriveFileName(record) {
+    if (record && record.fileName) return record.fileName;
+    const title = String(record?.title || "aar").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "aar";
+    const date = String(record?.date || getIsoToday());
+    return `${date}_${title}.json`;
+  }
+
+  function ensureGsiLoaded() {
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+      return Promise.resolve();
+    }
+    if (gsiLoader) return gsiLoader;
+
+    gsiLoader = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-gsi-client="1"]');
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Chargement GSI impossible.")), { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.dataset.gsiClient = "1";
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Chargement Google Identity Services impossible."));
+      document.head.appendChild(script);
+    });
+
+    return gsiLoader;
+  }
+
+  async function ensureDriveAccess(interactive = true) {
+    const cfg = getWriteDriveConfig();
+    if (!cfg.oauthClientId) {
+      throw new Error("oauthClientId manquant dans config.js (googleDrive.oauthClientId).");
+    }
+
+    if (accessToken && Date.now() < tokenExpiryAt - 30000) {
+      setDriveButtonState({ connected: true, busy: false });
+      return accessToken;
+    }
+
+    await ensureGsiLoaded();
+
+    if (!tokenClient) {
+      tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: cfg.oauthClientId,
+        scope: DRIVE_SCOPE,
+        callback: () => {}
+      });
+    }
+
+    setDriveButtonState({ connected: !!accessToken, busy: true });
+    try {
+      const tokenResponse = await new Promise((resolve, reject) => {
+        tokenClient.callback = (resp) => {
+          if (resp && resp.access_token) resolve(resp);
+          else reject(new Error("Token Google Drive invalide."));
+        };
+        tokenClient.error_callback = (err) => {
+          const msg = err?.type || err?.message || "Authentification Google annulee.";
+          reject(new Error(msg));
+        };
+
+        try {
+          tokenClient.requestAccessToken({ prompt: interactive ? "consent" : "" });
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      accessToken = tokenResponse.access_token;
+      const expiresIn = Number(tokenResponse.expires_in || 3600);
+      tokenExpiryAt = Date.now() + (expiresIn * 1000);
+      setDriveButtonState({ connected: true, busy: false });
+      return accessToken;
+    } catch (error) {
+      setDriveButtonState({ connected: !!accessToken, busy: false });
+      throw error;
+    }
+  }
+
+  async function driveRequest(url, options = {}) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`Drive ${response.status}: ${text || response.statusText}`);
+    }
+    return response;
+  }
+
+  function multipartBody(metadata, jsonContent, boundary) {
+    return [
+      `--${boundary}`,
+      "Content-Type: application/json; charset=UTF-8",
+      "",
+      JSON.stringify(metadata),
+      `--${boundary}`,
+      "Content-Type: application/json; charset=UTF-8",
+      "",
+      jsonContent,
+      `--${boundary}--`
+    ].join("\r\n");
+  }
+
+  function normalizeIndexEntries(payload) {
+    if (Array.isArray(payload)) {
+      return payload
+        .map((item) => {
+          if (typeof item === "string") return { id: item, name: "" };
+          return { id: String(item?.id || "").trim(), name: String(item?.name || "").trim() };
+        })
+        .filter((x) => x.id);
+    }
+    if (payload && Array.isArray(payload.files)) {
+      return payload.files
+        .map((item) => ({ id: String(item?.id || "").trim(), name: String(item?.name || "").trim() }))
+        .filter((x) => x.id);
+    }
+    return [];
+  }
+
+  async function readIndexEntries(token, indexFileId) {
+    const res = await driveRequest(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(indexFileId)}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const text = await res.text();
+    if (!text.trim()) return [];
+    try {
+      return normalizeIndexEntries(JSON.parse(text));
+    } catch {
+      return [];
+    }
+  }
+
+  async function writeIndexEntries(token, indexFileId, entries) {
+    const dedup = [];
+    const seen = new Set();
+    for (const row of entries) {
+      const id = String(row?.id || "").trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      dedup.push({ id, name: String(row?.name || "").trim() });
+    }
+
+    const body = JSON.stringify({ files: dedup }, null, 2);
+    await driveRequest(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(indexFileId)}?uploadType=media`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=UTF-8"
+      },
+      body
+    });
+  }
+
+  async function upsertIndexEntry(token, indexFileId, entry) {
+    if (!indexFileId) return;
+    const entries = await readIndexEntries(token, indexFileId);
+    const next = entries.filter((x) => x.id !== entry.id);
+    next.push({ id: entry.id, name: entry.name || "" });
+    await writeIndexEntries(token, indexFileId, next);
+  }
+
+  async function removeIndexEntry(token, indexFileId, fileId) {
+    if (!indexFileId || !fileId) return;
+    const entries = await readIndexEntries(token, indexFileId);
+    const next = entries.filter((x) => x.id !== fileId);
+    await writeIndexEntries(token, indexFileId, next);
+  }
+
+  async function pushUpsertToDrive(record, existingRecord) {
+    const cfg = getWriteDriveConfig();
+    const targetFileId = String(existingRecord?.driveFileId || record?.driveFileId || "").trim();
+    if (!cfg.folderId && !targetFileId) {
+      throw new Error("folderId Drive manquant pour creer un nouvel AAR.");
+    }
+
+    const token = await ensureDriveAccess(true);
+    setDriveButtonState({ connected: true, busy: true });
+
+    try {
+      const boundary = `qwi_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const fileName = toDriveFileName(record);
+      const metadata = targetFileId
+        ? { name: fileName, mimeType: "application/json" }
+        : { name: fileName, mimeType: "application/json", parents: [cfg.folderId] };
+
+      const body = multipartBody(metadata, JSON.stringify(record.mission || {}, null, 2), boundary);
+      const baseUrl = targetFileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(targetFileId)}?uploadType=multipart&fields=id,name,modifiedTime`
+        : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime";
+
+      const res = await driveRequest(baseUrl, {
+        method: targetFileId ? "PATCH" : "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": `multipart/related; boundary=${boundary}`
+        },
+        body
+      });
+
+      const meta = await res.json();
+      if (!meta?.id) throw new Error("Reponse Drive sans id fichier.");
+
+      if (cfg.indexFileId) {
+        await upsertIndexEntry(token, cfg.indexFileId, { id: meta.id, name: meta.name || fileName });
+      }
+
+      setDriveButtonState({ connected: true, busy: false });
+      return meta;
+    } catch (error) {
+      setDriveButtonState({ connected: true, busy: false });
+      throw error;
+    }
+  }
+
+  async function pushDeleteToDrive(record) {
+    const cfg = getWriteDriveConfig();
+    const fileId = String(record?.driveFileId || "").trim();
+    if (!fileId) return;
+
+    const token = await ensureDriveAccess(true);
+    setDriveButtonState({ connected: true, busy: true });
+
+    try {
+      await driveRequest(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (cfg.indexFileId) {
+        await removeIndexEntry(token, cfg.indexFileId, fileId);
+      }
+
+      setDriveButtonState({ connected: true, busy: false });
+    } catch (error) {
+      setDriveButtonState({ connected: true, busy: false });
+      throw error;
+    }
+  }
+
   function openEditor(recordId = "") {
     const record = recordId ? state.reports.find((x) => x.id === recordId) : null;
     const sessionId = newSessionId();
@@ -94,18 +367,36 @@
     if (existing) {
       rec.id = existing.id;
       rec.createdAt = existing.createdAt || rec.createdAt;
+      rec.driveFileId = existing.driveFileId || "";
+      rec.driveModifiedTime = existing.driveModifiedTime || "";
     }
 
     rec.source = LOCAL_SOURCE;
     rec.sourceName = "qwi_editor";
     rec.updatedAt = new Date().toISOString();
 
+    let pushError = "";
+    try {
+      const driveMeta = await pushUpsertToDrive(rec, existing);
+      rec.driveFileId = driveMeta.id || rec.driveFileId || "";
+      rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
+      rec.source = "drive_file";
+      rec.sourceName = "google_drive_qwi";
+      rec.qwiDirty = false;
+      delete rec.qwiError;
+    } catch (error) {
+      pushError = String(error?.message || error || "erreur inconnue");
+      rec.qwiDirty = true;
+      rec.qwiError = pushError;
+    }
+
     const rows = state.reports.filter((x) => x.id !== rec.id);
     rows.push(rec);
 
     unmarkDeleted(rec.id);
     await persistRecords(rows);
-    toast(existing ? "AAR modifie." : "AAR ajoute.");
+    if (pushError) toast(`AAR sauvegarde localement (Drive KO): ${pushError}`);
+    else toast(existing ? "AAR modifie (Drive + local)." : "AAR ajoute (Drive + local).");
     openDetail(rec.id);
   }
 
@@ -116,11 +407,22 @@
 
     if (!window.confirm(`Supprimer cet AAR ?\n\n${rec.title}`)) return;
 
+    if (rec.driveFileId) {
+      try {
+        await pushDeleteToDrive(rec);
+      } catch (error) {
+        toast(`Suppression Drive refusee: ${error.message || error}`);
+        return;
+      }
+    }
+
     markDeleted(recordId);
     const rows = state.reports.filter((x) => x.id !== recordId);
     await persistRecords(rows);
     closeDetail();
-    toast("AAR supprime.");
+
+    if (rec.driveFileId) toast("AAR supprime (Drive + local).");
+    else toast("AAR supprime localement.");
   }
 
   function injectDetailActions() {
@@ -157,19 +459,28 @@
     if (newBtn) newBtn.onclick = () => openEditor();
   }
 
+  async function connectDrive() {
+    try {
+      await ensureDriveAccess(true);
+      toast("Connexion Google Drive OK.");
+    } catch (error) {
+      toast(`Connexion Drive impossible: ${error.message || error}`);
+    }
+  }
+
   function installTopActions() {
     const newBtn = document.getElementById("qwi-new-btn");
     if (newBtn) newBtn.addEventListener("click", () => openEditor());
 
+    const driveBtn = document.getElementById("qwi-drive-btn");
+    if (driveBtn) driveBtn.addEventListener("click", connectDrive);
+
     if (el.syncBtn) {
       el.syncBtn.title = "Synchroniser (conserve les modifications QWI locales)";
     }
-  }
 
-  const baseRenderList = renderList;
-  renderList = function patchedRenderList() {
-    baseRenderList();
-  };
+    setDriveButtonState({ connected: false, busy: false });
+  }
 
   const baseOpenDetail = openDetail;
   openDetail = function patchedOpenDetail(id) {
@@ -186,7 +497,7 @@
 
   const baseSyncPreferred = syncPreferred;
   syncPreferred = async function patchedSyncPreferred(opts = {}) {
-    const localRecords = state.reports.filter((x) => x.source === LOCAL_SOURCE);
+    const localRecords = state.reports.filter((x) => x.source === LOCAL_SOURCE || x.qwiDirty);
     const deletedIds = getDeletedIds();
 
     await baseSyncPreferred(opts);
@@ -220,7 +531,6 @@
     }
   });
 
-  // Apply deletion filters at startup if needed.
   const deletedIds = getDeletedIds();
   if (deletedIds.size) {
     const next = state.reports.filter((x) => !deletedIds.has(x.id));

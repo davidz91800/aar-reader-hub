@@ -112,6 +112,23 @@ body {
 }
 
 .header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.btn-qwi-drive {
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #cbd5e1;
+}
+.btn-qwi-drive:hover {
+  border-color: rgba(148, 163, 184, 0.8);
+  color: #f8fafc;
+}
+.btn-qwi-drive.is-connected {
+  border-color: rgba(52, 211, 153, 0.55);
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.14);
+}
+.btn-qwi-drive.is-busy {
+  opacity: 0.75;
+  cursor: wait;
+}
 .btn-qwi-new {
   border-color: rgba(56, 189, 248, 0.4);
   color: #7dd3fc;
