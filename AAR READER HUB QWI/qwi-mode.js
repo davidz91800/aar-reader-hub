@@ -12,6 +12,10 @@
   let tokenExpiryAt = 0;
   let gsiLoader = null;
 
+  function hasValidDriveToken() {
+    return !!accessToken && Date.now() < tokenExpiryAt - 30000;
+  }
+
   function sortRecords(rows) {
     return [...rows].sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
   }
@@ -132,9 +136,13 @@
       throw new Error("oauthClientId manquant dans config.js (googleDrive.oauthClientId).");
     }
 
-    if (accessToken && Date.now() < tokenExpiryAt - 30000) {
+    if (hasValidDriveToken()) {
       setDriveButtonState({ connected: true, busy: false });
       return accessToken;
+    }
+
+    if (!interactive && !accessToken) {
+      throw new Error("Session Drive non connectee. Clique sur le nuage puis reenregistre.");
     }
 
     await ensureGsiLoaded();
@@ -273,7 +281,7 @@
       throw new Error("folderId Drive manquant pour creer un nouvel AAR.");
     }
 
-    const token = await ensureDriveAccess(true);
+    const token = await ensureDriveAccess(false);
     setDriveButtonState({ connected: true, busy: true });
 
     try {
@@ -317,7 +325,7 @@
     const fileId = String(record?.driveFileId || "").trim();
     if (!fileId) return;
 
-    const token = await ensureDriveAccess(true);
+    const token = await ensureDriveAccess(false);
     setDriveButtonState({ connected: true, busy: true });
 
     try {
@@ -357,6 +365,10 @@
       localStorage.removeItem(requestKey(sessionId));
       toast("Popup bloquee: autorise les popups puis reessaie.");
       return;
+    }
+
+    if (!hasValidDriveToken()) {
+      toast("Edition ouverte. Pour pousser sur Drive: clique d'abord sur le nuage.");
     }
   }
 

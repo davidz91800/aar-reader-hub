@@ -57,6 +57,7 @@ Option: `indexFileId` peut pointer vers un `index.json` public contenant la list
   - sans reseau: lecture du cache local (IndexedDB)
 - Bouton `Synchroniser Drive` pour forcer la synchro.
 - Bouton nuage: connexion Google Drive (OAuth) pour autoriser les ecritures.
+- Important: la premiere ecriture de la session exige de cliquer sur le nuage avant de sauver une edition.
 - Modif/ajout/suppression poussent vers Drive si OAuth + folderId sont configures.
 - Si push Drive echoue, la modif reste locale (message explicite).
 
