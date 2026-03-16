@@ -807,62 +807,130 @@ function renderList() {
 }
 
 /* ═══ RENDERING — DETAIL MODAL ═══ */
+function asDocHtml(value, emptyText = "N/A") {
+  const raw = String(value || "");
+  const text = htmlToText(raw).replace(/\r/g, "").trim();
+  if (!text) return `<span class="doc-na">${esc(emptyText)}</span>`;
+  return esc(text)
+    .replace(/\n{2,}/g, "<br><br>")
+    .replace(/\n/g, "<br>");
+}
+
 function openDetail(id) {
   const r = state.reports.find((x) => x.id === id);
   if (!r) return;
   state.openDetailId = id;
-  const m = r.mission;
+  const m = r.mission || {};
 
-  el.detailTitle.textContent = r.title;
-  el.detailMetaLine.textContent = `${formatDateFr(r.date)} · ${r.redacteur} · ${r.unit} · ${r.classification}${r.fleet ? " · " + r.fleet : ""}${r.country ? " · " + r.country : ""}`;
+  el.detailTitle.textContent = "Apercu PDF";
+  el.detailMetaLine.textContent = `${formatDateFr(r.date)} | ${r.classification}`;
 
-  const factLabels = { what: "WHAT / QUOI", why: "WHY / POURQUOI", when: "WHEN / QUAND", where: "WHERE / OÙ", who: "WHO / QUI", how: "HOW / COMMENT", narrative: "NARRATIF" };
-  const factsHtml = Object.entries(factLabels).map(([k, label]) => {
-    const txt = cleanText(m.facts[k]);
-    return `<div class="w6-item"><div class="w6-label">${esc(label)}</div><div class="w6-content">${txt ? esc(txt) : '<span class="w6-na">N/A</span>'}</div></div>`;
-  }).join("");
+  const factBlocks = [
+    { key: "what", label: "WHAT happened?", wide: true },
+    { key: "why", label: "WHY did it happen?" },
+    { key: "when", label: "WHEN did it happen?" },
+    { key: "where", label: "WHERE did it happen?" },
+    { key: "who", label: "WHO was involved?" },
+    { key: "how", label: "HOW did it happen?", wide: true }
+  ];
 
-  const recoLabels = { doctrine: "DOCTRINE", organisation: "ORGANISATION", rh: "RH", equipements: "ÉQUIPEMENTS", soutien: "SOUTIEN", entrainement: "ENTRAÎNEMENT" };
+  const factsHtml = factBlocks.map((item) => `
+    <div class="pdf-fact ${item.wide ? "is-wide" : ""}">
+      <label>${esc(item.label)}</label>
+      <div class="pdf-rich">${asDocHtml(m.facts?.[item.key])}</div>
+    </div>`).join("");
+
+  const recoLabels = {
+    doctrine: "DOCTRINE",
+    organisation: "ORGANISATION",
+    rh: "RH",
+    equipements: "EQUIPEMENTS",
+    soutien: "SOUTIEN",
+    entrainement: "ENTRAINEMENT"
+  };
   const recosHtml = Object.entries(recoLabels)
-    .filter(([k]) => nonEmpty(m.recos[k]))
-    .map(([k, label]) => `<div class="dorese-block"><div class="dorese-tag">${esc(label)}</div><div class="dorese-text">${esc(cleanText(m.recos[k]))}</div></div>`)
-    .join("") || '<p style="color:var(--text-muted)">Aucune recommandation.</p>';
+    .filter(([k]) => nonEmpty(m.recos?.[k]))
+    .map(([k, label]) => `
+      <div class="pdf-reco-block">
+        <div class="pdf-reco-tag">${esc(label)}</div>
+        <div class="pdf-reco-text pdf-rich">${asDocHtml(m.recos?.[k])}</div>
+      </div>`)
+    .join("") || '<p class="doc-na">Aucune recommandation.</p>';
 
-  const analysisText = cleanText(m.analysis?.content);
-  const qwiText = cleanText(m.qwi?.advice);
+  const missionParts = [];
+  if (r.missionType) missionParts.push(`Type: ${r.missionType}`);
+  if (r.country) missionParts.push(`Pays: ${r.country}`);
+  if (r.airfield) missionParts.push(`Terrain OACI: ${r.airfield}`);
+  if (r.tacContext) missionParts.push(`Contexte TAC: ${r.tacContext}`);
+  if (r.tacDetail) missionParts.push(`Detail: ${r.tacDetail}`);
+  const missionContextHtml = missionParts.length ? esc(missionParts.join(" | ")) : '<span class="doc-na">N/A</span>';
+  const redacteur = [r.redacteur, r.unit, r.fleet].filter(Boolean).join(" | ") || "N/A";
+  const pageTitle = r.title || "AFTER ACTION REVIEW";
 
-  let missionCtxHtml = "";
-  if (r.missionType || r.country || r.airfield || r.tacDetail) {
-    const parts = [];
-    if (r.missionType) parts.push(`<strong>Type :</strong> ${esc(r.missionType)}`);
-    if (r.country) parts.push(`<strong>Pays :</strong> ${esc(r.country)}`);
-    if (r.airfield) parts.push(`<strong>Terrain OACI :</strong> ${esc(r.airfield)}`);
-    if (r.tacContext) parts.push(`<strong>Contexte TAC :</strong> ${esc(r.tacContext)}`);
-    if (r.tacDetail) parts.push(`<strong>Détail :</strong> ${esc(r.tacDetail)}`);
-    missionCtxHtml = `
-      <div class="detail-section">
-        <div class="detail-section-head">Contexte Mission</div>
-        <div class="detail-section-body"><p>${parts.join(" &nbsp;·&nbsp; ")}</p></div>
-      </div>`;
-  }
-
+  el.detailBody.classList.add("detail-body-pdf");
   el.detailBody.innerHTML = `
-    ${missionCtxHtml}
-    <div class="detail-section">
-      <div class="detail-section-head">5W1H — Faits</div>
-      <div class="detail-section-body"><div class="w6-grid">${factsHtml}</div></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-head">Analyse</div>
-      <div class="detail-section-body"><p>${analysisText ? esc(analysisText) : '<span class="w6-na">N/A</span>'}</p></div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-head">Recommandations DORESE</div>
-      <div class="detail-section-body">${recosHtml}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-head">Avis QWI / Weapons School</div>
-      <div class="detail-section-body"><p>${qwiText ? esc(qwiText) : '<span class="w6-na">N/A</span>'}</p></div>
+    <div class="pdf-preview-wrap">
+      <article class="pdf-page">
+        <div class="doc-classification-badge" data-level="${esc(r.classification || "UNKNOWN")}">${esc(r.classification || "UNKNOWN")}</div>
+        <header class="pdf-doc-header">
+          <div class="pdf-doc-type">After Action Review</div>
+          <h2>${esc(pageTitle)}</h2>
+        </header>
+
+        <section class="pdf-doc-section">
+          <div class="pdf-section-title"><h3>00. CONTEXTE MISSION</h3></div>
+          <div class="pdf-section-content">
+            <div class="pdf-info-grid">
+              <div class="pdf-info-item">
+                <label>Date de l'evenement</label>
+                <span>${esc(formatDateFr(r.date))}</span>
+              </div>
+              <div class="pdf-info-item">
+                <label>Redacteur</label>
+                <span>${esc(redacteur)}</span>
+              </div>
+              <div class="pdf-info-item">
+                <label>Mission</label>
+                <span>${missionContextHtml}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="pdf-doc-section">
+          <div class="pdf-section-title"><h3>01. FAITS (5W1H)</h3></div>
+          <div class="pdf-section-content">
+            <div class="pdf-facts-grid">${factsHtml}</div>
+            <div class="pdf-fact is-wide">
+              <label>NARRATIF</label>
+              <div class="pdf-rich">${asDocHtml(m.facts?.narrative)}</div>
+            </div>
+          </div>
+        </section>
+      </article>
+
+      <article class="pdf-page">
+        <div class="doc-classification-badge" data-level="${esc(r.classification || "UNKNOWN")}">${esc(r.classification || "UNKNOWN")}</div>
+        <section class="pdf-doc-section">
+          <div class="pdf-section-title pdf-warning"><h3>02. ANALYSE</h3></div>
+          <div class="pdf-section-content">
+            <div class="pdf-analysis-box pdf-rich">${asDocHtml(m.analysis?.content)}</div>
+          </div>
+        </section>
+      </article>
+
+      <article class="pdf-page">
+        <div class="doc-classification-badge" data-level="${esc(r.classification || "UNKNOWN")}">${esc(r.classification || "UNKNOWN")}</div>
+        <section class="pdf-doc-section">
+          <div class="pdf-section-title pdf-success"><h3>03. RECOMMANDATIONS (DORESE)</h3></div>
+          <div class="pdf-section-content">${recosHtml}</div>
+        </section>
+
+        <section class="pdf-doc-section">
+          <div class="pdf-section-title"><h3>04. AVIS QWI / WEAPONS SCHOOL</h3></div>
+          <div class="pdf-section-content pdf-rich">${asDocHtml(m.qwi?.advice)}</div>
+        </section>
+      </article>
     </div>`;
 
   el.detailOverlay.classList.add("open");
@@ -871,6 +939,7 @@ function openDetail(id) {
 
 function closeDetail() {
   el.detailOverlay.classList.remove("open");
+  if (el.detailBody) el.detailBody.classList.remove("detail-body-pdf");
   document.body.style.overflow = "";
   state.openDetailId = null;
 }
@@ -1081,3 +1150,4 @@ async function init() {
 }
 
 init();
+
