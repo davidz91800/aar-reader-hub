@@ -933,12 +933,19 @@ function openDetail(id) {
       </article>
     </div>`;
 
-  el.detailOverlay.classList.add("open");
+  if (el.detailSheet) el.detailSheet.classList.add("pdf-open");
+  el.detailOverlay.classList.add("open", "pdf-open");
   document.body.style.overflow = "hidden";
 }
 
+function printDetail() {
+  if (!state.openDetailId) return;
+  window.print();
+}
+
 function closeDetail() {
-  el.detailOverlay.classList.remove("open");
+  el.detailOverlay.classList.remove("open", "pdf-open");
+  if (el.detailSheet) el.detailSheet.classList.remove("pdf-open");
   if (el.detailBody) el.detailBody.classList.remove("detail-body-pdf");
   document.body.style.overflow = "";
   state.openDetailId = null;
@@ -1081,9 +1088,11 @@ async function init() {
     viewList: document.getElementById("view-list"),
     viewAnalyze: document.getElementById("view-analyze"),
     detailOverlay: document.getElementById("detail-overlay"),
+    detailSheet: document.getElementById("detail-sheet"),
     detailTitle: document.getElementById("detail-title"),
     detailMetaLine: document.getElementById("detail-meta-line"),
     detailBody: document.getElementById("detail-body"),
+    detailPrint: document.getElementById("detail-print"),
     detailClose: document.getElementById("detail-close"),
     toast: document.getElementById("toast")
   });
@@ -1097,6 +1106,7 @@ async function init() {
   });
 
   // Close detail
+  if (el.detailPrint) el.detailPrint.onclick = printDetail;
   if (el.detailClose) el.detailClose.onclick = closeDetail;
   if (el.detailOverlay) {
     el.detailOverlay.addEventListener("click", (e) => {
