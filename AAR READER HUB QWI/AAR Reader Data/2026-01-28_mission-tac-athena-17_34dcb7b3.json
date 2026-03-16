@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission TAC - Athena - 17",
+    "date": "2026-01-28",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot17",
+    "prenom": "John",
+    "unite": "ET 1/64 Béarn",
+    "uniteAutre": "",
+    "flotte": "C130J",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "TAC",
+    "logCountry": "",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "tacContext": "EXERCICE",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "Athena",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-01-28",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la CIET 340",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}

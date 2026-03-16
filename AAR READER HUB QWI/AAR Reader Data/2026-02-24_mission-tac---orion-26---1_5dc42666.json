@@ -1,0 +1,48 @@
+{
+  "aar": {
+    "meta": {
+      "id": "aar-001-5dc42666",
+      "date": "2026-02-24",
+      "title": "Mission TAC - Orion 26 - 1",
+      "nom": "Pilot1",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "ET 1/61 Touraine",
+      "classification": "DIFFUSION RESTREINTE",
+      "flotte": "C130J",
+      "missionType": "TAC",
+      "logCountry": "",
+      "logAirfield": "",
+      "tacContext": "EXERCICE",
+      "tacOperation": "",
+      "tacExercise": "Orion 26"
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacités opérationnelles.",
+      "when": "Le 2026-02-24",
+      "where": "Zone d'opération désignée.",
+      "who": "Équipage de la ET 1/61 Touraine",
+      "how": "Utilisation des procédures standards OTAN.",
+      "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, réactivité technique.",
+      "challenges": "Météo changeante, communications radio parfois difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "EQUIPEMENTS",
+          "text": "Améliorer les procédures de briefing météo."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente exécution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}

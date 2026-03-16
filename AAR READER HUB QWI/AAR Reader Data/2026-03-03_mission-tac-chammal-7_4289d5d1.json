@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission TAC - Chammal - 7",
+    "date": "2026-03-03",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot7",
+    "prenom": "John",
+    "unite": "ET 1/61 Touraine",
+    "uniteAutre": "",
+    "flotte": "C130J",
+    "flotteAutre": "",
+    "classification": "NON PROTEGE",
+    "missionType": "TAC",
+    "logCountry": "",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "tacContext": "OPERATIONS",
+    "tacOperation": "Chammal",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-03-03",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la ET 1/64 Béarn",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}

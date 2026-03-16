@@ -1,0 +1,48 @@
+{
+  "aar": {
+    "meta": {
+      "id": "aar-005-57196234",
+      "date": "2026-02-23",
+      "title": "Mission TAC - Barkhane - 5",
+      "nom": "Pilot5",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "ET 3/61 Poitou",
+      "classification": "DIFFUSION RESTREINTE",
+      "flotte": "MRTT",
+      "missionType": "TAC",
+      "logCountry": "",
+      "logAirfield": "",
+      "tacContext": "OPERATIONS",
+      "tacOperation": "Barkhane",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacités opérationnelles.",
+      "when": "Le 2026-02-23",
+      "where": "Zone d'opération désignée.",
+      "who": "Équipage de la CIET 340",
+      "how": "Utilisation des procédures standards OTAN.",
+      "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, réactivité technique.",
+      "challenges": "Météo changeante, communications radio parfois difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "RH",
+          "text": "Améliorer les procédures de briefing météo."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": false,
+      "qwiOpinion": "Avis favorable. Excellente exécution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}

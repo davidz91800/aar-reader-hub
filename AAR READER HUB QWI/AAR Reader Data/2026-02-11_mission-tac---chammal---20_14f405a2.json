@@ -1,0 +1,48 @@
+{
+  "aar": {
+    "meta": {
+      "id": "aar-020-14f405a2",
+      "date": "2026-02-11",
+      "title": "Mission TAC - Chammal - 20",
+      "nom": "Pilot20",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "CIET 340",
+      "classification": "NON PROTEGE",
+      "flotte": "A400M",
+      "missionType": "TAC",
+      "logCountry": "",
+      "logAirfield": "",
+      "tacContext": "OPERATIONS",
+      "tacOperation": "Chammal",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacités opérationnelles.",
+      "when": "Le 2026-02-11",
+      "where": "Zone d'opération désignée.",
+      "who": "Équipage de la CIET 340",
+      "how": "Utilisation des procédures standards OTAN.",
+      "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, réactivité technique.",
+      "challenges": "Météo changeante, communications radio parfois difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "ENTRAINEMENT",
+          "text": "Améliorer les procédures de briefing météo."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente exécution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}

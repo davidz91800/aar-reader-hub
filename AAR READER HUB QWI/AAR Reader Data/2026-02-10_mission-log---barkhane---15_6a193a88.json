@@ -1,0 +1,48 @@
+{
+  "aar": {
+    "meta": {
+      "id": "aar-015-6a193a88",
+      "date": "2026-02-10",
+      "title": "Mission LOG - Barkhane - 15",
+      "nom": "Pilot15",
+      "prenom": "John",
+      "grade": "CNE",
+      "unite": "ET 1/64 Béarn",
+      "classification": "DIFFUSION RESTREINTE",
+      "flotte": "CN235",
+      "missionType": "LOG",
+      "logCountry": "France",
+      "logAirfield": "Base Alpha",
+      "tacContext": "",
+      "tacOperation": "",
+      "tacExercise": ""
+    },
+    "facts": {
+      "what": "Coordination de vol et largage.",
+      "why": "Maintien des capacités opérationnelles.",
+      "when": "Le 2026-02-10",
+      "where": "Zone d'opération désignée.",
+      "who": "Équipage de la ET 2/64 Anjou",
+      "how": "Utilisation des procédures standards OTAN.",
+      "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+    },
+    "analysis": {
+      "successFactors": "Bonne coordination, réactivité technique.",
+      "challenges": "Météo changeante, communications radio parfois difficiles.",
+      "keyLearnings": "Anticiper davantage les changements de zone de poser."
+    },
+    "recos": {
+      "recommendations": [
+        {
+          "category": "DOCTRINE",
+          "text": "Améliorer les procédures de briefing météo."
+        }
+      ]
+    },
+    "qwi": {
+      "qwiFilled": true,
+      "qwiOpinion": "Avis favorable. Excellente exécution.",
+      "qwiLevel": "MASTER"
+    }
+  }
+}

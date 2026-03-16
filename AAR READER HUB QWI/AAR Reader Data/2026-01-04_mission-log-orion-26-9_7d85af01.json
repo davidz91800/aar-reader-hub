@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "Mission LOG - Orion 26 - 9",
+    "date": "2026-01-04",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "Pilot9",
+    "prenom": "John",
+    "unite": "ET 1/61 Touraine",
+    "uniteAutre": "",
+    "flotte": "CN235",
+    "flotteAutre": "",
+    "classification": "NON PROTEGE",
+    "missionType": "LOG",
+    "logCountry": "Tchad",
+    "logCountryAutre": "",
+    "logAirfield": "Base Alpha",
+    "logAirfieldAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "Coordination de vol et largage.",
+    "why": "Maintien des capacités opérationnelles.",
+    "when": "Le 2026-01-04",
+    "where": "Zone d'opération désignée.",
+    "who": "Équipage de la ET 2/64 Anjou",
+    "how": "Utilisation des procédures standards OTAN.",
+    "narrative": "La mission s'est déroulée conformément au plan. Quelques points d'attention sur la météo locale."
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
