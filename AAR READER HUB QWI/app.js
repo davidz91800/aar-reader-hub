@@ -540,6 +540,15 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
   try {
     const files = hasIndexMode ? await listDriveFilesFromIndex(cfg.indexFileId) : await listDriveFiles(cfg.apiKey, cfg.folderId);
     if (!files.length) {
+      const staticCfg = getStaticConfig();
+      if (staticCfg.enabled) {
+        try {
+          await syncFromStaticRepo({ silent: true });
+          setSubtitle(`${state.reports.length} AAR · source statique (Drive vide)`);
+          if (!silent) toast("Drive vide : bascule sur source statique.");
+          return;
+        } catch {}
+      }
       await dbReplaceAll([]);
       state.reports = [];
       renderAll();
