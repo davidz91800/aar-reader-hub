@@ -14,3 +14,14 @@ Ce dossier (`E - AAR READER HUB`) est le hub de lecture principal des AAR.
 Quand tu modifies ce hub, verifie toujours l'impact sur:
 1. `C - AAR PWA` (formulaire et schema)
 2. `AAR READER HUB QWI` (ajout/edition/suppression + rendu)
+
+## Contexte d'exploitation (a conserver)
+- Flux operationnel actuel:
+  - Un e-mail AAR arrive sur `david.zemmour3@gmail.com`.
+  - Une automatisation extrait le JSON et l'ecrit dans le dossier Google Drive des JSON.
+  - Un push GitHub met a jour les donnees statiques consommees par le hub.
+- Toute modification de sync/stockage doit garder ce pipeline e-mail -> Drive -> GitHub fonctionnel.
+- Politique credentials:
+  - Projet Google Cloud recommande: `RETEX`.
+  - Cle API du hub frontend separee de la cle API d'automatisation.
+  - Si la cle frontend est exposee dans `config.js`, la restreindre (HTTP referrers + Drive API uniquement).
