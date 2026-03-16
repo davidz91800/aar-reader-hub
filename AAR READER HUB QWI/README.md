@@ -60,6 +60,17 @@ Option: `indexFileId` peut pointer vers un `index.json` public contenant la list
 - Modif/ajout/suppression poussent vers Drive si OAuth + folderId sont configures.
 - Si push Drive echoue, la modif reste locale (message explicite).
 
+## Architecture recommandee avec le hub non QWI
+
+Pour que les utilisateurs non QWI voient les nouveaux AAR sans push GitHub:
+
+1. Ce hub QWI ecrit dans Drive (OAuth + folderId).
+2. Le hub non QWI lit Drive directement.
+3. La source statique locale reste seulement en fallback.
+
+Conseil iPad/PWA:
+- Verifier les referers autorises de la cle API du hub non QWI (domaine reel, pas uniquement localhost).
+
 ## Lancement alternatif
 
 Hebergement statique possible (GitHub Pages, SharePoint static, etc.).

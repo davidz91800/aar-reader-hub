@@ -5,6 +5,7 @@
 const DB_NAME = "aar_reader_hub_qwi_v1";
 const STORE = "reports";
 const LAST_SYNC_KEY = "aar_reader_last_sync_qwi_v1";
+const AUTO_RESYNC_MIN_INTERVAL_MS = 45000;
 
 const state = {
   reports: [],
@@ -13,6 +14,8 @@ const state = {
 };
 
 const el = {};
+let autoResyncInFlight = false;
+let lastAutoResyncAt = 0;
 
 /* ═══ UTILITIES ═══ */
 function esc(v) {
@@ -616,6 +619,24 @@ async function syncPreferred({ silent = false } = {}) {
   await syncFromStaticRepo({ silent });
 }
 
+async function tryAutoResync(reason = "") {
+  if (autoResyncInFlight) return;
+  if (document.hidden) return;
+  if (!navigator.onLine) return;
+  const now = Date.now();
+  if (now - lastAutoResyncAt < AUTO_RESYNC_MIN_INTERVAL_MS) return;
+
+  autoResyncInFlight = true;
+  try {
+    await syncPreferred({ silent: true });
+    lastAutoResyncAt = Date.now();
+  } catch (e) {
+    console.warn(`Auto-resync failed (${reason}):`, e?.message || e);
+  } finally {
+    autoResyncInFlight = false;
+  }
+}
+
 function saveLastSync() {
   const now = new Date().toISOString();
   localStorage.setItem(LAST_SYNC_KEY, now);
@@ -1164,8 +1185,15 @@ async function init() {
   if (cfg.autoSyncOnStartup || staticCfg.enabled) {
     if (navigator.onLine) {
       await syncPreferred({ silent: true });
+      lastAutoResyncAt = Date.now();
     }
   }
+
+  window.addEventListener("online", () => { tryAutoResync("online"); });
+  window.addEventListener("focus", () => { tryAutoResync("focus"); });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) tryAutoResync("visibility");
+  });
 }
 
 init();

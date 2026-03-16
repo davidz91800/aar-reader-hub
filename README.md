@@ -52,6 +52,18 @@ Mode recommande iPad:
 Le Reader telecharge les JSON via `drive.usercontent.google.com`.
 En mode hybride, l'app peut basculer automatiquement sur `AAR Reader Data/index.json` si Drive est indisponible.
 
+## Architecture recommandee (QWI + non QWI)
+
+Objectif: ne plus dependre d'un push GitHub pour voir les nouveaux AAR.
+
+1. QWI ecrit dans Drive (OAuth).
+2. Non QWI lit Drive directement (apiKey + folderId, ou indexFileId public).
+3. Les donnees statiques locales restent en secours (fallback).
+
+Pour iPad/PWA:
+- Si tu utilises une API key, ajoute le domaine reel de publication dans les referers autorises (pas seulement `localhost`).
+- Si tu veux eviter les contraintes de referer, utilise `indexFileId` public et laisse `apiKey` vide (lecture publique).
+
 ## Fonctionnement
 
 - Au demarrage:
