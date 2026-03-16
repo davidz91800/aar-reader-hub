@@ -426,10 +426,15 @@ async function downloadDriveJson(cfg, file) {
 }
 
 async function listDriveFiles(apiKey, folderId) {
-  const query = `'${folderId}' in parents and trashed=false and mimeType='application/json'`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&pageSize=1000&fields=files(id,name,modifiedTime,size,resourceKey)&orderBy=modifiedTime desc&key=${encodeURIComponent(apiKey)}`;
+  const query = `'${folderId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&pageSize=1000&fields=files(id,name,mimeType,modifiedTime,size,resourceKey)&orderBy=modifiedTime desc&key=${encodeURIComponent(apiKey)}`;
   const data = await fetchJsonOrThrow(url);
-  return Array.isArray(data.files) ? data.files : [];
+  const files = Array.isArray(data.files) ? data.files : [];
+  return files.filter((f) => {
+    const mime = String(f?.mimeType || "").toLowerCase();
+    const name = String(f?.name || "").toLowerCase();
+    return mime === "application/json" || name.endsWith(".json");
+  });
 }
 
 async function listDriveFilesFromIndex(indexFileId) {
