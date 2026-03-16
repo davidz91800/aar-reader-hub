@@ -45,7 +45,11 @@
 
   async function persistRecords(rows) {
     const sorted = sortRecords(rows);
-    await dbReplaceAll(sorted);
+    try {
+      await dbReplaceAll(sorted);
+    } catch (error) {
+      console.warn("IndexedDB write unavailable in QWI mode", error);
+    }
     state.reports = sorted;
     renderAll();
   }

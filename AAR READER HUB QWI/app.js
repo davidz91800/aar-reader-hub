@@ -479,7 +479,7 @@ async function syncFromStaticRepo({ silent = false } = {}) {
         if (!silent) toast("Aucun fichier dans l'index statique, cache conservé.");
         return;
       }
-      await dbReplaceAll([]);
+      try { await dbReplaceAll([]); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
       state.reports = [];
       renderAll();
       setSubtitle("0 AAR · source statique");
@@ -514,7 +514,7 @@ async function syncFromStaticRepo({ silent = false } = {}) {
       if (!silent) toast("Sync en échec : cache conservé.");
       return;
     }
-    await dbReplaceAll(records);
+    try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
     state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
     renderAll();
     saveLastSync();
@@ -549,7 +549,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
           return;
         } catch {}
       }
-      await dbReplaceAll([]);
+      try { await dbReplaceAll([]); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
       state.reports = [];
       renderAll();
       setSubtitle("0 AAR · Google Drive");
@@ -591,7 +591,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       if (!silent) toast("Sync Drive en échec : cache conservé.");
       return;
     }
-    await dbReplaceAll(records);
+    try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
     state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
     renderAll();
     saveLastSync();
