@@ -1581,11 +1581,13 @@
                     </div>
                     <div class="form-group">
                         <label>Terrain OACI</label>
-                        <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
-                            list="meta-log-airfield-datalist" autocomplete="off"
-                            oninput="App.filterLogAirfields(this.value)">
-                        <datalist id="meta-log-airfield-datalist"></datalist>
-                        <select id="meta-log-airfield" onchange="App.updateLogAirfieldSelection(this.value)">
+                        <div class="combo-box" id="airfield-search-combo">
+                            <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
+                                autocomplete="off" onfocus="App.openLogAirfieldMenu()"
+                                oninput="App.filterLogAirfields(this.value)">
+                            <div id="meta-log-airfield-menu" class="combo-menu" role="listbox" aria-label="Suggestions terrain OACI"></div>
+                        </div>
+                        <select id="meta-log-airfield" style="display:none;" onchange="App.updateLogAirfieldSelection(this.value)">
                             <option value="">-- Sélectionner --</option>
                         </select>
                         <input type="text" id="meta-log-airfield-autre" placeholder="Précisez le terrain OACI..."
@@ -1616,7 +1618,13 @@
 
                     <div id="tac-operations-block" class="form-group" style="display:none;">
                         <label>Opération</label>
-                        <select id="meta-tac-operation" onchange="App.updateTacOperation(this.value)">
+                        <div class="combo-box" id="operation-search-combo">
+                            <input type="search" id="meta-tac-operation-search" placeholder="Rechercher une opération..."
+                                autocomplete="off" onfocus="App.openTacOperationMenu()"
+                                oninput="App.filterTacOperations(this.value)">
+                            <div id="meta-tac-operation-menu" class="combo-menu" role="listbox" aria-label="Suggestions opération"></div>
+                        </div>
+                        <select id="meta-tac-operation" style="display:none;" onchange="App.updateTacOperation(this.value)">
                             <option value="">-- Sélectionner --</option>
                         </select>
                         <input type="text" id="meta-tac-operation-autre" placeholder="Précisez l'opération..."
@@ -1625,7 +1633,13 @@
 
                     <div id="tac-exercises-block" class="form-group" style="display:none;">
                         <label>Exercice</label>
-                        <select id="meta-tac-exercise" onchange="App.updateTacExercise(this.value)">
+                        <div class="combo-box" id="exercise-search-combo">
+                            <input type="search" id="meta-tac-exercise-search" placeholder="Rechercher un exercice..."
+                                autocomplete="off" onfocus="App.openTacExerciseMenu()"
+                                oninput="App.filterTacExercises(this.value)">
+                            <div id="meta-tac-exercise-menu" class="combo-menu" role="listbox" aria-label="Suggestions exercice"></div>
+                        </div>
+                        <select id="meta-tac-exercise" style="display:none;" onchange="App.updateTacExercise(this.value)">
                             <option value="">-- Sélectionner --</option>
                         </select>
                         <input type="text" id="meta-tac-exercise-autre" placeholder="Précisez l'exercice..."
@@ -1635,9 +1649,13 @@
 
                 <div class="form-group" style="margin-top: 1rem;">
                     <label>Hashtag</label>
-                    <input type="search" id="meta-hashtag-search" placeholder="Rechercher un hashtag..."
-                        oninput="App.filterHashtags(this.value)">
-                    <select id="meta-hashtag" onchange="App.updateHashtagSelection(this.value)">
+                    <div class="combo-box" id="hashtag-search-combo">
+                        <input type="search" id="meta-hashtag-search" placeholder="Rechercher un hashtag..."
+                            autocomplete="off" onfocus="App.openHashtagMenu()"
+                            oninput="App.filterHashtags(this.value)">
+                        <div id="meta-hashtag-menu" class="combo-menu" role="listbox" aria-label="Suggestions hashtag"></div>
+                    </div>
+                    <select id="meta-hashtag" style="display:none;" onchange="App.updateHashtagSelection(this.value)">
                         <option value="">-- Sélectionner --</option>
                     </select>
                     <input type="text" id="meta-hashtag-autre" placeholder="Précisez le hashtag..."
@@ -2275,7 +2293,13 @@
                 logCountrySearch: "",
                 showCountryMenu: false,
                 logAirfieldSearch: "",
+                showAirfieldMenu: false,
+                tacOperationSearch: "",
+                showTacOperationMenu: false,
+                tacExerciseSearch: "",
+                showTacExerciseMenu: false,
                 hashtagSearch: "",
+                showHashtagMenu: false,
                 isExternalEditor: false
             },
 
@@ -2527,6 +2551,30 @@
                 return m.logCountry || '';
             },
 
+            getAirfieldSearchDisplayValue: () => {
+                const m = App.data.meta || {};
+                if (m.logAirfield === 'AUTRE') return 'AUTRE';
+                return m.logAirfield || '';
+            },
+
+            getTacOperationSearchDisplayValue: () => {
+                const m = App.data.meta || {};
+                if (m.tacOperation === 'AUTRE') return 'AUTRE';
+                return m.tacOperation || '';
+            },
+
+            getTacExerciseSearchDisplayValue: () => {
+                const m = App.data.meta || {};
+                if (m.tacExercise === 'AUTRE') return 'AUTRE';
+                return m.tacExercise || '';
+            },
+
+            getHashtagSearchDisplayValue: () => {
+                const m = App.data.meta || {};
+                if (m.hashtag === 'AUTRE') return 'AUTRE';
+                return m.hashtag || '';
+            },
+
             filterValues: (values, query) => {
                 const normalized = App.normalizeKey(query || '');
                 if (!normalized) return [...values];
@@ -2712,13 +2760,10 @@
 
                 const current = App.data.meta.logAirfield || '';
                 const baseAirfields = App.getLogAirfieldsForCurrentCountry();
-                let airfields = App.filterValues(baseAirfields, App.ui.logAirfieldSearch);
-                if (current && current !== 'AUTRE' && !airfields.includes(current)) airfields = [current, ...airfields];
-
                 select.innerHTML = '';
                 select.appendChild(App.createOption('', '-- Sélectionner --'));
                 select.appendChild(App.createOption('AUTRE', 'AUTRE'));
-                airfields.forEach((airfield) => {
+                baseAirfields.forEach((airfield) => {
                     if (airfield !== 'AUTRE') select.appendChild(App.createOption(airfield, airfield));
                 });
                 select.value = current;
@@ -2727,38 +2772,66 @@
                     otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
                     if (current !== 'AUTRE') otherInput.value = '';
                 }
-                App.renderLogAirfieldDatalist();
-                App.refreshLiveSelectMode('meta-log-airfield', App.ui.logAirfieldSearch);
+                App.renderLogAirfieldMenu();
             },
 
-            renderLogAirfieldDatalist: () => {
-                const datalist = document.getElementById('meta-log-airfield-datalist');
-                if (!datalist) return;
-
+            renderLogAirfieldMenu: () => {
+                const menu = document.getElementById('meta-log-airfield-menu');
+                if (!menu) return;
                 const baseAirfields = App.getLogAirfieldsForCurrentCountry();
-                const hasSearch = Boolean(String(App.ui.logAirfieldSearch || '').trim());
-                const airfields = hasSearch
+                const filtered = App.ui.logAirfieldSearch
                     ? App.filterValues(baseAirfields, App.ui.logAirfieldSearch)
                     : baseAirfields;
+                const airfields = filtered.slice(0, 60);
 
-                datalist.innerHTML = '';
-                airfields.slice(0, 100).forEach((airfield) => {
-                    const option = document.createElement('option');
-                    option.value = airfield;
-                    datalist.appendChild(option);
-                });
-            },
-
-            refreshLiveSelectMode: (selectId, query) => {
-                const select = document.getElementById(selectId);
-                if (!select) return;
-                const hasSearch = Boolean(String(query || '').trim());
-                if (!hasSearch) {
-                    select.size = 1;
+                menu.innerHTML = '';
+                if (!App.ui.showAirfieldMenu) {
+                    menu.classList.remove('open');
                     return;
                 }
-                const visible = Math.min(8, Math.max(3, select.options.length - 1));
-                select.size = visible;
+
+                const autre = document.createElement('button');
+                autre.type = 'button';
+                autre.className = 'combo-option';
+                autre.textContent = 'AUTRE';
+                autre.addEventListener('click', () => App.selectLogAirfieldFromMenu('AUTRE'));
+                menu.appendChild(autre);
+
+                airfields.forEach((airfield) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'combo-option';
+                    btn.textContent = airfield;
+                    btn.addEventListener('click', () => App.selectLogAirfieldFromMenu(airfield));
+                    menu.appendChild(btn);
+                });
+
+                if (!airfields.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'combo-empty';
+                    empty.textContent = 'Aucun terrain OACI correspondant.';
+                    menu.appendChild(empty);
+                }
+
+                menu.classList.add('open');
+            },
+
+            openLogAirfieldMenu: () => {
+                App.ui.showAirfieldMenu = true;
+                const input = document.getElementById('meta-log-airfield-search');
+                if (input) App.ui.logAirfieldSearch = input.value || '';
+                App.renderLogAirfieldMenu();
+            },
+
+            closeLogAirfieldMenu: () => {
+                App.ui.showAirfieldMenu = false;
+                App.renderLogAirfieldMenu();
+            },
+
+            selectLogAirfieldFromMenu: (airfield) => {
+                App.updateLogAirfieldSelection(airfield);
+                const input = document.getElementById('meta-log-airfield-search');
+                if (input) input.blur();
             },
 
             filterLogCountries: (query) => {
@@ -2769,16 +2842,8 @@
 
             filterLogAirfields: (query) => {
                 App.ui.logAirfieldSearch = query || '';
+                App.ui.showAirfieldMenu = true;
                 App.renderLogAirfieldSelect();
-
-                const normalized = App.normalizeKey(query);
-                if (!normalized) return;
-
-                const exactAirfield = App.getLogAirfieldsForCurrentCountry()
-                    .find((airfield) => App.normalizeKey(airfield) === normalized);
-                if (exactAirfield) {
-                    App.updateLogAirfieldSelection(exactAirfield);
-                }
             },
 
             renderHashtagSelect: () => {
@@ -2788,13 +2853,10 @@
 
                 const current = App.data.meta.hashtag || '';
                 const base = App.missionConfig.hashtags || [];
-                let hashtags = App.filterValues(base, App.ui.hashtagSearch);
-                if (current && current !== 'AUTRE' && !hashtags.includes(current)) hashtags = [current, ...hashtags];
-
                 select.innerHTML = '';
                 select.appendChild(App.createOption('', '-- Sélectionner --'));
                 select.appendChild(App.createOption('AUTRE', 'AUTRE'));
-                hashtags.forEach((tag) => {
+                base.forEach((tag) => {
                     if (tag !== 'AUTRE') select.appendChild(App.createOption(tag, tag));
                 });
                 select.value = current;
@@ -2803,6 +2865,66 @@
                     otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
                     if (current !== 'AUTRE') otherInput.value = '';
                 }
+                App.renderHashtagMenu();
+            },
+
+            renderHashtagMenu: () => {
+                const menu = document.getElementById('meta-hashtag-menu');
+                if (!menu) return;
+                const base = App.missionConfig.hashtags || [];
+                const filtered = App.ui.hashtagSearch
+                    ? App.filterValues(base, App.ui.hashtagSearch)
+                    : base;
+                const hashtags = filtered.slice(0, 80);
+
+                menu.innerHTML = '';
+                if (!App.ui.showHashtagMenu) {
+                    menu.classList.remove('open');
+                    return;
+                }
+
+                const autre = document.createElement('button');
+                autre.type = 'button';
+                autre.className = 'combo-option';
+                autre.textContent = 'AUTRE';
+                autre.addEventListener('click', () => App.selectHashtagFromMenu('AUTRE'));
+                menu.appendChild(autre);
+
+                hashtags.forEach((tag) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'combo-option';
+                    btn.textContent = tag;
+                    btn.addEventListener('click', () => App.selectHashtagFromMenu(tag));
+                    menu.appendChild(btn);
+                });
+
+                if (!hashtags.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'combo-empty';
+                    empty.textContent = 'Aucun hashtag correspondant.';
+                    menu.appendChild(empty);
+                }
+
+                menu.classList.add('open');
+            },
+
+            openHashtagMenu: () => {
+                App.ui.showHashtagMenu = true;
+                const input = document.getElementById('meta-hashtag-search');
+                if (input) App.ui.hashtagSearch = input.value || '';
+                App.renderHashtagMenu();
+            },
+
+            closeHashtagMenu: () => {
+                App.ui.showHashtagMenu = false;
+                App.renderHashtagMenu();
+            },
+
+            selectHashtagFromMenu: (tag) => {
+                App.updateHashtagSelection(tag);
+                const input = document.getElementById('meta-hashtag-search');
+                if (input) input.blur();
             },
 
             refreshHashtagHint: () => {
@@ -2817,6 +2939,7 @@
 
             filterHashtags: (query) => {
                 App.ui.hashtagSearch = query || '';
+                App.ui.showHashtagMenu = true;
                 App.renderHashtagSelect();
             },
 
@@ -2824,8 +2947,9 @@
                 App.data.meta.hashtag = value;
                 if (value !== 'AUTRE') App.data.meta.hashtagAutre = '';
                 App.ui.hashtagSearch = '';
+                App.ui.showHashtagMenu = false;
                 const search = document.getElementById('meta-hashtag-search');
-                if (search) search.value = '';
+                if (search) search.value = value === 'AUTRE' ? 'AUTRE' : (value || '');
                 App.renderHashtagSelect();
                 App.refreshHashtagHint();
                 App.save();
@@ -2899,9 +3023,153 @@
                 App.setHashtagAdminHint(`Hashtag supprimé: ${current}`);
             },
 
-            renderMissionSelectors: () => {
+            renderTacOperationSelect: () => {
                 App.fillSelectOptions('meta-tac-operation', App.missionConfig.tacOperations, true);
+                const select = document.getElementById('meta-tac-operation');
+                if (select) select.value = App.data.meta.tacOperation || '';
+                App.renderTacOperationMenu();
+            },
+
+            renderTacOperationMenu: () => {
+                const menu = document.getElementById('meta-tac-operation-menu');
+                if (!menu) return;
+                const base = App.missionConfig.tacOperations || [];
+                const filtered = App.ui.tacOperationSearch
+                    ? App.filterValues(base, App.ui.tacOperationSearch)
+                    : base;
+                const operations = filtered.slice(0, 60);
+
+                menu.innerHTML = '';
+                if (!App.ui.showTacOperationMenu) {
+                    menu.classList.remove('open');
+                    return;
+                }
+
+                const autre = document.createElement('button');
+                autre.type = 'button';
+                autre.className = 'combo-option';
+                autre.textContent = 'AUTRE';
+                autre.addEventListener('click', () => App.selectTacOperationFromMenu('AUTRE'));
+                menu.appendChild(autre);
+
+                operations.forEach((operation) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'combo-option';
+                    btn.textContent = operation;
+                    btn.addEventListener('click', () => App.selectTacOperationFromMenu(operation));
+                    menu.appendChild(btn);
+                });
+
+                if (!operations.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'combo-empty';
+                    empty.textContent = 'Aucune opération correspondante.';
+                    menu.appendChild(empty);
+                }
+
+                menu.classList.add('open');
+            },
+
+            openTacOperationMenu: () => {
+                App.ui.showTacOperationMenu = true;
+                const input = document.getElementById('meta-tac-operation-search');
+                if (input) App.ui.tacOperationSearch = input.value || '';
+                App.renderTacOperationMenu();
+            },
+
+            closeTacOperationMenu: () => {
+                App.ui.showTacOperationMenu = false;
+                App.renderTacOperationMenu();
+            },
+
+            filterTacOperations: (query) => {
+                App.ui.tacOperationSearch = query || '';
+                App.ui.showTacOperationMenu = true;
+                App.renderTacOperationMenu();
+            },
+
+            selectTacOperationFromMenu: (operation) => {
+                App.updateTacOperation(operation);
+                const input = document.getElementById('meta-tac-operation-search');
+                if (input) input.blur();
+            },
+
+            renderTacExerciseSelect: () => {
                 App.fillSelectOptions('meta-tac-exercise', App.missionConfig.tacExercises, true);
+                const select = document.getElementById('meta-tac-exercise');
+                if (select) select.value = App.data.meta.tacExercise || '';
+                App.renderTacExerciseMenu();
+            },
+
+            renderTacExerciseMenu: () => {
+                const menu = document.getElementById('meta-tac-exercise-menu');
+                if (!menu) return;
+                const base = App.missionConfig.tacExercises || [];
+                const filtered = App.ui.tacExerciseSearch
+                    ? App.filterValues(base, App.ui.tacExerciseSearch)
+                    : base;
+                const exercises = filtered.slice(0, 60);
+
+                menu.innerHTML = '';
+                if (!App.ui.showTacExerciseMenu) {
+                    menu.classList.remove('open');
+                    return;
+                }
+
+                const autre = document.createElement('button');
+                autre.type = 'button';
+                autre.className = 'combo-option';
+                autre.textContent = 'AUTRE';
+                autre.addEventListener('click', () => App.selectTacExerciseFromMenu('AUTRE'));
+                menu.appendChild(autre);
+
+                exercises.forEach((exercise) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'combo-option';
+                    btn.textContent = exercise;
+                    btn.addEventListener('click', () => App.selectTacExerciseFromMenu(exercise));
+                    menu.appendChild(btn);
+                });
+
+                if (!exercises.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'combo-empty';
+                    empty.textContent = 'Aucun exercice correspondant.';
+                    menu.appendChild(empty);
+                }
+
+                menu.classList.add('open');
+            },
+
+            openTacExerciseMenu: () => {
+                App.ui.showTacExerciseMenu = true;
+                const input = document.getElementById('meta-tac-exercise-search');
+                if (input) App.ui.tacExerciseSearch = input.value || '';
+                App.renderTacExerciseMenu();
+            },
+
+            closeTacExerciseMenu: () => {
+                App.ui.showTacExerciseMenu = false;
+                App.renderTacExerciseMenu();
+            },
+
+            filterTacExercises: (query) => {
+                App.ui.tacExerciseSearch = query || '';
+                App.ui.showTacExerciseMenu = true;
+                App.renderTacExerciseMenu();
+            },
+
+            selectTacExerciseFromMenu: (exercise) => {
+                App.updateTacExercise(exercise);
+                const input = document.getElementById('meta-tac-exercise-search');
+                if (input) input.blur();
+            },
+
+            renderMissionSelectors: () => {
+                App.renderTacOperationSelect();
+                App.renderTacExerciseSelect();
                 App.renderLogCountrySelect();
                 App.renderLogAirfieldSelect();
                 App.renderHashtagSelect();
@@ -2971,9 +3239,15 @@
                     App.data.meta.tacOperationAutre = "";
                     App.data.meta.tacExercise = "";
                     App.data.meta.tacExerciseAutre = "";
+                    App.ui.tacOperationSearch = "";
+                    App.ui.tacExerciseSearch = "";
+                    App.ui.showTacOperationMenu = false;
+                    App.ui.showTacExerciseMenu = false;
                 }
 
                 App.refreshMissionVisibility();
+                App.renderTacOperationSelect();
+                App.renderTacExerciseSelect();
                 App.renderLogCountrySelect();
                 App.renderLogAirfieldSelect();
                 App.renderLogAirfieldOptions();
@@ -2998,6 +3272,7 @@
                     App.data.meta.logAirfield = "";
                     App.data.meta.logAirfieldAutre = "";
                     App.ui.logAirfieldSearch = "";
+                    App.ui.showAirfieldMenu = false;
                     const airfieldSearch = document.getElementById('meta-log-airfield-search');
                     if (airfieldSearch) airfieldSearch.value = "";
                 }
@@ -3012,10 +3287,12 @@
                 App.data.meta.logAirfield = value;
                 if (value !== 'AUTRE') App.data.meta.logAirfieldAutre = "";
                 App.ui.logAirfieldSearch = "";
+                App.ui.showAirfieldMenu = false;
                 const airfieldSearch = document.getElementById('meta-log-airfield-search');
-                if (airfieldSearch) airfieldSearch.value = "";
-                const airfieldSelect = document.getElementById('meta-log-airfield');
-                if (airfieldSelect) airfieldSelect.size = 1;
+                if (airfieldSearch) {
+                    const selectedLabel = value === 'AUTRE' ? 'AUTRE' : (value || '');
+                    airfieldSearch.value = selectedLabel;
+                }
                 App.renderLogAirfieldSelect();
                 App.save();
             },
@@ -3037,27 +3314,43 @@
                 if (val !== 'OPERATIONS') {
                     App.data.meta.tacOperation = "";
                     App.data.meta.tacOperationAutre = "";
+                    App.ui.tacOperationSearch = "";
+                    App.ui.showTacOperationMenu = false;
                 }
                 if (val !== 'EXERCICE') {
                     App.data.meta.tacExercise = "";
                     App.data.meta.tacExerciseAutre = "";
+                    App.ui.tacExerciseSearch = "";
+                    App.ui.showTacExerciseMenu = false;
                 }
 
                 App.refreshMissionVisibility();
+                App.renderTacOperationSelect();
+                App.renderTacExerciseSelect();
                 App.save();
             },
 
             updateTacOperation: (val) => {
                 App.data.meta.tacOperation = val;
                 if (val !== 'AUTRE') App.data.meta.tacOperationAutre = "";
+                App.ui.tacOperationSearch = "";
+                App.ui.showTacOperationMenu = false;
+                const operationSearch = document.getElementById('meta-tac-operation-search');
+                if (operationSearch) operationSearch.value = val === 'AUTRE' ? 'AUTRE' : (val || '');
                 App.refreshMissionVisibility();
+                App.renderTacOperationSelect();
                 App.save();
             },
 
             updateTacExercise: (val) => {
                 App.data.meta.tacExercise = val;
                 if (val !== 'AUTRE') App.data.meta.tacExerciseAutre = "";
+                App.ui.tacExerciseSearch = "";
+                App.ui.showTacExerciseMenu = false;
+                const exerciseSearch = document.getElementById('meta-tac-exercise-search');
+                if (exerciseSearch) exerciseSearch.value = val === 'AUTRE' ? 'AUTRE' : (val || '');
                 App.refreshMissionVisibility();
+                App.renderTacExerciseSelect();
                 App.save();
             },
 
@@ -3078,11 +3371,16 @@
                 // Bind Input Change Listener for Import
                 document.getElementById('file-input').addEventListener('change', App.importJSON);
                 document.addEventListener('click', (event) => {
-                    const wrap = document.getElementById('country-search-combo');
-                    if (!wrap) return;
-                    if (wrap.contains(event.target)) return;
-                    if (!App.ui.showCountryMenu) return;
-                    App.closeLogCountryMenu();
+                    const closeIfOutside = (wrapId, isOpen, closeFn) => {
+                        const wrap = document.getElementById(wrapId);
+                        if (!wrap || !isOpen) return;
+                        if (!wrap.contains(event.target)) closeFn();
+                    };
+                    closeIfOutside('country-search-combo', App.ui.showCountryMenu, App.closeLogCountryMenu);
+                    closeIfOutside('airfield-search-combo', App.ui.showAirfieldMenu, App.closeLogAirfieldMenu);
+                    closeIfOutside('operation-search-combo', App.ui.showTacOperationMenu, App.closeTacOperationMenu);
+                    closeIfOutside('exercise-search-combo', App.ui.showTacExerciseMenu, App.closeTacExerciseMenu);
+                    closeIfOutside('hashtag-search-combo', App.ui.showHashtagMenu, App.closeHashtagMenu);
                 });
 
                 App.renderForm();
@@ -3275,17 +3573,19 @@
                 document.getElementById('meta-flotte-autre').style.display = (d.meta.flotte === 'AUTRE') ? 'block' : 'none';
                 document.getElementById('meta-mission-type').value = d.meta.missionType || '';
                 document.getElementById('meta-log-country-search').value = App.ui.logCountrySearch || App.getCountrySearchDisplayValue() || '';
-                document.getElementById('meta-log-airfield-search').value = App.ui.logAirfieldSearch || '';
+                document.getElementById('meta-log-airfield-search').value = App.ui.logAirfieldSearch || App.getAirfieldSearchDisplayValue() || '';
                 document.getElementById('meta-log-country').value = d.meta.logCountry || '';
                 document.getElementById('meta-log-country-autre').value = d.meta.logCountryAutre || '';
                 document.getElementById('meta-log-airfield').value = d.meta.logAirfield || '';
                 document.getElementById('meta-log-airfield-autre').value = d.meta.logAirfieldAutre || '';
-                document.getElementById('meta-hashtag-search').value = App.ui.hashtagSearch || '';
+                document.getElementById('meta-hashtag-search').value = App.ui.hashtagSearch || App.getHashtagSearchDisplayValue() || '';
                 document.getElementById('meta-hashtag').value = d.meta.hashtag || '';
                 document.getElementById('meta-hashtag-autre').value = d.meta.hashtagAutre || '';
                 document.getElementById('meta-tac-context').value = d.meta.tacContext || '';
+                document.getElementById('meta-tac-operation-search').value = App.ui.tacOperationSearch || App.getTacOperationSearchDisplayValue() || '';
                 document.getElementById('meta-tac-operation').value = d.meta.tacOperation || '';
                 document.getElementById('meta-tac-operation-autre').value = d.meta.tacOperationAutre || '';
+                document.getElementById('meta-tac-exercise-search').value = App.ui.tacExerciseSearch || App.getTacExerciseSearchDisplayValue() || '';
                 document.getElementById('meta-tac-exercise').value = d.meta.tacExercise || '';
                 document.getElementById('meta-tac-exercise-autre').value = d.meta.tacExerciseAutre || '';
                 App.refreshMissionVisibility();
