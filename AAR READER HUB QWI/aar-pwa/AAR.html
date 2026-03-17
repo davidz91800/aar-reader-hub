@@ -1699,6 +1699,13 @@
                     margin-bottom: 0.5rem;
                     text-transform: uppercase;
                     letter-spacing: 1px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+
+                .w6-label .info-trigger {
+                    text-transform: none;
                 }
             </style>
 
@@ -1884,53 +1891,29 @@
                 <h2 style="margin-bottom: 0.5rem;">4. RECOMMANDATIONS</h2>
                 <div class="dorese-tabs">
                     <div id="tab-doctrine" class="dorese-tab" onclick="App.scrollToDorese('section-doctrine')">
-                        <span class="letter">D</span>
-                        <div class="label-row">
-                            <span class="label">Doctrine</span>
-                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_D" aria-label="Info Doctrine">ⓘ</button>
-                        </div>
+                        <span class="letter">D</span> <span class="label">Doctrine</span>
                     </div>
                     <div id="tab-organisation" class="dorese-tab" onclick="App.scrollToDorese('section-organisation')">
-                        <span class="letter">O</span>
-                        <div class="label-row">
-                            <span class="label">Organisation</span>
-                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_O" aria-label="Info Organisation">ⓘ</button>
-                        </div>
+                        <span class="letter">O</span> <span class="label">Organisation</span>
                     </div>
                     <div id="tab-rh" class="dorese-tab" onclick="App.scrollToDorese('section-rh')">
-                        <span class="letter">R</span>
-                        <div class="label-row">
-                            <span class="label">RH</span>
-                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_R" aria-label="Info Ressources humaines">ⓘ</button>
-                        </div>
+                        <span class="letter">R</span> <span class="label">RH</span>
                     </div>
                     <div id="tab-equipements" class="dorese-tab" onclick="App.scrollToDorese('section-equipements')">
-                        <span class="letter">E</span>
-                        <div class="label-row">
-                            <span class="label">Equipements</span>
-                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_E_EQ" aria-label="Info Equipements">ⓘ</button>
-                        </div>
+                        <span class="letter">E</span> <span class="label">Equipements</span>
                     </div>
                     <div id="tab-soutien" class="dorese-tab" onclick="App.scrollToDorese('section-soutien')">
-                        <span class="letter">S</span>
-                        <div class="label-row">
-                            <span class="label">Soutien</span>
-                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_S" aria-label="Info Soutien">ⓘ</button>
-                        </div>
+                        <span class="letter">S</span> <span class="label">Soutien</span>
                     </div>
                     <div id="tab-entrainement" class="dorese-tab" onclick="App.scrollToDorese('section-entrainement')">
-                        <span class="letter">E</span>
-                        <div class="label-row">
-                            <span class="label">Entrainement</span>
-                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_E_ENT" aria-label="Info Entrainement">ⓘ</button>
-                        </div>
+                        <span class="letter">E</span> <span class="label">Entrainement</span>
                     </div>
                 </div>
             </div>
 
             <!-- DOCTRINE -->
             <div id="section-doctrine" class="dorese-section card" style="padding: 1rem;">
-                <div class="w6-label">DOCTRINE</div>
+                <div class="w6-label">DOCTRINE <button type="button" class="info-trigger" data-tooltip-key="DORESE_D" aria-label="Info Doctrine">ⓘ</button></div>
                 <div class="editor-container">
                     <div class="editor-toolbar">
                         <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
@@ -1955,7 +1938,7 @@
 
             <!-- ORGANISATION -->
             <div id="section-organisation" class="dorese-section card" style="padding: 1rem;">
-                <div class="w6-label">ORGANISATION</div>
+                <div class="w6-label">ORGANISATION <button type="button" class="info-trigger" data-tooltip-key="DORESE_O" aria-label="Info Organisation">ⓘ</button></div>
                 <div class="editor-container">
                     <div class="editor-toolbar">
                         <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
@@ -1980,7 +1963,7 @@
 
             <!-- RH -->
             <div id="section-rh" class="dorese-section card" style="padding: 1rem;">
-                <div class="w6-label">RH</div>
+                <div class="w6-label">RH <button type="button" class="info-trigger" data-tooltip-key="DORESE_R" aria-label="Info Ressources humaines">ⓘ</button></div>
                 <div class="editor-container">
                     <div class="editor-toolbar">
                         <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
@@ -2004,7 +1987,7 @@
 
             <!-- EQUIPEMENTS -->
             <div id="section-equipements" class="dorese-section card" style="padding: 1rem;">
-                <div class="w6-label">EQUIPEMENTS</div>
+                <div class="w6-label">EQUIPEMENTS <button type="button" class="info-trigger" data-tooltip-key="DORESE_E_EQ" aria-label="Info Equipements">ⓘ</button></div>
                 <div class="editor-container">
                     <div class="editor-toolbar">
                         <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
@@ -2029,7 +2012,7 @@
 
             <!-- SOUTIEN -->
             <div id="section-soutien" class="dorese-section card" style="padding: 1rem;">
-                <div class="w6-label">SOUTIEN</div>
+                <div class="w6-label">SOUTIEN <button type="button" class="info-trigger" data-tooltip-key="DORESE_S" aria-label="Info Soutien">ⓘ</button></div>
                 <div class="editor-container">
                     <div class="editor-toolbar">
                         <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
@@ -2054,7 +2037,7 @@
 
             <!-- ENTRAINEMENT -->
             <div id="section-entrainement" class="dorese-section card" style="padding: 1rem;">
-                <div class="w6-label">ENTRAINEMENT</div>
+                <div class="w6-label">ENTRAINEMENT <button type="button" class="info-trigger" data-tooltip-key="DORESE_E_ENT" aria-label="Info Entrainement">ⓘ</button></div>
                 <div class="editor-container">
                     <div class="editor-toolbar">
                         <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
@@ -3425,6 +3408,22 @@
                         con.style.display = 'none';
                     });
                 }
+
+                document.body.addEventListener('pointerdown', (e) => {
+                    if (!isTouchUi()) return;
+                    const el = e.target.closest('.info-trigger[data-tooltip-key]');
+                    if (!el) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+
+                document.body.addEventListener('touchstart', (e) => {
+                    if (!isTouchUi()) return;
+                    const el = e.target.closest('.info-trigger[data-tooltip-key]');
+                    if (!el) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
 
                 document.body.addEventListener('click', (e) => {
                     const el = e.target.closest('.info-trigger[data-tooltip-key]');
