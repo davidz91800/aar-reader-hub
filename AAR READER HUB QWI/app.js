@@ -1,6 +1,6 @@
-﻿/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   AAR Reader Hub â€” Application Logic (v2 â€” Refonte)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+﻿/* ═══════════════════════════════════════════════════════════
+   AAR Reader Hub — Application Logic (v2 — Refonte)
+   ═══════════════════════════════════════════════════════════ */
 
 const DB_NAME = "aar_reader_hub_qwi_v1";
 const STORE = "reports";
@@ -21,7 +21,7 @@ let lastAutoResyncAt = 0;
 let driveCooldownUntil = 0;
 let driveCooldownReason = "";
 
-/* â•â•â• UTILITIES â•â•â• */
+/* ═══ UTILITIES ═══ */
 function esc(v) {
   return String(v || "")
     .replace(/&/g, "&amp;")
@@ -117,13 +117,13 @@ function normalizeTextPayload(text, typeHint = "") {
 }
 
 function formatDateFr(iso) {
-  if (!iso) return "â€”";
+  if (!iso) return "—";
   const parts = String(iso).split("-");
   if (parts.length !== 3) return iso;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-/* â•â•â• AAR DATA MODEL â•â•â• */
+/* ═══ AAR DATA MODEL ═══ */
 function normalizeAar(input) {
   const a = input && typeof input === "object" ? input : {};
   const meta = a.meta || {};
@@ -231,7 +231,7 @@ function parseTextForAars(text) {
   return out;
 }
 
-/* â•â•â• DERIVE META (enriched for filters) â•â•â• */
+/* ═══ DERIVE META (enriched for filters) ═══ */
 function deriveMeta(a) {
   const meta = a.meta || {};
   const facts = a.facts || {};
@@ -320,7 +320,7 @@ function buildRecord(aar, source, sourceName = "") {
   };
 }
 
-/* â•â•â• DRIVE / STATIC SYNC (unchanged logic) â•â•â• */
+/* ═══ DRIVE / STATIC SYNC (unchanged logic) ═══ */
 function normalizeDriveId(raw) {
   const src = String(raw || "").trim();
   if (!src) return "";
@@ -424,22 +424,22 @@ async function fetchJsonOrThrow(url, timeoutMs = 20000) {
   try {
     response = await fetch(url, { cache: "no-store", signal: controller.signal });
   } catch (e) {
-    if (e && e.name === "AbortError") throw new Error(`Timeout rÃ©seau (${Math.round(timeoutMs / 1000)}s)`);
+    if (e && e.name === "AbortError") throw new Error(`Timeout réseau (${Math.round(timeoutMs / 1000)}s)`);
     throw e;
   } finally { clearTimeout(timer); }
 
   if (!response.ok) {
     const txt = await response.text().catch(() => "");
     const compact = txt.replace(/\s+/g, " ").trim();
-    if (isGoogleAntiBotMessage(compact)) throw new Error("Google bloque temporairement les tÃ©lÃ©chargements. RÃ©essaye dans 2-10 minutes.");
+    if (isGoogleAntiBotMessage(compact)) throw new Error("Google bloque temporairement les téléchargements. Réessaye dans 2-10 minutes.");
     if (/referer/i.test(compact) && /(null|empty|blocked|not\s+allowed)/i.test(compact)) throw new Error("API key bloquee par referer.");
     if (response.status === 403) throw new Error(`Acces Drive refuse (403): ${compact.slice(0, 180)}`);
     throw new Error(`HTTP ${response.status} ${response.statusText} ${compact.slice(0, 180)}`);
   }
   const raw = await response.text();
   const trimmed = raw.trim();
-  if (!trimmed) throw new Error("RÃ©ponse vide");
-  if (/^\s*<!doctype html/i.test(trimmed) || /^\s*<html/i.test(trimmed)) throw new Error("Fichier non accessible publiquement (rÃ©ponse HTML).");
+  if (!trimmed) throw new Error("Réponse vide");
+  if (/^\s*<!doctype html/i.test(trimmed) || /^\s*<html/i.test(trimmed)) throw new Error("Fichier non accessible publiquement (réponse HTML).");
   const payload = trimmed.replace(/^\)\]\}'\s*\n?/, "");
   try { return JSON.parse(payload); } catch { throw new Error("JSON invalide."); }
 }
@@ -511,23 +511,23 @@ function setSubtitle(msg) { /* no-op: subtitle removed */ }
 
 async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = false } = {}) {
   const staticCfg = getStaticConfig();
-  if (!staticCfg.enabled) throw new Error("Source statique dÃ©sactivÃ©e.");
-  setSubtitle("Synchronisation en coursâ€¦");
+  if (!staticCfg.enabled) throw new Error("Source statique désactivée.");
+  setSubtitle("Synchronisation en cours…");
   setSyncing(true);
   try {
     const files = await listStaticFilesFromIndex(staticCfg.indexUrl);
     if (!files.length) {
       if (state.reports.length) {
-        setSubtitle(`${state.reports.length} AAR Â· source statique vide`);
-        if (!silent) toast("Aucun fichier dans l'index statique, cache conservÃ©.");
+        setSubtitle(`${state.reports.length} AAR · source statique vide`);
+        if (!silent) toast("Aucun fichier dans l'index statique, cache conservé.");
         return;
       }
       try { await dbReplaceAll([]); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
       state.reports = [];
       renderAll();
-      setSubtitle("0 AAR Â· source statique");
+      setSubtitle("0 AAR · source statique");
       saveLastSync();
-      if (!silent) toast("Aucun AAR trouvÃ©.");
+      if (!silent) toast("Aucun AAR trouvé.");
       return;
     }
     const existingByPath = new Map(
@@ -553,8 +553,8 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
       }
     }
     if (!records.length && state.reports.length) {
-      setSubtitle(`${state.reports.length} AAR Â· echec sync`);
-      if (!silent) toast("Sync en Ã©chec : cache conservÃ©.");
+      setSubtitle(`${state.reports.length} AAR · echec sync`);
+      if (!silent) toast("Sync en échec : cache conservé.");
       return;
     }
     const sorted = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
@@ -567,7 +567,7 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
     state.reports = sorted;
     renderAll();
     saveLastSync();
-    setSubtitle(`${records.length} AAR Â· source statique`);
+    setSubtitle(`${records.length} AAR · source statique`);
     if (!silent) {
       if (errors.length) toast(`Sync OK : ${records.length} AAR, ${errors.length} erreur(s).`);
       else toast(`Sync OK : ${records.length} AAR.`);
@@ -598,7 +598,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
     if (!silent) toast("Config invalide : indexFileId, ou apiKey+folderId.");
     return;
   }
-  setSubtitle("Synchronisation Driveâ€¦");
+  setSubtitle("Synchronisation Drive…");
   setSyncing(true);
   try {
     const files = hasIndexMode ? await listDriveFilesFromIndex(cfg.indexFileId) : await listDriveFiles(cfg.apiKey, cfg.folderId);
@@ -607,7 +607,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       if (staticCfg.enabled) {
         try {
           await syncFromStaticRepo({ silent: true, preserveCacheOnShrink: true });
-          setSubtitle(`${state.reports.length} AAR Â· source statique (Drive vide)`);
+          setSubtitle(`${state.reports.length} AAR · source statique (Drive vide)`);
           if (!silent) toast("Drive vide : bascule sur source statique.");
           return;
         } catch {}
@@ -620,9 +620,9 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       try { await dbReplaceAll([]); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
       state.reports = [];
       renderAll();
-      setSubtitle("0 AAR Â· Google Drive");
+      setSubtitle("0 AAR · Google Drive");
       saveLastSync();
-      if (!silent) toast("Aucun AAR trouvÃ© sur Drive.");
+      if (!silent) toast("Aucun AAR trouvé sur Drive.");
       return;
     }
     const existingDriveById = new Map(
@@ -637,7 +637,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       if (sameVersion) { records.push(existing); continue; }
       if (blockedByGoogle) {
         if (existing) records.push(existing);
-        else errors.push(`${f.name || f.id}: sautÃ© (blocage Google).`);
+        else errors.push(`${f.name || f.id}: sauté (blocage Google).`);
         continue;
       }
       try {
@@ -655,15 +655,15 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       }
     }
     if (!records.length && state.reports.length) {
-      setSubtitle(`${state.reports.length} AAR Â· Ã©chec sync Drive`);
-      if (!silent) toast("Sync Drive en Ã©chec : cache conservÃ©.");
+      setSubtitle(`${state.reports.length} AAR · échec sync Drive`);
+      if (!silent) toast("Sync Drive en échec : cache conservé.");
       return;
     }
     try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
     state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
     renderAll();
     saveLastSync();
-    setSubtitle(blockedByGoogle ? `${records.length} AAR Â· Drive (blocage dÃ©tectÃ©)` : `${records.length} AAR Â· Google Drive`);
+    setSubtitle(blockedByGoogle ? `${records.length} AAR · Drive (blocage détecté)` : `${records.length} AAR · Google Drive`);
     if (!silent) {
       if (errors.length) toast(`Sync OK : ${records.length} AAR, ${errors.length} erreur(s).`);
       else toast(`Sync OK : ${records.length} AAR.`);
@@ -744,7 +744,7 @@ function showFileModeHelp() {
     </section>`;
 }
 
-/* â•â•â• IndexedDB â•â•â• */
+/* ═══ IndexedDB ═══ */
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -778,7 +778,7 @@ async function dbReplaceAll(records) {
   });
 }
 
-/* â•â•â• DYNAMIC FILTER OPTIONS â•â•â• */
+/* ═══ DYNAMIC FILTER OPTIONS ═══ */
 function getUniqueValues(key) {
   const vals = new Set();
   for (const r of state.reports) {
@@ -790,7 +790,7 @@ function getUniqueValues(key) {
 
 function populateDynamicFilters() {
   fillSelectOptions(el.filterFleet, "Flotte: Toutes", getUniqueValues("fleet"));
-  fillSelectOptions(el.filterUnit, "UnitÃ©: Toutes", getUniqueValues("unit"));
+  fillSelectOptions(el.filterUnit, "Unité: Toutes", getUniqueValues("unit"));
   fillSelectOptions(el.filterCountry, "Pays: Tous", getUniqueValues("country"));
 }
 
@@ -809,7 +809,7 @@ function updateChipState(sel) {
   sel.classList.toggle("has-value", sel.value !== "ALL");
 }
 
-/* â•â•â• FILTER & SORT â•â•â• */
+/* ═══ FILTER & SORT ═══ */
 function filtered() {
   const q = (el.searchInput?.value || "").trim().toLowerCase();
   const classif = el.filterClassif?.value || "ALL";
@@ -847,7 +847,7 @@ function filtered() {
   return rows;
 }
 
-/* â•â•â• RENDERING â€” LIST VIEW â•â•â• */
+/* ═══ RENDERING — LIST VIEW ═══ */
 function classifTag(c) {
   const norm = normalizeClassif(c);
   if (norm === "NON PROTEGE") return `<span class="tag tag-np">NP</span>`;
@@ -869,9 +869,9 @@ function renderList() {
   if (!rows.length) {
     el.aarGrid.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">ðŸ“‹</div>
-        <h3>${state.reports.length ? "Aucun AAR ne correspond aux filtres" : "Aucun AAR chargÃ©"}</h3>
-        <p>${state.reports.length ? "Essaie de modifier tes critÃ¨res de recherche." : "Clique sur le bouton â†» pour synchroniser les donnÃ©es."}</p>
+        <div class="empty-icon">📋</div>
+        <h3>${state.reports.length ? "Aucun AAR ne correspond aux filtres" : "Aucun AAR chargé"}</h3>
+        <p>${state.reports.length ? "Essaie de modifier tes critères de recherche." : "Clique sur le bouton ↻ pour synchroniser les données."}</p>
       </div>`;
     return;
   }
@@ -889,7 +889,7 @@ function renderList() {
           <div class="card-title">${esc(r.title)}</div>
           <div class="card-date">${formatDateFr(r.date)}</div>
         </div>
-        <div class="card-meta">${esc(r.redacteur)} Â· ${esc(r.unit)}${r.country ? " Â· " + esc(r.country) : ""}${r.airfield ? " Â· " + esc(r.airfield) : ""}</div>
+        <div class="card-meta">${esc(r.redacteur)} · ${esc(r.unit)}${r.country ? " · " + esc(r.country) : ""}${r.airfield ? " · " + esc(r.airfield) : ""}</div>
         ${excerpt ? `<div class="card-excerpt">${esc(excerpt.slice(0, 200))}</div>` : ""}
         <div class="card-tags">${tags.join("")}</div>
       </article>`;
@@ -902,7 +902,7 @@ function renderList() {
   });
 }
 
-/* â•â•â• RENDERING â€” DETAIL MODAL â•â•â• */
+/* ═══ RENDERING — DETAIL MODAL ═══ */
 function asDocHtml(value, emptyText = "N/A") {
   const raw = String(value || "");
   const text = htmlToText(raw).replace(/\r/g, "").trim();
@@ -1047,7 +1047,7 @@ function closeDetail() {
   state.openDetailId = null;
 }
 
-/* â•â•â• RENDERING â€” ANALYZE VIEW â•â•â• */
+/* ═══ RENDERING — ANALYZE VIEW ═══ */
 function topMap(reports, mapper, n) {
   const map = new Map();
   reports.forEach((r) => mapper(r).forEach((k) => { if (!k) return; map.set(k, (map.get(k) || 0) + 1); }));
@@ -1055,7 +1055,7 @@ function topMap(reports, mapper, n) {
 }
 
 function barsHtml(rows, opts = {}) {
-  if (!rows.length) return '<p style="color:var(--text-muted)">Aucune donnÃ©e.</p>';
+  if (!rows.length) return '<p style="color:var(--text-muted)">Aucune donnée.</p>';
   const {
     drilldown = "",
     formatLabel = (k) => k,
@@ -1090,7 +1090,7 @@ function drilldownFromAnalyze(type, value) {
 
   setView("list");
   if (el.viewList) el.viewList.scrollTop = 0;
-  toast(`Filtre appliquÃ© : ${value}`);
+  toast(`Filtre appliqué : ${value}`);
 }
 
 function bindAnalyzeDrilldown() {
@@ -1112,9 +1112,9 @@ function renderAnalyze() {
   if (!state.reports.length) {
     el.viewAnalyze.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">ðŸ“Š</div>
+        <div class="empty-icon">📊</div>
         <h3>Aucun AAR pour analyse</h3>
-        <p>Synchronise les donnÃ©es pour voir les statistiques.</p>
+        <p>Synchronise les données pour voir les statistiques.</p>
       </div>`;
     return;
   }
@@ -1139,15 +1139,15 @@ function renderAnalyze() {
     <div class="analyze-grid">
       ${mTypeTop.length ? `<section class="analyze-box"><h4>Logistique / Tactique</h4>${barsHtml(mTypeTop, { drilldown: "missionType", formatLabel: (k) => (k === "LOG" ? "Logistique (LOG)" : k === "TAC" ? "Tactique (TAC)" : k) })}</section>` : ""}
       ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop, { drilldown: "country" })}</section>` : ""}
-      ${opsExTop.length ? `<section class="analyze-box"><h4>Par opÃ©ration / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
+      ${opsExTop.length ? `<section class="analyze-box"><h4>Par opération / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
       <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop, { drilldown: "classification" })}</section>
-      <section class="analyze-box"><h4>Par unitÃ©</h4>${barsHtml(unitTop, { drilldown: "unit" })}</section>
-      <section class="analyze-box"><h4>Par catÃ©gorie DORESE</h4>${barsHtml(recoTop, { drilldown: "reco" })}</section>
+      <section class="analyze-box"><h4>Par unité</h4>${barsHtml(unitTop, { drilldown: "unit" })}</section>
+      <section class="analyze-box"><h4>Par catégorie DORESE</h4>${barsHtml(recoTop, { drilldown: "reco" })}</section>
     </div>`;
   bindAnalyzeDrilldown();
 }
 
-/* â•â•â• VIEW SWITCHING â•â•â• */
+/* ═══ VIEW SWITCHING ═══ */
 function setView(view) {
   state.mode = view;
   document.querySelectorAll(".toggle-btn").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
@@ -1167,7 +1167,7 @@ function renderAll() {
   renderCurrentView();
 }
 
-/* â•â•â• INIT â•â•â• */
+/* ═══ INIT ═══ */
 async function init() {
   Object.assign(el, {
     syncBtn: document.getElementById("sync-btn"),
@@ -1225,8 +1225,8 @@ async function init() {
   const cfg = getDriveConfig();
   const staticCfg = getStaticConfig();
   if (hasDriveSource(cfg)) setSubtitle("Source : Google Drive");
-  else if (staticCfg.enabled) setSubtitle("Source : donnÃ©es statiques");
-  else setSubtitle("Source non configurÃ©e");
+  else if (staticCfg.enabled) setSubtitle("Source : données statiques");
+  else setSubtitle("Source non configurée");
 
   // Load from IndexedDB
   let dbOk = false;
@@ -1235,13 +1235,13 @@ async function init() {
     state.reports.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
     dbOk = true;
   } catch (e) {
-    // IndexedDB may fail on file:// too â€” that's OK
+    // IndexedDB may fail on file:// too — that's OK
     console.warn("IndexedDB unavailable:", e.message);
   }
 
   renderAll();
 
-  // Detect file:// protocol â€” fetch won't work
+  // Detect file:// protocol — fetch won't work
   if (location.protocol === "file:") {
     showFileModeHelp();
     return;
@@ -1263,4 +1263,5 @@ async function init() {
 }
 
 init();
+
 

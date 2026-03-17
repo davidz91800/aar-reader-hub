@@ -23,6 +23,14 @@ Toute evolution de schema/champ AAR ou de rendu detail doit etre synchronisee av
 2. `E - AAR READER HUB`
 3. `E - AAR READER HUB/AAR READER HUB QWI`
 
+## Regles d'encodage (obligatoires)
+- Encodage requis: `UTF-8` pour tous les fichiers texte.
+- En ecriture via scripts/PowerShell, toujours utiliser `-Encoding UTF8`.
+- Controle anti-mojibake avant commit:
+  - pattern: `Ã|Â|â€¦|â€”|ðŸ`
+  - toute occurrence visible en UI doit etre corrigee avant push.
+- Les textes UI de `app.js` doivent rester alignes avec ceux du hub non QWI.
+
 ## Contexte d'exploitation (a conserver)
 - Flux operationnel actuel:
   - Un e-mail AAR arrive sur `david.zemmour3@gmail.com`.

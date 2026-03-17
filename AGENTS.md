@@ -15,6 +15,14 @@ Quand tu modifies ce hub, verifie toujours l'impact sur:
 1. `C - AAR PWA` (formulaire et schema)
 2. `AAR READER HUB QWI` (ajout/edition/suppression + rendu)
 
+## Regles d'encodage (obligatoires)
+- Tous les fichiers texte (`.js`, `.html`, `.css`, `.md`, `.json`) doivent etre en `UTF-8`.
+- Ne jamais sauvegarder avec un encodage implicite. Si usage PowerShell: toujours forcer `-Encoding UTF8`.
+- Avant commit, verifier qu'il n'y a pas de mojibake dans les fichiers modifies:
+  - Pattern de controle: `Ã|Â|â€¦|â€”|ðŸ`
+  - Si un match apparait dans du texte UI, corriger avant push.
+- Si un texte UI est modifie ici, reproduire la meme correction dans `AAR READER HUB QWI/app.js`.
+
 ## Contexte d'exploitation (a conserver)
 - Flux operationnel actuel:
   - Un e-mail AAR arrive sur `david.zemmour3@gmail.com`.
