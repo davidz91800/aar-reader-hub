@@ -2288,6 +2288,27 @@
                     .toUpperCase();
             },
 
+            sanitizeRichHtml: (value) => {
+                let html = (typeof value === 'string') ? value : '';
+                if (!html) return '';
+
+                // Repair mojibake tags like "<�div><�br><�/div>".
+                html = html
+                    .replace(/<\uFFFD+\//g, '</')
+                    .replace(/<\uFFFD+/g, '<')
+                    .replace(/<\/\uFFFD+/g, '</')
+                    .replace(/\uFFFD/g, '');
+
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = html;
+                const normalized = wrapper.innerHTML;
+                const text = (wrapper.textContent || '').replace(/\u00A0/g, ' ').trim();
+                const isOnlyEmptyMarkup = /^(\s|<br\s*\/?>|<div><br\s*\/?><\/div>|<p><br\s*\/?><\/p>)*$/i.test(normalized);
+
+                if (!text && isOnlyEmptyMarkup) return '';
+                return normalized;
+            },
+
             isFilled: (value) => {
                 return typeof value === 'string' ? value.trim().length > 0 : Boolean(value);
             },
@@ -2405,6 +2426,7 @@
             },
 
             ensureDataShape: () => {
+                let repairedRichText = false;
                 if (!App.data || typeof App.data !== 'object') App.data = {};
 
                 App.data.meta = { ...META_DEFAULTS, ...(App.data.meta || {}) };
@@ -2412,6 +2434,32 @@
                 App.data.analysis = { ...ANALYSIS_DEFAULTS, ...(App.data.analysis || {}) };
                 App.data.recos = { ...RECOS_DEFAULTS, ...(App.data.recos || {}) };
                 App.data.qwi = { ...QWI_DEFAULTS, ...(App.data.qwi || {}) };
+
+                const richFields = [
+                    ['facts', 'what'],
+                    ['facts', 'why'],
+                    ['facts', 'when'],
+                    ['facts', 'where'],
+                    ['facts', 'who'],
+                    ['facts', 'how'],
+                    ['analysis', 'content'],
+                    ['recos', 'doctrine'],
+                    ['recos', 'organisation'],
+                    ['recos', 'rh'],
+                    ['recos', 'equipements'],
+                    ['recos', 'soutien'],
+                    ['recos', 'entrainement'],
+                    ['qwi', 'advice']
+                ];
+
+                richFields.forEach(([section, key]) => {
+                    const current = App.data[section][key];
+                    const cleaned = App.sanitizeRichHtml(current);
+                    if (cleaned !== current) {
+                        App.data[section][key] = cleaned;
+                        repairedRichText = true;
+                    }
+                });
 
                 if (Object.prototype.hasOwnProperty.call(App.data.meta, 'pj')) delete App.data.meta.pj;
 
@@ -2437,6 +2485,8 @@
                         App.data.meta.hashtag = 'AUTRE';
                     }
                 }
+
+                return repairedRichText;
             },
 
             createOption: (value, label) => {
@@ -2988,13 +3038,14 @@
                         App.data = JSON.parse(saved);
                     } catch (e) { console.error("Load error", e); }
                 }
-                App.ensureDataShape();
+                const repairedOnLoad = App.ensureDataShape();
                 if (!App.data.meta.date) App.data.meta.date = new Date().toISOString().split('T')[0];
 
                 // Bind Input Change Listener for Import
                 document.getElementById('file-input').addEventListener('change', App.importJSON);
 
                 App.renderForm();
+                if (repairedOnLoad) App.save();
                 App.nav(0);
                 App.loadRemoteHashtagCatalog();
             },
