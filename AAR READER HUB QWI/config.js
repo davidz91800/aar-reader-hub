@@ -12,7 +12,7 @@
       indexFileId: ""
     },
     staticRepo: {
-      enabled: true,
+      enabled: false,
       indexUrl: "./AAR Reader Data/index.json"
     }
   };
