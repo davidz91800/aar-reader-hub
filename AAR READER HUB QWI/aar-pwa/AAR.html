@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 
 <head>
@@ -1336,7 +1336,7 @@
 <body>
 
     <header>
-            <a href="../index.html" class="btn-back">
+        <a href="../retex.html" class="btn-back">
             <i class="ph ph-arrow-left"></i> Retour
         </a>
         <div class="brand">
@@ -1458,6 +1458,31 @@
                 </div>
 
                 <div class="card-header" style="margin-top: 1.5rem;">Contexte Mission</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Pays</label>
+                        <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
+                            oninput="App.filterLogCountries(this.value)">
+                        <select id="meta-log-country" onchange="App.updateLogCountrySelection(this.value)">
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                        <input type="text" id="meta-log-country-autre" placeholder="Précisez le pays..."
+                            style="display:none; margin-top: 8px;" oninput="App.updateLogCountryAutre(this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>Terrain OACI</label>
+                        <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
+                            oninput="App.filterLogAirfields(this.value)">
+                        <select id="meta-log-airfield" onchange="App.updateLogAirfieldSelection(this.value)">
+                            <option value="">-- Sélectionner --</option>
+                        </select>
+                        <input type="text" id="meta-log-airfield-autre" placeholder="Précisez le terrain OACI..."
+                            style="display:none; margin-top: 8px;" oninput="App.updateLogAirfieldAutre(this.value)">
+                        <div id="meta-log-airfield-hint"
+                            style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>Type</label>
                     <select id="meta-mission-type" onchange="App.updateMissionType(this.value)">
@@ -1465,33 +1490,6 @@
                         <option value="LOG">LOG</option>
                         <option value="TAC">TAC</option>
                     </select>
-                </div>
-
-                <div id="log-config-block" style="display:none;">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>PAYS</label>
-                            <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
-                                oninput="App.filterLogCountries(this.value)">
-                            <select id="meta-log-country" onchange="App.updateLogCountrySelection(this.value)">
-                                <option value="">-- Sélectionner --</option>
-                            </select>
-                            <input type="text" id="meta-log-country-autre" placeholder="Précisez le pays..."
-                                style="display:none; margin-top: 8px;" oninput="App.updateLogCountryAutre(this.value)">
-                        </div>
-                        <div class="form-group">
-                            <label>Terrain OACI</label>
-                            <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
-                                oninput="App.filterLogAirfields(this.value)">
-                            <select id="meta-log-airfield" onchange="App.updateLogAirfieldSelection(this.value)">
-                                <option value="">-- Sélectionner --</option>
-                            </select>
-                            <input type="text" id="meta-log-airfield-autre" placeholder="Précisez le terrain OACI..."
-                                style="display:none; margin-top: 8px;" oninput="App.updateLogAirfieldAutre(this.value)">
-                            <div id="meta-log-airfield-hint"
-                                style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
-                        </div>
-                    </div>
                 </div>
 
                 <div id="tac-config-block" style="display:none;">
@@ -1521,6 +1519,33 @@
                         <input type="text" id="meta-tac-exercise-autre" placeholder="Précisez l'exercice..."
                             style="display:none; margin-top: 8px;" oninput="App.update('meta.tacExerciseAutre', this.value)">
                     </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Hashtag</label>
+                    <input type="search" id="meta-hashtag-search" placeholder="Rechercher un hashtag..."
+                        oninput="App.filterHashtags(this.value)">
+                    <select id="meta-hashtag" onchange="App.updateHashtagSelection(this.value)">
+                        <option value="">-- Sélectionner --</option>
+                    </select>
+                    <input type="text" id="meta-hashtag-autre" placeholder="Précisez le hashtag..."
+                        style="display:none; margin-top: 8px;" oninput="App.updateHashtagAutre(this.value)">
+                    <div id="meta-hashtag-hint"
+                        style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
+                </div>
+
+                <div id="hashtag-admin-block" class="form-group" style="display:none;">
+                    <label>Administration hashtags (QWI)</label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <input type="text" id="meta-hashtag-admin-input" placeholder="#NouveauHashtag"
+                            style="max-width: 280px;">
+                        <button type="button" class="btn" onclick="App.addHashtagFromAdmin()">Ajouter</button>
+                        <button type="button" class="btn" onclick="App.renameSelectedHashtag()">Renommer sélectionné</button>
+                        <button type="button" class="btn" onclick="App.deleteSelectedHashtag()">Supprimer sélectionné</button>
+                    </div>
+                    <div id="meta-hashtag-admin-hint"
+                        style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
+                </div>
                 </div>
                 </div>
 
@@ -2050,6 +2075,8 @@
             logCountryAutre: "",
             logAirfield: "",
             logAirfieldAutre: "",
+            hashtag: "",
+            hashtagAutre: "",
             tacContext: "",
             tacOperation: "",
             tacOperationAutre: "",
@@ -2066,6 +2093,7 @@
             allCountries: ['France'],
             tacOperations: ['Proche et Moyen Orient (PMO)'],
             tacExercises: ['TRAINING', 'ATLC', 'TLP', 'ETAP-C Single Ship', 'ETAP-C Multiple Ship'],
+            hashtags: ['#RETEX'],
             logAirfieldsByCountry: {
                 France: [
                     'LFOE Evreux',
@@ -2082,6 +2110,7 @@
                 ]
             }
         };
+        const HASHTAG_CATALOG_KEY = 'aar_hashtag_catalog_v1';
 
         const App = {
             data: {
@@ -2099,7 +2128,9 @@
                 currentW6Tab: 0,
                 currentDoreseTab: 0,
                 logCountrySearch: "",
-                logAirfieldSearch: ""
+                logAirfieldSearch: "",
+                hashtagSearch: "",
+                isExternalEditor: false
             },
 
             normalizeKey: (value) => {
@@ -2195,6 +2226,11 @@
                 const tacExercises = (Array.isArray(external.tacExercises) && external.tacExercises.length)
                     ? external.tacExercises.filter(Boolean)
                     : FALLBACK_MISSION_CONFIG.tacExercises;
+                const configuredHashtags = (Array.isArray(external.hashtags) && external.hashtags.length)
+                    ? external.hashtags.filter(Boolean)
+                    : FALLBACK_MISSION_CONFIG.hashtags;
+                const localHashtags = App.loadHashtagCatalogFromStorage();
+                const hashtags = App.normalizeHashtagArray([...(configuredHashtags || []), ...(localHashtags || [])]);
 
                 allCountries.sort((a, b) => a.localeCompare(b));
 
@@ -2202,7 +2238,8 @@
                     allCountries,
                     tacOperations,
                     tacExercises,
-                    logAirfieldsByCountry
+                    logAirfieldsByCountry,
+                    hashtags
                 };
 
                 App.countryNameLookup = {};
@@ -2235,6 +2272,17 @@
                 if (App.data.meta.logAirfield && App.data.meta.logAirfield !== 'AUTRE' && knownAirfields.size && !knownAirfields.has(App.data.meta.logAirfield)) {
                     if (!App.data.meta.logAirfieldAutre) App.data.meta.logAirfieldAutre = App.data.meta.logAirfield;
                     App.data.meta.logAirfield = 'AUTRE';
+                }
+
+                const knownHashtags = new Set((App.missionConfig.hashtags || []).map((tag) => App.normalizeKey(tag)));
+                if (App.data.meta.hashtag === 'AUTRE') {
+                    App.data.meta.hashtagAutre = App.normalizeHashtag(App.data.meta.hashtagAutre);
+                } else {
+                    App.data.meta.hashtag = App.normalizeHashtag(App.data.meta.hashtag);
+                    if (App.data.meta.hashtag && !knownHashtags.has(App.normalizeKey(App.data.meta.hashtag))) {
+                        if (!App.data.meta.hashtagAutre) App.data.meta.hashtagAutre = App.data.meta.hashtag;
+                        App.data.meta.hashtag = 'AUTRE';
+                    }
                 }
             },
 
@@ -2282,6 +2330,67 @@
                     else if (norm.includes(normalized)) includes.push(value);
                 });
                 return [...startsWith, ...includes];
+            },
+
+            normalizeHashtag: (value) => {
+                let tag = String(value || '').trim();
+                if (!tag) return '';
+                tag = tag.replace(/\s+/g, '-');
+                if (!tag.startsWith('#')) tag = `#${tag}`;
+                return tag;
+            },
+
+            normalizeHashtagArray: (values) => {
+                const out = [];
+                const seen = new Set();
+                (Array.isArray(values) ? values : []).forEach((value) => {
+                    const normalized = App.normalizeHashtag(value);
+                    if (!normalized) return;
+                    const key = App.normalizeKey(normalized);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    out.push(normalized);
+                });
+                return out.sort((a, b) => a.localeCompare(b, 'fr'));
+            },
+
+            loadHashtagCatalogFromStorage: () => {
+                try {
+                    const raw = localStorage.getItem(HASHTAG_CATALOG_KEY);
+                    const parsed = raw ? JSON.parse(raw) : [];
+                    return App.normalizeHashtagArray(parsed);
+                } catch (error) {
+                    console.warn('Hashtag catalog parse failed:', error);
+                    return [];
+                }
+            },
+
+            saveHashtagCatalogToStorage: () => {
+                try {
+                    localStorage.setItem(HASHTAG_CATALOG_KEY, JSON.stringify(App.missionConfig.hashtags || []));
+                } catch (error) {
+                    console.warn('Hashtag catalog save failed:', error);
+                }
+            },
+
+            setHashtagCatalog: (values, persist = true) => {
+                App.missionConfig.hashtags = App.normalizeHashtagArray(values);
+                if (persist) App.saveHashtagCatalogToStorage();
+                App.renderHashtagSelect();
+                App.refreshHashtagHint();
+            },
+
+            applyDynamicHashtagCatalog: (values) => {
+                const merged = App.normalizeHashtagArray([
+                    ...(App.missionConfig.hashtags || []),
+                    ...(Array.isArray(values) ? values : [])
+                ]);
+                App.setHashtagCatalog(merged, true);
+            },
+
+            getEffectiveHashtag: () => {
+                const m = App.data.meta;
+                return m.hashtag === 'AUTRE' ? (m.hashtagAutre || '') : (m.hashtag || '');
             },
 
             renderLogCountrySelect: () => {
@@ -2342,11 +2451,131 @@
                 App.renderLogAirfieldSelect();
             },
 
+            renderHashtagSelect: () => {
+                const select = document.getElementById('meta-hashtag');
+                const otherInput = document.getElementById('meta-hashtag-autre');
+                if (!select) return;
+
+                const current = App.data.meta.hashtag || '';
+                const base = App.missionConfig.hashtags || [];
+                let hashtags = App.filterValues(base, App.ui.hashtagSearch);
+                if (current && current !== 'AUTRE' && !hashtags.includes(current)) hashtags = [current, ...hashtags];
+
+                select.innerHTML = '';
+                select.appendChild(App.createOption('', '-- Sélectionner --'));
+                select.appendChild(App.createOption('AUTRE', 'AUTRE'));
+                hashtags.forEach((tag) => {
+                    if (tag !== 'AUTRE') select.appendChild(App.createOption(tag, tag));
+                });
+                select.value = current;
+
+                if (otherInput) {
+                    otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
+                    if (current !== 'AUTRE') otherInput.value = '';
+                }
+            },
+
+            refreshHashtagHint: () => {
+                const hint = document.getElementById('meta-hashtag-hint');
+                if (!hint) return;
+                const count = (App.missionConfig.hashtags || []).length;
+                const current = App.getEffectiveHashtag();
+                if (!count) hint.textContent = 'Aucun hashtag enregistré. Utilisez AUTRE ou ajoutez-en un (QWI).';
+                else if (current) hint.textContent = `Hashtag actuel: ${current}`;
+                else hint.textContent = `${count} hashtag(s) disponible(s).`;
+            },
+
+            filterHashtags: (query) => {
+                App.ui.hashtagSearch = query || '';
+                App.renderHashtagSelect();
+            },
+
+            updateHashtagSelection: (value) => {
+                App.data.meta.hashtag = value;
+                if (value !== 'AUTRE') App.data.meta.hashtagAutre = '';
+                App.ui.hashtagSearch = '';
+                const search = document.getElementById('meta-hashtag-search');
+                if (search) search.value = '';
+                App.renderHashtagSelect();
+                App.refreshHashtagHint();
+                App.save();
+            },
+
+            updateHashtagAutre: (value) => {
+                App.data.meta.hashtagAutre = App.normalizeHashtag(value);
+                App.refreshHashtagHint();
+                App.save();
+            },
+
+            setHashtagAdminHint: (msg, isError = false) => {
+                const hint = document.getElementById('meta-hashtag-admin-hint');
+                if (!hint) return;
+                hint.style.color = isError ? 'var(--danger)' : 'var(--text-muted)';
+                hint.textContent = msg || '';
+            },
+
+            addHashtagFromAdmin: () => {
+                if (!App.ui.isExternalEditor) return;
+                const input = document.getElementById('meta-hashtag-admin-input');
+                const tag = App.normalizeHashtag(input ? input.value : '');
+                if (!tag) {
+                    App.setHashtagAdminHint('Saisissez un hashtag valide.', true);
+                    return;
+                }
+                const next = App.normalizeHashtagArray([...(App.missionConfig.hashtags || []), tag]);
+                App.setHashtagCatalog(next, true);
+                if (input) input.value = '';
+                App.setHashtagAdminHint(`Hashtag ajouté: ${tag}`);
+            },
+
+            renameSelectedHashtag: () => {
+                if (!App.ui.isExternalEditor) return;
+                const current = App.data.meta.hashtag;
+                if (!current || current === 'AUTRE') {
+                    App.setHashtagAdminHint('Sélectionnez un hashtag existant à renommer.', true);
+                    return;
+                }
+                const input = document.getElementById('meta-hashtag-admin-input');
+                const renamed = App.normalizeHashtag(input ? input.value : '');
+                if (!renamed) {
+                    App.setHashtagAdminHint('Saisissez le nouveau hashtag.', true);
+                    return;
+                }
+                const next = (App.missionConfig.hashtags || []).map((tag) => (tag === current ? renamed : tag));
+                App.setHashtagCatalog(next, true);
+                App.data.meta.hashtag = renamed;
+                if (input) input.value = '';
+                App.renderHashtagSelect();
+                App.refreshHashtagHint();
+                App.save();
+                App.setHashtagAdminHint(`Hashtag renommé: ${current} -> ${renamed}`);
+            },
+
+            deleteSelectedHashtag: () => {
+                if (!App.ui.isExternalEditor) return;
+                const current = App.data.meta.hashtag;
+                if (!current || current === 'AUTRE') {
+                    App.setHashtagAdminHint('Sélectionnez un hashtag existant à supprimer.', true);
+                    return;
+                }
+                if (!confirm(`Supprimer le hashtag ${current} ?`)) return;
+                const next = (App.missionConfig.hashtags || []).filter((tag) => tag !== current);
+                App.setHashtagCatalog(next, true);
+                App.data.meta.hashtag = '';
+                App.data.meta.hashtagAutre = '';
+                App.renderHashtagSelect();
+                App.refreshHashtagHint();
+                App.save();
+                App.setHashtagAdminHint(`Hashtag supprimé: ${current}`);
+            },
+
             renderMissionSelectors: () => {
                 App.fillSelectOptions('meta-tac-operation', App.missionConfig.tacOperations, true);
                 App.fillSelectOptions('meta-tac-exercise', App.missionConfig.tacExercises, true);
                 App.renderLogCountrySelect();
                 App.renderLogAirfieldSelect();
+                App.renderHashtagSelect();
+                App.refreshHashtagHint();
             },
 
             resolveCountryName: (inputCountry) => {
@@ -2392,12 +2621,13 @@
                     if (el) el.style.display = visible ? 'block' : 'none';
                 };
 
-                toggle('log-config-block', isLog);
                 toggle('tac-config-block', isTac);
                 toggle('tac-operations-block', isTacOperations);
                 toggle('tac-exercises-block', isTacExercise);
-                toggle('meta-log-country-autre', isLog && m.logCountry === 'AUTRE');
-                toggle('meta-log-airfield-autre', isLog && m.logAirfield === 'AUTRE');
+                toggle('meta-log-country-autre', m.logCountry === 'AUTRE');
+                toggle('meta-log-airfield-autre', m.logAirfield === 'AUTRE');
+                toggle('meta-hashtag-autre', m.hashtag === 'AUTRE');
+                toggle('hashtag-admin-block', !!App.ui.isExternalEditor);
                 toggle('meta-tac-operation-autre', isTacOperations && m.tacOperation === 'AUTRE');
                 toggle('meta-tac-exercise-autre', isTacExercise && m.tacExercise === 'AUTRE');
             },
@@ -2405,18 +2635,6 @@
             updateMissionType: (val) => {
                 App.data.meta.missionType = val;
 
-                if (val !== 'LOG') {
-                    App.data.meta.logCountry = "";
-                    App.data.meta.logCountryAutre = "";
-                    App.data.meta.logAirfield = "";
-                    App.data.meta.logAirfieldAutre = "";
-                    App.ui.logCountrySearch = "";
-                    App.ui.logAirfieldSearch = "";
-                    const countrySearch = document.getElementById('meta-log-country-search');
-                    const airfieldSearch = document.getElementById('meta-log-airfield-search');
-                    if (countrySearch) countrySearch.value = "";
-                    if (airfieldSearch) airfieldSearch.value = "";
-                }
                 if (val !== 'TAC') {
                     App.data.meta.tacContext = "";
                     App.data.meta.tacOperation = "";
@@ -2509,6 +2727,7 @@
 
             init: () => {
                 App.setupMissionConfig();
+                App.ui.isExternalEditor = new URLSearchParams(window.location.search).get('externalEditor') === '1';
 
                 // Load from storage
                 const saved = localStorage.getItem('aar_forge_data');
@@ -2716,6 +2935,9 @@
                 document.getElementById('meta-log-country-autre').value = d.meta.logCountryAutre || '';
                 document.getElementById('meta-log-airfield').value = d.meta.logAirfield || '';
                 document.getElementById('meta-log-airfield-autre').value = d.meta.logAirfieldAutre || '';
+                document.getElementById('meta-hashtag-search').value = App.ui.hashtagSearch || '';
+                document.getElementById('meta-hashtag').value = d.meta.hashtag || '';
+                document.getElementById('meta-hashtag-autre').value = d.meta.hashtagAutre || '';
                 document.getElementById('meta-tac-context').value = d.meta.tacContext || '';
                 document.getElementById('meta-tac-operation').value = d.meta.tacOperation || '';
                 document.getElementById('meta-tac-operation-autre').value = d.meta.tacOperationAutre || '';
@@ -2725,6 +2947,8 @@
                 App.renderLogCountrySelect();
                 App.renderLogAirfieldSelect();
                 App.renderLogAirfieldOptions();
+                App.renderHashtagSelect();
+                App.refreshHashtagHint();
                 App.refreshRequiredFieldHighlights();
 
                 // Update Classification UI
@@ -2923,6 +3147,9 @@
             } else {
                 App.data = {};
             }
+            if (request && Array.isArray(request.hashtagsCatalog)) {
+                App.applyDynamicHashtagCatalog(request.hashtagsCatalog);
+            }
             App.ensureDataShape();
             if (!App.data.meta.date) App.data.meta.date = new Date().toISOString().split('T')[0];
             App.save();
@@ -2951,7 +3178,8 @@
                     window.opener.postMessage({
                         type: 'aar-qwi-save',
                         session,
-                        aar: payload
+                        aar: payload,
+                        hashtagsCatalog: App.missionConfig.hashtags || []
                     }, '*');
                     return true;
                 }
@@ -3011,6 +3239,7 @@
 </body>
 
 </html>
+
 
 
 

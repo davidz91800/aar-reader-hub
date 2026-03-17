@@ -1,6 +1,7 @@
-// Configuration des choix mission (modifiable par admin).
+﻿// Configuration des choix mission (modifiable par admin).
 // - tacOperations: ajoutez ici les operations proposees aux utilisateurs.
 // - tacExercises: ajoutez/supprimez des types d'exercice TAC.
+// - hashtags: catalogue initial de hashtags proposes dans le formulaire.
 // - logAirfieldsByCountry: liste des terrains OACI par pays (format "ICAO Nom").
 window.AARMissionConfig = {
   "allCountries": [
@@ -263,6 +264,9 @@ window.AARMissionConfig = {
     "TLP",
     "ETAP-C Single Ship",
     "ETAP-C Multiple Ship"
+  ],
+  "hashtags": [
+    "#RETEX"
   ],
   "logAirfieldsByCountry": {
     "Afghanistan": [
@@ -1707,3 +1711,4 @@ window.AARMissionConfig = {
     ]
   }
 };
+

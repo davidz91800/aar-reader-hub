@@ -3,6 +3,7 @@
   const LOCAL_SOURCE = "qwi_local";
   const REQUEST_PREFIX = "aar_qwi_editor_request:";
   const DELETED_KEY = "aar_qwi_deleted_ids_v1";
+  const HASHTAG_CATALOG_KEY = "aar_hashtag_catalog_v1";
   const EDITOR_RELATIVE_URL = "./aar-pwa/AAR.html";
   const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
   const sessions = new Map();
@@ -18,6 +19,47 @@
 
   function sortRecords(rows) {
     return [...rows].sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  function normalizeHashtag(value) {
+    let tag = String(value || "").trim();
+    if (!tag) return "";
+    tag = tag.replace(/\s+/g, "-");
+    if (!tag.startsWith("#")) tag = `#${tag}`;
+    return tag;
+  }
+
+  function uniqueHashtags(values) {
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const tag = normalizeHashtag(value);
+      if (!tag) return;
+      const key = tag.toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(tag);
+    });
+    return out.sort((a, b) => a.localeCompare(b, "fr"));
+  }
+
+  function collectKnownHashtags() {
+    const fromReports = state.reports.flatMap((r) => {
+      const meta = r?.mission?.meta || {};
+      const selected = String(meta.hashtag || "").trim();
+      const other = String(meta.hashtagAutre || "").trim();
+      if (selected === "AUTRE") return other ? [other] : [];
+      return selected ? [selected] : [];
+    });
+
+    let fromStorage = [];
+    try {
+      const raw = localStorage.getItem(HASHTAG_CATALOG_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      fromStorage = Array.isArray(parsed) ? parsed : [];
+    } catch {}
+
+    return uniqueHashtags([...fromStorage, ...fromReports]);
   }
 
   function getDeletedIds() {
@@ -354,6 +396,7 @@
       source: "AAR_READER_HUB_QWI",
       recordId: record ? record.id : "",
       driveFileId,
+      hashtagsCatalog: collectKnownHashtags(),
       aar: record ? record.mission : null,
       createdAt: new Date().toISOString()
     };
@@ -553,6 +596,10 @@
     if (!sessions.has(sessionId)) return;
 
     try {
+      if (Array.isArray(msg.hashtagsCatalog)) {
+        const catalog = uniqueHashtags(msg.hashtagsCatalog);
+        try { localStorage.setItem(HASHTAG_CATALOG_KEY, JSON.stringify(catalog)); } catch {}
+      }
       await upsertFromEditor(sessionId, msg.aar || msg.data || {});
     } catch (error) {
       console.error("QWI editor save failed", error);

@@ -146,6 +146,8 @@ function normalizeAar(input) {
       logCountryAutre: meta.logCountryAutre || "",
       logAirfield: meta.logAirfield || "",
       logAirfieldAutre: meta.logAirfieldAutre || "",
+      hashtag: meta.hashtag || "",
+      hashtagAutre: meta.hashtagAutre || "",
       tacContext: meta.tacContext || "",
       tacOperation: meta.tacOperation || "",
       tacOperationAutre: meta.tacOperationAutre || "",
@@ -247,6 +249,7 @@ function deriveMeta(a) {
   const missionType = meta.missionType || "";
   const country = meta.logCountry === "AUTRE" ? (meta.logCountryAutre || "") : (meta.logCountry || "");
   const airfield = meta.logAirfield === "AUTRE" ? (meta.logAirfieldAutre || "") : (meta.logAirfield || "");
+  const hashtag = meta.hashtag === "AUTRE" ? (meta.hashtagAutre || "") : (meta.hashtag || "");
   const tacContext = meta.tacContext || "";
   const tacDetail = tacContext === "OPERATIONS"
     ? (meta.tacOperation === "AUTRE" ? meta.tacOperationAutre : meta.tacOperation) || ""
@@ -276,7 +279,7 @@ function deriveMeta(a) {
     facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative,
     a.analysis?.content,
     recos.doctrine, recos.organisation, recos.rh, recos.equipements, recos.soutien, recos.entrainement,
-    a.qwi?.advice, fleet, country, airfield, tacDetail
+    a.qwi?.advice, fleet, country, airfield, hashtag, tacDetail
   ].map(cleanText).join(" ");
   const wordCount = allText ? allText.split(/\s+/).filter(Boolean).length : 0;
 
@@ -292,6 +295,7 @@ function deriveMeta(a) {
     fleet,
     country,
     airfield,
+    hashtag,
     tacContext,
     tacDetail,
     factsFilled,
@@ -830,7 +834,7 @@ function filtered() {
   if (q) {
     rows = rows.filter((r) => [
       r.title, r.redacteur, r.nom, r.prenom, r.unit,
-      r.classification, r.fleet, r.country, r.airfield,
+      r.classification, r.fleet, r.country, r.airfield, r.hashtag,
       r.missionType, r.tacDetail,
       r.mission?.analysis?.content,
       r.mission?.facts?.narrative,
@@ -881,6 +885,7 @@ function renderList() {
     const tags = [classifTag(r.classification)];
     if (r.missionType) tags.push(`<span class="tag tag-${r.missionType.toLowerCase()}">${esc(r.missionType)}</span>`);
     if (r.fleet) tags.push(`<span class="tag tag-fleet">${esc(r.fleet)}</span>`);
+    if (r.hashtag) tags.push(`<span class="tag tag-dorese">${esc(r.hashtag)}</span>`);
     if (r.recoCats?.length) tags.push(...r.recoCats.slice(0, 3).map((c) => `<span class="tag tag-dorese">${esc(c)}</span>`));
 
     return `
@@ -957,6 +962,7 @@ function openDetail(id) {
   if (r.missionType) missionParts.push(`Type: ${r.missionType}`);
   if (r.country) missionParts.push(`Pays: ${r.country}`);
   if (r.airfield) missionParts.push(`Terrain OACI: ${r.airfield}`);
+  if (r.hashtag) missionParts.push(`Hashtag: ${r.hashtag}`);
   if (r.tacContext) missionParts.push(`Contexte TAC: ${r.tacContext}`);
   if (r.tacDetail) missionParts.push(`Detail: ${r.tacDetail}`);
   const missionContextHtml = missionParts.length ? esc(missionParts.join(" | ")) : '<span class="doc-na">N/A</span>';
@@ -1139,7 +1145,7 @@ function renderAnalyze() {
     <div class="analyze-grid">
       ${mTypeTop.length ? `<section class="analyze-box"><h4>Logistique / Tactique</h4>${barsHtml(mTypeTop, { drilldown: "missionType", formatLabel: (k) => (k === "LOG" ? "Logistique (LOG)" : k === "TAC" ? "Tactique (TAC)" : k) })}</section>` : ""}
       ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop, { drilldown: "country" })}</section>` : ""}
-      ${opsExTop.length ? `<section class="analyze-box"><h4>Par opération / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
+      ${opsExTop.length ? `<section class="analyze-box"><h4>Par operation / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
       <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop, { drilldown: "classification" })}</section>
       <section class="analyze-box"><h4>Par unité</h4>${barsHtml(unitTop, { drilldown: "unit" })}</section>
       <section class="analyze-box"><h4>Par catégorie DORESE</h4>${barsHtml(recoTop, { drilldown: "reco" })}</section>
