@@ -2415,6 +2415,7 @@
                     otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
                     if (current !== 'AUTRE') otherInput.value = '';
                 }
+                App.refreshLiveSelectMode('meta-log-country', App.ui.logCountrySearch);
             },
 
             renderLogAirfieldSelect: () => {
@@ -2439,6 +2440,19 @@
                     otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
                     if (current !== 'AUTRE') otherInput.value = '';
                 }
+                App.refreshLiveSelectMode('meta-log-airfield', App.ui.logAirfieldSearch);
+            },
+
+            refreshLiveSelectMode: (selectId, query) => {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+                const hasSearch = Boolean(String(query || '').trim());
+                if (!hasSearch) {
+                    select.size = 1;
+                    return;
+                }
+                const visible = Math.min(8, Math.max(3, select.options.length - 1));
+                select.size = visible;
             },
 
             filterLogCountries: (query) => {
@@ -2657,6 +2671,8 @@
                 App.ui.logCountrySearch = "";
                 const countrySearch = document.getElementById('meta-log-country-search');
                 if (countrySearch) countrySearch.value = "";
+                const countrySelect = document.getElementById('meta-log-country');
+                if (countrySelect) countrySelect.size = 1;
 
                 const nextCountryRaw = value === 'AUTRE' ? App.data.meta.logCountryAutre : value;
                 const nextCountry = App.resolveCountryName(nextCountryRaw);
@@ -2680,6 +2696,8 @@
                 App.ui.logAirfieldSearch = "";
                 const airfieldSearch = document.getElementById('meta-log-airfield-search');
                 if (airfieldSearch) airfieldSearch.value = "";
+                const airfieldSelect = document.getElementById('meta-log-airfield');
+                if (airfieldSelect) airfieldSelect.size = 1;
                 App.renderLogAirfieldSelect();
                 App.save();
             },
