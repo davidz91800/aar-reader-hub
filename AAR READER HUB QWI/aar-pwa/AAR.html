@@ -2521,6 +2521,12 @@
                 return m.logCountry === 'AUTRE' ? (m.logCountryAutre || '') : (m.logCountry || '');
             },
 
+            getCountrySearchDisplayValue: () => {
+                const m = App.data.meta || {};
+                if (m.logCountry === 'AUTRE') return 'AUTRE';
+                return m.logCountry || '';
+            },
+
             filterValues: (values, query) => {
                 const normalized = App.normalizeKey(query || '');
                 if (!normalized) return [...values];
@@ -2655,6 +2661,13 @@
                     return;
                 }
 
+                const autre = document.createElement('button');
+                autre.type = 'button';
+                autre.className = 'combo-option';
+                autre.textContent = 'AUTRE';
+                autre.addEventListener('click', () => App.selectLogCountryFromMenu('AUTRE'));
+                menu.appendChild(autre);
+
                 countries.forEach((country) => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
@@ -2663,12 +2676,6 @@
                     btn.addEventListener('click', () => App.selectLogCountryFromMenu(country));
                     menu.appendChild(btn);
                 });
-                const autre = document.createElement('button');
-                autre.type = 'button';
-                autre.className = 'combo-option';
-                autre.textContent = 'AUTRE';
-                autre.addEventListener('click', () => App.selectLogCountryFromMenu('AUTRE'));
-                menu.appendChild(autre);
 
                 if (!countries.length) {
                     const empty = document.createElement('div');
@@ -2981,9 +2988,7 @@
                 App.ui.showCountryMenu = false;
                 const countrySearch = document.getElementById('meta-log-country-search');
                 if (countrySearch) {
-                    const selectedLabel = value === 'AUTRE'
-                        ? (App.data.meta.logCountryAutre || '')
-                        : (value || '');
+                    const selectedLabel = value === 'AUTRE' ? 'AUTRE' : (value || '');
                     countrySearch.value = selectedLabel;
                 }
 
@@ -3017,10 +3022,6 @@
 
             updateLogCountryAutre: (value) => {
                 App.data.meta.logCountryAutre = value;
-                if (App.data.meta.logCountry === 'AUTRE') {
-                    const countrySearch = document.getElementById('meta-log-country-search');
-                    if (countrySearch) countrySearch.value = value || '';
-                }
                 App.renderLogAirfieldOptions();
                 App.save();
             },
@@ -3273,7 +3274,7 @@
                 document.getElementById('meta-flotte-autre').value = d.meta.flotteAutre || '';
                 document.getElementById('meta-flotte-autre').style.display = (d.meta.flotte === 'AUTRE') ? 'block' : 'none';
                 document.getElementById('meta-mission-type').value = d.meta.missionType || '';
-                document.getElementById('meta-log-country-search').value = App.ui.logCountrySearch || App.getEffectiveLogCountry() || '';
+                document.getElementById('meta-log-country-search').value = App.ui.logCountrySearch || App.getCountrySearchDisplayValue() || '';
                 document.getElementById('meta-log-airfield-search').value = App.ui.logAirfieldSearch || '';
                 document.getElementById('meta-log-country').value = d.meta.logCountry || '';
                 document.getElementById('meta-log-country-autre').value = d.meta.logCountryAutre || '';
