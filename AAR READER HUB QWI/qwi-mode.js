@@ -12,6 +12,7 @@
   let accessToken = "";
   let tokenExpiryAt = 0;
   let gsiLoader = null;
+  let silentReconnectTried = false;
 
   function hasValidDriveToken() {
     return !!accessToken && Date.now() < tokenExpiryAt - 30000;
@@ -135,6 +136,18 @@
     btn.title = connected ? "Google Drive connecte" : "Connexion Google Drive";
   }
 
+  function authNeedsInteraction(message) {
+    const text = String(message || "").toLowerCase();
+    if (!text) return false;
+    return (
+      text.includes("interaction_required") ||
+      text.includes("consent_required") ||
+      text.includes("login_required") ||
+      text.includes("popup_closed") ||
+      text.includes("popup_blocked")
+    );
+  }
+
   function getIsoToday() {
     return new Date().toISOString().slice(0, 10);
   }
@@ -183,10 +196,6 @@
       return accessToken;
     }
 
-    if (!interactive && !accessToken) {
-      throw new Error("Session Drive non connectee. Clique sur le nuage puis reenregistre.");
-    }
-
     await ensureGsiLoaded();
 
     if (!tokenClient) {
@@ -223,7 +232,24 @@
       return accessToken;
     } catch (error) {
       setDriveButtonState({ connected: !!accessToken, busy: false });
+      if (!interactive && authNeedsInteraction(error?.message || error)) {
+        throw new Error("Session Drive non connectee. Clique sur le nuage puis reenregistre.");
+      }
       throw error;
+    }
+  }
+
+  async function trySilentDriveReconnect() {
+    if (silentReconnectTried) return;
+    silentReconnectTried = true;
+    try {
+      await ensureDriveAccess(false);
+    } catch (error) {
+      const msg = String(error?.message || error || "");
+      if (!authNeedsInteraction(msg)) {
+        console.warn("Silent Drive reconnect failed", error);
+      }
+      setDriveButtonState({ connected: hasValidDriveToken(), busy: false });
     }
   }
 
@@ -548,6 +574,7 @@
     }
 
     setDriveButtonState({ connected: false, busy: false });
+    trySilentDriveReconnect();
   }
 
   const baseOpenDetail = openDetail;
