@@ -105,6 +105,9 @@ Si tu utilises deja le process habituel de push, garde ce process.
    - `https://script.google.com/macros/s/.../exec?action=status`
 2. Tu dois voir du JSON:
    - `"ok": true`
+3. Test lecture complete:
+   - `https://script.google.com/macros/s/.../exec?action=listAars&accessKey=TA_CLE_AAR_ACCESS_KEY`
+   - tu dois voir `action: "listAars"` et `count` > 0.
 
 ### Test 2 - PWA QWI
 1. Ouvre la PWA QWI sur iPad.

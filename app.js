@@ -347,6 +347,7 @@ function isPlaceholderValue(value) {
 function getDriveConfig() {
   const cfg = window.AAR_READER_CONFIG || {};
   const g = cfg.googleDrive || {};
+  const a = cfg.appsScript || {};
   const apiKeyRaw = String(g.apiKey || "").trim();
   const folderIdRaw = normalizeDriveId(g.folderId);
   const indexFileIdRaw = normalizeDriveId(g.indexFileId);
@@ -354,7 +355,10 @@ function getDriveConfig() {
     autoSyncOnStartup: cfg.autoSyncOnStartup !== false,
     apiKey: isPlaceholderValue(apiKeyRaw) ? "" : apiKeyRaw,
     folderId: isPlaceholderValue(folderIdRaw) ? "" : folderIdRaw,
-    indexFileId: isPlaceholderValue(indexFileIdRaw) ? "" : indexFileIdRaw
+    indexFileId: isPlaceholderValue(indexFileIdRaw) ? "" : indexFileIdRaw,
+    appsScriptEnabled: a.enabled === true,
+    appsScriptWebAppUrl: String(a.webAppUrl || "").trim(),
+    appsScriptAccessKey: String(a.accessKey || "").trim()
   };
 }
 
@@ -367,6 +371,10 @@ function getStaticConfig() {
 
 function hasDriveSource(cfg = getDriveConfig()) {
   return !!cfg.indexFileId || (!!cfg.apiKey && !!cfg.folderId);
+}
+
+function hasAppsScriptSource(cfg = getDriveConfig()) {
+  return !!cfg.appsScriptEnabled && !!cfg.appsScriptWebAppUrl;
 }
 
 function isDriveAccessError(msg) {
@@ -647,10 +655,11 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       try {
         const payload = await downloadDriveJson(cfg, f);
         const rec = buildRecord(parseAarObject(payload), "drive_file", f.name || f.id);
+        rec.id = `drive_${f.id}`;
         rec.updatedAt = f.modifiedTime || new Date().toISOString();
         rec.driveFileId = f.id;
         rec.driveModifiedTime = f.modifiedTime || "";
-        if (existing) { rec.id = existing.id; rec.createdAt = existing.createdAt || rec.createdAt; }
+        if (existing) { rec.createdAt = existing.createdAt || rec.createdAt; }
         records.push(rec);
       } catch (e) {
         errors.push(`${f.name || f.id}: ${e.message}`);
@@ -683,8 +692,74 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
   } finally { setSyncing(false); }
 }
 
+async function syncFromAppsScript({ silent = false } = {}) {
+  const cfg = getDriveConfig();
+  if (!hasAppsScriptSource(cfg)) throw new Error("Apps Script non configure.");
+
+  setSubtitle("Synchronisation Apps Script…");
+  setSyncing(true);
+  try {
+    const url = new URL(cfg.appsScriptWebAppUrl);
+    url.searchParams.set("action", "listAars");
+    if (cfg.appsScriptAccessKey) url.searchParams.set("accessKey", cfg.appsScriptAccessKey);
+    if (cfg.folderId) url.searchParams.set("folderId", cfg.folderId);
+
+    const payload = await fetchJsonOrThrow(url.toString());
+    const files = Array.isArray(payload?.files) ? payload.files : [];
+    if (!files.length) {
+      if (state.reports.length) {
+        setSubtitle(`${state.reports.length} AAR - cache local conserve (Apps Script vide)`);
+        if (!silent) toast("Apps Script vide : cache local conserve.");
+        return;
+      }
+      try { await dbReplaceAll([]); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
+      state.reports = [];
+      renderAll();
+      saveLastSync();
+      if (!silent) toast("Aucun AAR trouve via Apps Script.");
+      return;
+    }
+
+    const records = [];
+    const errors = [];
+    for (const f of files) {
+      try {
+        const rec = buildRecord(parseAarObject(f?.aar || {}), "drive_file", f?.name || "");
+        const driveId = String(f?.id || "").trim();
+        if (!driveId) throw new Error("id fichier manquant");
+        rec.id = `drive_${driveId}`;
+        rec.updatedAt = String(f?.modifiedTime || new Date().toISOString());
+        rec.driveFileId = driveId;
+        rec.driveModifiedTime = String(f?.modifiedTime || "");
+        records.push(rec);
+      } catch (e) {
+        errors.push(`${String(f?.name || f?.id || "fichier")}: ${e.message}`);
+      }
+    }
+
+    if (!records.length && state.reports.length) {
+      setSubtitle(`${state.reports.length} AAR - echec sync Apps Script`);
+      if (!silent) toast("Sync Apps Script en echec : cache conserve.");
+      return;
+    }
+
+    try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
+    state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    renderAll();
+    saveLastSync();
+    setSubtitle(`${state.reports.length} AAR · Apps Script`);
+    if (!silent) {
+      if (errors.length) toast(`Sync Apps Script OK : ${state.reports.length} AAR, ${errors.length} erreur(s).`);
+      else toast(`Sync Apps Script OK : ${state.reports.length} AAR.`);
+    }
+  } finally {
+    setSyncing(false);
+  }
+}
+
 async function syncPreferred({ silent = false } = {}) {
   const driveCfg = getDriveConfig();
+  if (hasAppsScriptSource(driveCfg)) { await syncFromAppsScript({ silent }); return; }
   if (hasDriveSource(driveCfg)) { await syncFromGoogleDrive({ silent }); return; }
   await syncFromStaticRepo({ silent });
 }
@@ -1234,7 +1309,8 @@ async function init() {
   // Source status
   const cfg = getDriveConfig();
   const staticCfg = getStaticConfig();
-  if (hasDriveSource(cfg)) setSubtitle("Source : Google Drive");
+  if (hasAppsScriptSource(cfg)) setSubtitle("Source : Apps Script");
+  else if (hasDriveSource(cfg)) setSubtitle("Source : Google Drive");
   else if (staticCfg.enabled) setSubtitle("Source : données statiques");
   else setSubtitle("Source non configurée");
 

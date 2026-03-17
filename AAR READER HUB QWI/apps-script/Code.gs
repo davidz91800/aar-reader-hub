@@ -23,6 +23,10 @@ function doGet(e) {
         now: new Date().toISOString()
       });
     }
+    if (action === "listaars") {
+      assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
+      return handleListAars_(e && e.parameter ? e.parameter : {}, cfg);
+    }
     if (action === "gethashtags" || action === "hashtags") {
       assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
       return jsonOutput_({
@@ -145,6 +149,55 @@ function handleSetHashtags_(payload) {
     action: "setHashtags",
     count: normalized.length,
     hashtags: normalized
+  });
+}
+
+function handleListAars_(params, cfg) {
+  var folderId = String((params && params.folderId) || cfg.defaultFolderId || "").trim();
+  if (!folderId) {
+    throw new Error("Missing folderId (query.folderId or Script Property AAR_FOLDER_ID).");
+  }
+
+  var folder = DriveApp.getFolderById(folderId);
+  var it = folder.getFiles();
+  var files = [];
+  var errors = [];
+  var limit = 1200;
+
+  while (it.hasNext() && files.length < limit) {
+    var file = it.next();
+    var name = String(file.getName() || "");
+    var mime = String(file.getMimeType() || "").toLowerCase();
+    if (!/\.json$/i.test(name) && mime !== "application/json") continue;
+
+    try {
+      var text = file.getBlob().getDataAsString();
+      var parsed = JSON.parse(text);
+      files.push({
+        id: file.getId(),
+        name: name,
+        modifiedTime: file.getLastUpdated().toISOString(),
+        aar: parsed
+      });
+    } catch (error) {
+      errors.push({
+        id: file.getId(),
+        name: name,
+        error: String(error && error.message ? error.message : error)
+      });
+    }
+  }
+
+  files.sort(function(a, b) {
+    return String(b.modifiedTime || "").localeCompare(String(a.modifiedTime || ""));
+  });
+
+  return jsonOutput_({
+    ok: true,
+    action: "listAars",
+    count: files.length,
+    files: files,
+    errors: errors
   });
 }
 

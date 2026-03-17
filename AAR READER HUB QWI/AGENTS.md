@@ -43,6 +43,7 @@ Toute evolution de schema/champ AAR ou de rendu detail doit etre synchronisee av
   - Sources backend livrees dans `apps-script/Code.gs` et `apps-script/TUTORIEL_APPS_SCRIPT_FR.md`.
   - Le catalogue hashtags est synchronise vers Apps Script via `action=setHashtags` apres enregistrement depuis l'editeur QWI.
   - L'application AAR recharge ce catalogue via `action=getHashtags` au demarrage.
+  - Les hubs peuvent aussi lire la liste complete des AAR via Apps Script (`action=listAars`) pour eviter les limites/referrer de la Drive API frontend.
 - Politique credentials:
   - Projet Google Cloud recommande: `RETEX`.
   - Cle API frontend (lecture hub) separee de la cle automatisation.

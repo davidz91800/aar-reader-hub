@@ -31,6 +31,7 @@ Quand tu modifies ce hub, verifie toujours l'impact sur:
 - Toute modification de sync/stockage doit garder ce pipeline e-mail -> Drive -> GitHub fonctionnel.
 - Variante QWI:
   - Peut utiliser un backend Apps Script (config `appsScript` dans `AAR READER HUB QWI/config.js`) pour ecriture/suppression sans popup OAuth.
+  - Le hub non QWI peut aussi lire via Apps Script (`action=listAars`) pour eviter les blocages de cle API Drive cote navigateur.
   - Si ce mode est active, garder la compatibilite schema/rendu avec le hub principal.
 - Politique credentials:
   - Projet Google Cloud recommande: `RETEX`.
