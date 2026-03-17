@@ -37,6 +37,10 @@ Toute evolution de schema/champ AAR ou de rendu detail doit etre synchronisee av
   - Une automatisation extrait le JSON et l'ecrit dans le dossier Google Drive des JSON.
   - Un push GitHub met a jour les donnees des hubs.
 - Ce hub QWI ajoute un flux direct de creation/edition/suppression sur Google Drive et doit rester compatible avec le pipeline ci-dessus.
+- Mode backend sans OAuth (prioritaire pour iPad):
+  - Le hub peut passer par `appsScript` dans `config.js` (`enabled=true`) pour ecriture/suppression.
+  - Dans ce mode, `qwi-mode.js` appelle un Web App Apps Script et le bouton nuage OAuth est masque.
+  - Sources backend livrees dans `apps-script/Code.gs` et `apps-script/TUTORIEL_APPS_SCRIPT_FR.md`.
 - Politique credentials:
   - Projet Google Cloud recommande: `RETEX`.
   - Cle API frontend (lecture hub) separee de la cle automatisation.

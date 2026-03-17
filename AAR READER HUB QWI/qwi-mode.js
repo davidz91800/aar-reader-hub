@@ -127,6 +127,21 @@
     };
   }
 
+  function getAppsScriptConfig() {
+    const cfg = (window.AAR_READER_CONFIG && window.AAR_READER_CONFIG.appsScript) || {};
+    return {
+      enabled: cfg.enabled === true,
+      webAppUrl: String(cfg.webAppUrl || "").trim(),
+      accessKey: String(cfg.accessKey || "").trim(),
+      timeoutMs: Math.max(5000, Number(cfg.timeoutMs || 25000) || 25000)
+    };
+  }
+
+  function usesAppsScriptBackend() {
+    const cfg = getAppsScriptConfig();
+    return cfg.enabled && !!cfg.webAppUrl;
+  }
+
   function setDriveButtonState({ connected = false, busy = false } = {}) {
     const btn = document.getElementById("qwi-drive-btn");
     if (!btn) return;
@@ -240,6 +255,10 @@
   }
 
   async function trySilentDriveReconnect() {
+    if (usesAppsScriptBackend()) {
+      setDriveButtonState({ connected: true, busy: false });
+      return;
+    }
     if (silentReconnectTried) return;
     silentReconnectTried = true;
     try {
@@ -250,6 +269,45 @@
         console.warn("Silent Drive reconnect failed", error);
       }
       setDriveButtonState({ connected: hasValidDriveToken(), busy: false });
+    }
+  }
+
+  async function callAppsScript(payload) {
+    const cfg = getAppsScriptConfig();
+    if (!cfg.enabled || !cfg.webAppUrl) {
+      throw new Error("Apps Script non configure (appsScript.webAppUrl).");
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), cfg.timeoutMs);
+    try {
+      const response = await fetch(cfg.webAppUrl, {
+        method: "POST",
+        cache: "no-store",
+        body: JSON.stringify({
+          ...payload,
+          accessKey: cfg.accessKey || ""
+        }),
+        signal: controller.signal
+      });
+
+      const text = await response.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch {}
+
+      if (!response.ok) {
+        const detail = data?.error || data?.message || text || response.statusText;
+        throw new Error(`Apps Script HTTP ${response.status}: ${detail}`);
+      }
+      if (!data || data.ok !== true) {
+        throw new Error(data?.error || data?.message || "Reponse Apps Script invalide.");
+      }
+      return data;
+    } catch (error) {
+      if (error?.name === "AbortError") throw new Error("Timeout Apps Script.");
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -345,8 +403,26 @@
   async function pushUpsertToDrive(record, existingRecord) {
     const cfg = getWriteDriveConfig();
     const targetFileId = String(existingRecord?.driveFileId || record?.driveFileId || "").trim();
-    if (!cfg.folderId && !targetFileId) {
+    const backendMode = usesAppsScriptBackend();
+
+    if (!backendMode && !cfg.folderId && !targetFileId) {
       throw new Error("folderId Drive manquant pour creer un nouvel AAR.");
+    }
+
+    if (backendMode) {
+      const response = await callAppsScript({
+        action: "upsert",
+        folderId: cfg.folderId,
+        driveFileId: targetFileId,
+        fileName: toDriveFileName(record),
+        mission: record.mission || {}
+      });
+      const file = response.file || {};
+      return {
+        id: String(file.id || targetFileId || "").trim(),
+        name: String(file.name || toDriveFileName(record)).trim(),
+        modifiedTime: String(file.modifiedTime || new Date().toISOString()).trim()
+      };
     }
 
     const token = await ensureDriveAccess(false);
@@ -393,6 +469,15 @@
     const fileId = String(record?.driveFileId || "").trim();
     if (!fileId) return;
 
+    if (usesAppsScriptBackend()) {
+      await callAppsScript({
+        action: "delete",
+        folderId: cfg.folderId,
+        driveFileId: fileId
+      });
+      return;
+    }
+
     const token = await ensureDriveAccess(false);
     setDriveButtonState({ connected: true, busy: true });
 
@@ -438,7 +523,7 @@
       return;
     }
 
-    if (!hasValidDriveToken()) {
+    if (!usesAppsScriptBackend() && !hasValidDriveToken()) {
       toast("Edition ouverte. Pour pousser sur Drive: clique d'abord sur le nuage.");
     }
   }
@@ -567,14 +652,25 @@
     if (newBtn) newBtn.addEventListener("click", () => openEditor());
 
     const driveBtn = document.getElementById("qwi-drive-btn");
-    if (driveBtn) driveBtn.addEventListener("click", connectDrive);
+    if (driveBtn) {
+      if (usesAppsScriptBackend()) {
+        driveBtn.style.display = "none";
+        driveBtn.setAttribute("aria-hidden", "true");
+      } else {
+        driveBtn.addEventListener("click", connectDrive);
+      }
+    }
 
     if (el.syncBtn) {
       el.syncBtn.title = "Synchroniser (conserve les modifications QWI locales)";
     }
 
-    setDriveButtonState({ connected: false, busy: false });
-    trySilentDriveReconnect();
+    if (usesAppsScriptBackend()) {
+      setDriveButtonState({ connected: true, busy: false });
+    } else {
+      setDriveButtonState({ connected: false, busy: false });
+      trySilentDriveReconnect();
+    }
   }
 
   const baseOpenDetail = openDetail;

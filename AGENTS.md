@@ -29,6 +29,9 @@ Quand tu modifies ce hub, verifie toujours l'impact sur:
   - Une automatisation extrait le JSON et l'ecrit dans le dossier Google Drive des JSON.
   - Un push GitHub met a jour les donnees statiques consommees par le hub.
 - Toute modification de sync/stockage doit garder ce pipeline e-mail -> Drive -> GitHub fonctionnel.
+- Variante QWI:
+  - Peut utiliser un backend Apps Script (config `appsScript` dans `AAR READER HUB QWI/config.js`) pour ecriture/suppression sans popup OAuth.
+  - Si ce mode est active, garder la compatibilite schema/rendu avec le hub principal.
 - Politique credentials:
   - Projet Google Cloud recommande: `RETEX`.
   - Cle API du hub frontend separee de la cle API d'automatisation.

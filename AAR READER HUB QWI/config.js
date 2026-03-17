@@ -11,6 +11,12 @@
       folderId: "18RTzOZzYWEIFWS5NXyYA_Ts3Xyf2X5kX",
       indexFileId: ""
     },
+    appsScript: {
+      enabled: false,
+      webAppUrl: "",
+      accessKey: "",
+      timeoutMs: 25000
+    },
     staticRepo: {
       enabled: false,
       indexUrl: "./AAR Reader Data/index.json"
@@ -24,6 +30,14 @@
       apiKey: local.googleDrive.apiKey || sharedDrive.apiKey || "",
       folderId: local.googleDrive.folderId || sharedDrive.folderId || "",
       indexFileId: local.googleDrive.indexFileId || sharedDrive.indexFileId || ""
+    },
+    appsScript: {
+      enabled: typeof local.appsScript.enabled === "boolean"
+        ? local.appsScript.enabled
+        : !!(shared.appsScript && shared.appsScript.enabled),
+      webAppUrl: String(local.appsScript.webAppUrl || (shared.appsScript && shared.appsScript.webAppUrl) || "").trim(),
+      accessKey: String(local.appsScript.accessKey || (shared.appsScript && shared.appsScript.accessKey) || "").trim(),
+      timeoutMs: Number(local.appsScript.timeoutMs || (shared.appsScript && shared.appsScript.timeoutMs) || 25000)
     },
     staticRepo: {
       enabled: typeof local.staticRepo.enabled === "boolean" ? local.staticRepo.enabled : (sharedStatic.enabled !== false),
