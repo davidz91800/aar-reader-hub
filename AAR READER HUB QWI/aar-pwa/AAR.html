@@ -934,6 +934,12 @@
             letter-spacing: 0.5px;
         }
 
+        .dorese-tab .label-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .dorese-tab:hover {
             border-color: var(--accent);
             background: rgba(255, 255, 255, 0.02);
@@ -951,6 +957,96 @@
 
         .dorese-tab.active .label {
             color: var(--accent);
+        }
+
+        .info-trigger {
+            cursor: help;
+            color: var(--accent);
+            background: transparent;
+            border: 0;
+            padding: 0;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.82rem;
+            min-width: 1rem;
+            min-height: 1rem;
+        }
+
+        #tooltip-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.6);
+            backdrop-filter: blur(2px);
+            display: none;
+            z-index: 1499;
+        }
+
+        #tooltip-backdrop.show {
+            display: block;
+        }
+
+        #tooltip-container {
+            position: fixed;
+            display: none;
+            background: #0f172a;
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            width: 330px;
+            max-width: min(92vw, 520px);
+            z-index: 1500;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+            padding: 0.9rem 0.95rem;
+            font-size: 0.88rem;
+            line-height: 1.4;
+            pointer-events: none;
+        }
+
+        #tooltip-title {
+            color: var(--accent);
+            margin-bottom: 0.45rem;
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+
+        #tooltip-content {
+            color: var(--text-main);
+            white-space: pre-line;
+        }
+
+        #tooltip-close {
+            display: none;
+            position: absolute;
+            top: 0.35rem;
+            right: 0.35rem;
+            width: 1.9rem;
+            height: 1.9rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            font-size: 1.1rem;
+            line-height: 1;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        #tooltip-container.touch-open {
+            display: block;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%);
+            width: min(92vw, 560px);
+            max-height: min(72vh, 700px);
+            overflow-y: auto;
+            pointer-events: auto;
+            padding-top: 2.2rem;
+        }
+
+        #tooltip-container.touch-open #tooltip-close {
+            display: inline-flex;
         }
 
         .dorese-pane {
@@ -1329,11 +1425,24 @@
             .combo-box input {
                 padding-right: 2.4rem;
             }
+
+            .info-trigger {
+                min-width: 1.6rem;
+                min-height: 1.6rem;
+                border-radius: 999px;
+                background: rgba(59, 130, 246, 0.14);
+            }
         }
     </style>
 </head>
 
 <body>
+    <div id="tooltip-backdrop"></div>
+    <div id="tooltip-container">
+        <button id="tooltip-close" type="button" aria-label="Fermer l'infobulle">×</button>
+        <h4 id="tooltip-title"></h4>
+        <div id="tooltip-content"></div>
+    </div>
 
     <header>
         <a href="../retex.html" class="btn-back">
@@ -1462,7 +1571,9 @@
                     <div class="form-group">
                         <label>Pays</label>
                         <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
+                            list="meta-log-country-datalist" autocomplete="off"
                             oninput="App.filterLogCountries(this.value)">
+                        <datalist id="meta-log-country-datalist"></datalist>
                         <select id="meta-log-country" onchange="App.updateLogCountrySelection(this.value)">
                             <option value="">-- Sélectionner --</option>
                         </select>
@@ -1472,7 +1583,9 @@
                     <div class="form-group">
                         <label>Terrain OACI</label>
                         <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
+                            list="meta-log-airfield-datalist" autocomplete="off"
                             oninput="App.filterLogAirfields(this.value)">
+                        <datalist id="meta-log-airfield-datalist"></datalist>
                         <select id="meta-log-airfield" onchange="App.updateLogAirfieldSelection(this.value)">
                             <option value="">-- Sélectionner --</option>
                         </select>
@@ -1771,22 +1884,46 @@
                 <h2 style="margin-bottom: 0.5rem;">4. RECOMMANDATIONS</h2>
                 <div class="dorese-tabs">
                     <div id="tab-doctrine" class="dorese-tab" onclick="App.scrollToDorese('section-doctrine')">
-                        <span class="letter">D</span> <span class="label">Doctrine</span>
+                        <span class="letter">D</span>
+                        <div class="label-row">
+                            <span class="label">Doctrine</span>
+                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_D" aria-label="Info Doctrine">ⓘ</button>
+                        </div>
                     </div>
                     <div id="tab-organisation" class="dorese-tab" onclick="App.scrollToDorese('section-organisation')">
-                        <span class="letter">O</span> <span class="label">Organisation</span>
+                        <span class="letter">O</span>
+                        <div class="label-row">
+                            <span class="label">Organisation</span>
+                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_O" aria-label="Info Organisation">ⓘ</button>
+                        </div>
                     </div>
                     <div id="tab-rh" class="dorese-tab" onclick="App.scrollToDorese('section-rh')">
-                        <span class="letter">R</span> <span class="label">RH</span>
+                        <span class="letter">R</span>
+                        <div class="label-row">
+                            <span class="label">RH</span>
+                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_R" aria-label="Info Ressources humaines">ⓘ</button>
+                        </div>
                     </div>
                     <div id="tab-equipements" class="dorese-tab" onclick="App.scrollToDorese('section-equipements')">
-                        <span class="letter">E</span> <span class="label">Equipements</span>
+                        <span class="letter">E</span>
+                        <div class="label-row">
+                            <span class="label">Equipements</span>
+                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_E_EQ" aria-label="Info Equipements">ⓘ</button>
+                        </div>
                     </div>
                     <div id="tab-soutien" class="dorese-tab" onclick="App.scrollToDorese('section-soutien')">
-                        <span class="letter">S</span> <span class="label">Soutien</span>
+                        <span class="letter">S</span>
+                        <div class="label-row">
+                            <span class="label">Soutien</span>
+                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_S" aria-label="Info Soutien">ⓘ</button>
+                        </div>
                     </div>
                     <div id="tab-entrainement" class="dorese-tab" onclick="App.scrollToDorese('section-entrainement')">
-                        <span class="letter">E</span> <span class="label">Entrainement</span>
+                        <span class="letter">E</span>
+                        <div class="label-row">
+                            <span class="label">Entrainement</span>
+                            <button type="button" class="info-trigger" data-tooltip-key="DORESE_E_ENT" aria-label="Info Entrainement">ⓘ</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2111,6 +2248,32 @@
             }
         };
         const HASHTAG_CATALOG_KEY = 'aar_hashtag_catalog_v1';
+        const DORESE_DEFINITIONS = {
+            DORESE_D: {
+                title: "D - Doctrine",
+                text: "Tout ce qui relève des règles d'emploi, des procédures, des consignes, des TTP, ou de la documentation de référence.\nQuestion à se poser : faut-il créer, modifier, clarifier ou compléter une règle, une procédure ou un document ?"
+            },
+            DORESE_O: {
+                title: "O - Organisation",
+                text: "Tout ce qui concerne la répartition des rôles, les responsabilités, la coordination entre acteurs, la chaîne de décision, ou la manière dont l'activité est structurée.\nQuestion à se poser : le problème vient-il d'une mauvaise organisation, d'une interface floue, ou d'une coordination insuffisante ?"
+            },
+            DORESE_R: {
+                title: "R - Ressources humaines",
+                text: "Tout ce qui touche aux compétences, à l'expérience, à la préparation des personnels, au niveau de qualification, ou à la charge humaine.\nQuestion à se poser : faut-il agir sur les connaissances, les savoir-faire, la sensibilisation, ou la répartition des compétences ?"
+            },
+            DORESE_E_EQ: {
+                title: "E - Équipements",
+                text: "Tout ce qui relève des matériels, systèmes, outils, logiciels, interfaces, moyens embarqués ou au sol.\nQuestion à se poser : un équipement est-il inadapté, indisponible, mal conçu, mal paramétré, ou à faire évoluer ?"
+            },
+            DORESE_S: {
+                title: "S - Soutien",
+                text: "Tout ce qui concerne l'appui nécessaire à l'activité : maintenance, logistique, documentation disponible, préparation mission, soutien technique, infrastructure, disponibilité des moyens.\nQuestion à se poser : l'évènement aurait-il pu être évité ou mieux géré avec un meilleur soutien ?"
+            },
+            DORESE_E_ENT: {
+                title: "E - Entraînement",
+                text: "Tout ce qui touche à l'instruction, à l'entraînement, à la mise en situation, à la répétition des procédures et à la préparation opérationnelle.\nQuestion à se poser : faut-il mieux entraîner, davantage entraîner, ou entraîner différemment ?"
+            }
+        };
 
         const App = {
             data: {
@@ -2447,7 +2610,26 @@
                     otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
                     if (current !== 'AUTRE') otherInput.value = '';
                 }
+                App.renderLogCountryDatalist();
                 App.refreshLiveSelectMode('meta-log-country', App.ui.logCountrySearch);
+            },
+
+            renderLogCountryDatalist: () => {
+                const datalist = document.getElementById('meta-log-country-datalist');
+                if (!datalist) return;
+
+                const baseCountries = App.missionConfig.allCountries || [];
+                const hasSearch = Boolean(String(App.ui.logCountrySearch || '').trim());
+                const countries = hasSearch
+                    ? App.filterValues(baseCountries, App.ui.logCountrySearch)
+                    : baseCountries;
+
+                datalist.innerHTML = '';
+                countries.slice(0, 100).forEach((country) => {
+                    const option = document.createElement('option');
+                    option.value = country;
+                    datalist.appendChild(option);
+                });
             },
 
             renderLogAirfieldSelect: () => {
@@ -2472,7 +2654,26 @@
                     otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
                     if (current !== 'AUTRE') otherInput.value = '';
                 }
+                App.renderLogAirfieldDatalist();
                 App.refreshLiveSelectMode('meta-log-airfield', App.ui.logAirfieldSearch);
+            },
+
+            renderLogAirfieldDatalist: () => {
+                const datalist = document.getElementById('meta-log-airfield-datalist');
+                if (!datalist) return;
+
+                const baseAirfields = App.getLogAirfieldsForCurrentCountry();
+                const hasSearch = Boolean(String(App.ui.logAirfieldSearch || '').trim());
+                const airfields = hasSearch
+                    ? App.filterValues(baseAirfields, App.ui.logAirfieldSearch)
+                    : baseAirfields;
+
+                datalist.innerHTML = '';
+                airfields.slice(0, 100).forEach((airfield) => {
+                    const option = document.createElement('option');
+                    option.value = airfield;
+                    datalist.appendChild(option);
+                });
             },
 
             refreshLiveSelectMode: (selectId, query) => {
@@ -2490,11 +2691,29 @@
             filterLogCountries: (query) => {
                 App.ui.logCountrySearch = query || '';
                 App.renderLogCountrySelect();
+
+                const normalized = App.normalizeKey(query);
+                if (!normalized) return;
+
+                const exactCountry = (App.missionConfig.allCountries || [])
+                    .find((country) => App.normalizeKey(country) === normalized);
+                if (exactCountry) {
+                    App.updateLogCountrySelection(exactCountry);
+                }
             },
 
             filterLogAirfields: (query) => {
                 App.ui.logAirfieldSearch = query || '';
                 App.renderLogAirfieldSelect();
+
+                const normalized = App.normalizeKey(query);
+                if (!normalized) return;
+
+                const exactAirfield = App.getLogAirfieldsForCurrentCountry()
+                    .find((airfield) => App.normalizeKey(airfield) === normalized);
+                if (exactAirfield) {
+                    App.updateLogAirfieldSelection(exactAirfield);
+                }
             },
 
             renderHashtagSelect: () => {
@@ -3169,7 +3388,72 @@
             }
         };
 
+        const Tooltip = {
+            init: () => {
+                const con = document.getElementById('tooltip-container');
+                const backdrop = document.getElementById('tooltip-backdrop');
+                const closeBtn = document.getElementById('tooltip-close');
+                const title = document.getElementById('tooltip-title');
+                const body = document.getElementById('tooltip-content');
+                if (!con || !backdrop || !closeBtn || !title || !body) return;
+
+                const isTouchUi = () => window.matchMedia('(hover: none), (pointer: coarse)').matches;
+                const setContent = (def) => {
+                    title.textContent = def.title || '';
+                    body.textContent = def.text || '';
+                };
+                const closeTouchTooltip = () => {
+                    con.classList.remove('touch-open');
+                    backdrop.classList.remove('show');
+                    con.style.display = 'none';
+                };
+
+                if (!isTouchUi()) {
+                    document.body.addEventListener('mousemove', (e) => {
+                        if (con.classList.contains('touch-open')) return;
+                        const el = e.target.closest('.info-trigger[data-tooltip-key]');
+                        if (el) {
+                            const def = DORESE_DEFINITIONS[el.dataset.tooltipKey];
+                            if (def) {
+                                setContent(def);
+                                con.style.display = 'block';
+                                con.style.left = Math.min(e.clientX + 15, window.innerWidth - 350) + 'px';
+                                con.style.top = Math.min(e.clientY + 15, window.innerHeight - con.offsetHeight - 20) + 'px';
+                                return;
+                            }
+                        }
+                        con.style.display = 'none';
+                    });
+                }
+
+                document.body.addEventListener('click', (e) => {
+                    const el = e.target.closest('.info-trigger[data-tooltip-key]');
+                    if (el) {
+                        const def = DORESE_DEFINITIONS[el.dataset.tooltipKey];
+                        if (!def) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (isTouchUi()) {
+                            setContent(def);
+                            con.style.display = 'block';
+                            con.classList.add('touch-open');
+                            backdrop.classList.add('show');
+                        }
+                        return;
+                    }
+
+                    if (con.classList.contains('touch-open') && !con.contains(e.target)) {
+                        closeTouchTooltip();
+                    }
+                });
+
+                backdrop.addEventListener('click', closeTouchTooltip);
+                closeBtn.addEventListener('click', closeTouchTooltip);
+            }
+        };
+
         // Start
+        Tooltip.init();
         App.init();
 
         // Initial trigger for textareas
