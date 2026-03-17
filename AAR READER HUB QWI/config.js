@@ -12,9 +12,9 @@
       indexFileId: ""
     },
     appsScript: {
-      enabled: false,
-      webAppUrl: "",
-      accessKey: "",
+      enabled: true,
+      webAppUrl: "https://script.google.com/macros/s/AKfycbxfcbZyqwm8_fH6p0R3I_ucLbzS9ZYw8i6UHuzoJTN306GHccPD-7-rCRu59-IRvlOGgA/exec",
+      accessKey: "AAR-READER-HUB-QWI",
       timeoutMs: 25000
     },
     staticRepo: {
