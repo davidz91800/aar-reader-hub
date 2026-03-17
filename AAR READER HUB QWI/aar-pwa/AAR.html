@@ -962,16 +962,26 @@
         .info-trigger {
             cursor: help;
             color: var(--accent);
-            background: transparent;
-            border: 0;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            border-radius: 999px;
             padding: 0;
             line-height: 1;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.82rem;
-            min-width: 1rem;
-            min-height: 1rem;
+            font-size: 0.95rem;
+            min-width: 1.55rem;
+            min-height: 1.55rem;
+            flex: 0 0 auto;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            pointer-events: auto;
+        }
+
+        .info-trigger:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.55);
         }
 
         #tooltip-backdrop {
@@ -1427,10 +1437,12 @@
             }
 
             .info-trigger {
-                min-width: 1.6rem;
-                min-height: 1.6rem;
+                min-width: 2.2rem;
+                min-height: 2.2rem;
+                font-size: 1.1rem;
                 border-radius: 999px;
-                background: rgba(59, 130, 246, 0.14);
+                background: rgba(59, 130, 246, 0.2);
+                border-color: rgba(59, 130, 246, 0.5);
             }
         }
     </style>
@@ -1723,6 +1735,7 @@
 
                 .w6-label .info-trigger {
                     text-transform: none;
+                    margin-left: 0.25rem;
                 }
             </style>
 
@@ -3782,6 +3795,13 @@
                     backdrop.classList.remove('show');
                     con.style.display = 'none';
                 };
+                const openTouchTooltip = (def) => {
+                    if (!def) return;
+                    setContent(def);
+                    con.style.display = 'block';
+                    con.classList.add('touch-open');
+                    backdrop.classList.add('show');
+                };
 
                 if (!isTouchUi()) {
                     document.body.addEventListener('mousemove', (e) => {
@@ -3805,16 +3825,11 @@
                     if (!isTouchUi()) return;
                     const el = e.target.closest('.info-trigger[data-tooltip-key]');
                     if (!el) return;
+                    const def = DORESE_DEFINITIONS[el.dataset.tooltipKey];
+                    if (!def) return;
                     e.preventDefault();
                     e.stopPropagation();
-                }, { passive: false });
-
-                document.body.addEventListener('touchstart', (e) => {
-                    if (!isTouchUi()) return;
-                    const el = e.target.closest('.info-trigger[data-tooltip-key]');
-                    if (!el) return;
-                    e.preventDefault();
-                    e.stopPropagation();
+                    openTouchTooltip(def);
                 }, { passive: false });
 
                 document.body.addEventListener('click', (e) => {
@@ -3824,12 +3839,7 @@
                         if (!def) return;
                         e.preventDefault();
                         e.stopPropagation();
-                        if (isTouchUi()) {
-                            setContent(def);
-                            con.style.display = 'block';
-                            con.classList.add('touch-open');
-                            backdrop.classList.add('show');
-                        }
+                        if (isTouchUi()) return;
                         return;
                     }
 
