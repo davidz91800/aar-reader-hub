@@ -348,16 +348,18 @@
   function openEditor(recordId = "") {
     const record = recordId ? state.reports.find((x) => x.id === recordId) : null;
     const sessionId = newSessionId();
+    const driveFileId = record ? String(record.driveFileId || "").trim() : "";
 
     const payload = {
       source: "AAR_READER_HUB_QWI",
       recordId: record ? record.id : "",
+      driveFileId,
       aar: record ? record.mission : null,
       createdAt: new Date().toISOString()
     };
 
     localStorage.setItem(requestKey(sessionId), JSON.stringify(payload));
-    sessions.set(sessionId, { recordId: record ? record.id : "" });
+    sessions.set(sessionId, { recordId: record ? record.id : "", driveFileId });
 
     const popup = window.open(buildEditorUrl(sessionId), "_blank");
     if (!popup) {
@@ -378,13 +380,20 @@
 
     const normalized = normalizeAar(aarData || {});
     let rec = buildRecord(normalized, LOCAL_SOURCE, "qwi_editor");
-    const existing = pending.recordId ? state.reports.find((x) => x.id === pending.recordId) : null;
+    const pendingRecordId = String(pending.recordId || "").trim();
+    const pendingDriveFileId = String(pending.driveFileId || "").trim();
+    const existingById = pendingRecordId ? state.reports.find((x) => x.id === pendingRecordId) : null;
+    const existingByDriveId = pendingDriveFileId ? state.reports.find((x) => String(x.driveFileId || "").trim() === pendingDriveFileId) : null;
+    const existing = existingById || existingByDriveId || null;
 
     if (existing) {
       rec.id = existing.id;
       rec.createdAt = existing.createdAt || rec.createdAt;
       rec.driveFileId = existing.driveFileId || "";
       rec.driveModifiedTime = existing.driveModifiedTime || "";
+    } else if (pendingDriveFileId) {
+      // Defensive fallback: if recordId mapping is lost, still update the same Drive file.
+      rec.driveFileId = pendingDriveFileId;
     }
 
     rec.source = LOCAL_SOURCE;
