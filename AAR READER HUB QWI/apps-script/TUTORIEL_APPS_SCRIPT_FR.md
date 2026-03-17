@@ -36,7 +36,10 @@ Objectif: supprimer la friction OAuth dans la PWA QWI (iPad), en passant par un 
 4. Ajoute:
    - Cle: `AAR_FOLDER_ID`
    - Valeur: `18RTzOZzYWEIFWS5NXyYA_Ts3Xyf2X5kX`
-5. Enregistre.
+5. (Optionnel) ajoute aussi:
+   - Cle: `AAR_HASHTAGS_JSON`
+   - Valeur: `["#RETEX"]`
+6. Enregistre.
 
 Important:
 - `AAR_ACCESS_KEY` doit etre reporte dans `config.js` de la PWA QWI.
@@ -114,6 +117,10 @@ Si tu utilises deja le process habituel de push, garde ce process.
    - la modif doit etre presente.
 7. Verifie dans Drive:
    - le JSON du dossier cible est mis a jour.
+8. Test hashtags:
+   - ajoute un hashtag dans l'editeur QWI,
+   - enregistre un AAR,
+   - le catalogue hashtag est pousse automatiquement au backend Apps Script.
 
 ### Test 3 - Suppression
 1. Supprime un AAR depuis le HUB QWI.
@@ -176,4 +183,3 @@ L'URL `/exec` reste la meme.
    - ouvrir,
    - modifier,
    - enregistrer.
-

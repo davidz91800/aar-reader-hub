@@ -311,6 +311,15 @@
     }
   }
 
+  async function syncHashtagsCatalogToBackend(catalog) {
+    if (!usesAppsScriptBackend()) return;
+    const hashtags = uniqueHashtags(catalog);
+    await callAppsScript({
+      action: "setHashtags",
+      hashtags
+    });
+  }
+
   async function driveRequest(url, options = {}) {
     const response = await fetch(url, options);
     if (!response.ok) {
@@ -718,12 +727,21 @@
     const sessionId = String(msg.session || "");
     if (!sessions.has(sessionId)) return;
 
+    let incomingCatalog = null;
     try {
       if (Array.isArray(msg.hashtagsCatalog)) {
         const catalog = uniqueHashtags(msg.hashtagsCatalog);
         try { localStorage.setItem(HASHTAG_CATALOG_KEY, JSON.stringify(catalog)); } catch {}
+        incomingCatalog = catalog;
       }
       await upsertFromEditor(sessionId, msg.aar || msg.data || {});
+      if (incomingCatalog) {
+        try {
+          await syncHashtagsCatalogToBackend(incomingCatalog);
+        } catch (error) {
+          console.warn("Hashtag catalog sync failed", error);
+        }
+      }
     } catch (error) {
       console.error("QWI editor save failed", error);
       toast(`Echec enregistrement: ${error.message || error}`);

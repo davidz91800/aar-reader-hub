@@ -8,10 +8,12 @@
  * Script Properties expected (optional but recommended):
  * - AAR_ACCESS_KEY: shared secret with the web app config (appsScript.accessKey)
  * - AAR_FOLDER_ID: default Drive folder id used when payload.folderId is missing
+ * - AAR_HASHTAGS_JSON: persisted hashtag catalog as JSON array
  */
 
 function doGet(e) {
   try {
+    var cfg = readScriptConfig_();
     var action = String((e && e.parameter && e.parameter.action) || "").trim().toLowerCase();
     if (action === "status") {
       return jsonOutput_({
@@ -21,9 +23,17 @@ function doGet(e) {
         now: new Date().toISOString()
       });
     }
+    if (action === "gethashtags" || action === "hashtags") {
+      assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
+      return jsonOutput_({
+        ok: true,
+        action: "getHashtags",
+        hashtags: readHashtags_()
+      });
+    }
     return jsonOutput_({
       ok: true,
-      message: "Use POST with JSON body: action=upsert|delete"
+      message: "Use POST action=upsert|delete|setHashtags or GET action=status|getHashtags"
     });
   } catch (error) {
     return errorOutput_(error);
@@ -39,8 +49,9 @@ function doPost(e) {
     var action = String(payload.action || "").trim().toLowerCase();
     if (action === "upsert") return handleUpsert_(payload, cfg);
     if (action === "delete") return handleDelete_(payload);
+    if (action === "sethashtags") return handleSetHashtags_(payload);
 
-    throw new Error("Action unsupported. Expected: upsert or delete.");
+    throw new Error("Action unsupported. Expected: upsert, delete or setHashtags.");
   } catch (error) {
     return errorOutput_(error);
   }
@@ -124,6 +135,52 @@ function handleDelete_(payload) {
       id: driveFileId
     }
   });
+}
+
+function handleSetHashtags_(payload) {
+  var normalized = normalizeHashtagArray_(payload.hashtags);
+  writeHashtags_(normalized);
+  return jsonOutput_({
+    ok: true,
+    action: "setHashtags",
+    count: normalized.length,
+    hashtags: normalized
+  });
+}
+
+function normalizeHashtagArray_(values) {
+  var source = Array.isArray(values) ? values : [];
+  var out = [];
+  var seen = {};
+  for (var i = 0; i < source.length; i++) {
+    var raw = String(source[i] || "").trim();
+    if (!raw) continue;
+    var tag = raw.replace(/\s+/g, "-");
+    if (tag.charAt(0) !== "#") tag = "#" + tag;
+    var key = tag.toUpperCase();
+    if (seen[key]) continue;
+    seen[key] = true;
+    out.push(tag);
+  }
+  out.sort();
+  return out;
+}
+
+function readHashtags_() {
+  var props = PropertiesService.getScriptProperties();
+  var raw = String(props.getProperty("AAR_HASHTAGS_JSON") || "").trim();
+  if (!raw) return [];
+  try {
+    var parsed = JSON.parse(raw);
+    return normalizeHashtagArray_(parsed);
+  } catch (error) {
+    return [];
+  }
+}
+
+function writeHashtags_(hashtags) {
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty("AAR_HASHTAGS_JSON", JSON.stringify(normalizeHashtagArray_(hashtags)));
 }
 
 function sanitizeFileName_(name) {

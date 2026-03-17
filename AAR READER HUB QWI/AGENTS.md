@@ -41,6 +41,8 @@ Toute evolution de schema/champ AAR ou de rendu detail doit etre synchronisee av
   - Le hub peut passer par `appsScript` dans `config.js` (`enabled=true`) pour ecriture/suppression.
   - Dans ce mode, `qwi-mode.js` appelle un Web App Apps Script et le bouton nuage OAuth est masque.
   - Sources backend livrees dans `apps-script/Code.gs` et `apps-script/TUTORIEL_APPS_SCRIPT_FR.md`.
+  - Le catalogue hashtags est synchronise vers Apps Script via `action=setHashtags` apres enregistrement depuis l'editeur QWI.
+  - L'application AAR recharge ce catalogue via `action=getHashtags` au demarrage.
 - Politique credentials:
   - Projet Google Cloud recommande: `RETEX`.
   - Cle API frontend (lecture hub) separee de la cle automatisation.

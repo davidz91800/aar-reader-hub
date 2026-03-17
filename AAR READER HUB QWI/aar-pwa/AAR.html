@@ -2226,6 +2226,9 @@
                 const tacExercises = (Array.isArray(external.tacExercises) && external.tacExercises.length)
                     ? external.tacExercises.filter(Boolean)
                     : FALLBACK_MISSION_CONFIG.tacExercises;
+                const appsScriptCfg = (external.appsScript && typeof external.appsScript === 'object')
+                    ? external.appsScript
+                    : {};
                 const configuredHashtags = (Array.isArray(external.hashtags) && external.hashtags.length)
                     ? external.hashtags.filter(Boolean)
                     : FALLBACK_MISSION_CONFIG.hashtags;
@@ -2239,7 +2242,11 @@
                     tacOperations,
                     tacExercises,
                     logAirfieldsByCountry,
-                    hashtags
+                    hashtags,
+                    appsScript: {
+                        webAppUrl: String(appsScriptCfg.webAppUrl || '').trim(),
+                        accessKey: String(appsScriptCfg.accessKey || '').trim()
+                    }
                 };
 
                 App.countryNameLookup = {};
@@ -2386,6 +2393,28 @@
                     ...(Array.isArray(values) ? values : [])
                 ]);
                 App.setHashtagCatalog(merged, true);
+            },
+
+            loadRemoteHashtagCatalog: async () => {
+                const remote = App.missionConfig.appsScript || {};
+                if (!remote.webAppUrl) return;
+                try {
+                    const url = new URL(remote.webAppUrl);
+                    url.searchParams.set('action', 'getHashtags');
+                    if (remote.accessKey) url.searchParams.set('accessKey', remote.accessKey);
+
+                    const response = await fetch(url.toString(), { cache: 'no-store' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const payload = await response.json();
+                    const hashtags = Array.isArray(payload?.hashtags) ? payload.hashtags : [];
+                    if (!hashtags.length) return;
+
+                    App.applyDynamicHashtagCatalog(hashtags);
+                    App.renderHashtagSelect();
+                    App.refreshHashtagHint();
+                } catch (error) {
+                    console.warn('Remote hashtag catalog unavailable:', error);
+                }
             },
 
             getEffectiveHashtag: () => {
@@ -2765,6 +2794,7 @@
 
                 App.renderForm();
                 App.nav(0);
+                App.loadRemoteHashtagCatalog();
             },
 
             save: () => {
