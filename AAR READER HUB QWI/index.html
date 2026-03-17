@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 </head>
 <body>
 
-  <!-- ═══ HEADER ═══ -->
+  <!-- â•â•â• HEADER â•â•â• -->
   <header id="app-header">
     <div class="header-left">
       <div class="logo-mark">
@@ -43,7 +43,7 @@
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
       </button>
-      <button id="sync-btn" class="btn-icon" title="Synchroniser les données">
+      <button id="sync-btn" class="btn-icon" title="Synchroniser les donnÃ©es">
         <svg class="icon-sync" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
       </button>
       <div class="view-toggle" id="view-toggle">
@@ -57,11 +57,11 @@
     </div>
   </header>
 
-  <!-- ═══ FILTERS BAR ═══ -->
+  <!-- â•â•â• FILTERS BAR â•â•â• -->
   <section id="filters-bar" class="filters-bar">
     <div class="search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="search-input" type="search" placeholder="Rechercher titre, rédacteur, unité, analyse…" autocomplete="off">
+      <input id="search-input" type="search" placeholder="Rechercher titre, rÃ©dacteur, unitÃ©, analyseâ€¦" autocomplete="off">
     </div>
     <div class="filter-chips" id="filter-chips">
       <select id="filter-mission-type" class="chip-select" title="Type de mission">
@@ -71,29 +71,32 @@
       </select>
       <select id="filter-classif" class="chip-select" title="Classification">
         <option value="ALL">Classif: Tous</option>
-        <option value="NON PROTEGE">NON PROTÉGÉ</option>
+        <option value="NON PROTEGE">NON PROTÃ‰GÃ‰</option>
         <option value="DIFFUSION RESTREINTE">DIFFUSION RESTREINTE</option>
-        <option value="SECRET SPECIAL FRANCE">SECRET SPÉCIAL FRANCE</option>
+        <option value="SECRET SPECIAL FRANCE">SECRET SPÃ‰CIAL FRANCE</option>
       </select>
       <select id="filter-fleet" class="chip-select" title="Flotte">
         <option value="ALL">Flotte: Toutes</option>
       </select>
-      <select id="filter-unit" class="chip-select" title="Unité">
-        <option value="ALL">Unité: Toutes</option>
+      <select id="filter-unit" class="chip-select" title="UnitÃ©">
+        <option value="ALL">UnitÃ©: Toutes</option>
       </select>
       <select id="filter-country" class="chip-select" title="Pays">
         <option value="ALL">Pays: Tous</option>
       </select>
+      <select id="filter-hashtag" class="chip-select" title="Hashtag">
+        <option value="ALL">Hashtag: Tous</option>
+      </select>
       <select id="filter-sort" class="chip-select" title="Tri">
-        <option value="DATE_DESC">Date ↓</option>
-        <option value="DATE_ASC">Date ↑</option>
-        <option value="TITLE_ASC">Titre A→Z</option>
-        <option value="UPDATED_DESC">Maj récente</option>
+        <option value="DATE_DESC">Date â†“</option>
+        <option value="DATE_ASC">Date â†‘</option>
+        <option value="TITLE_ASC">Titre Aâ†’Z</option>
+        <option value="UPDATED_DESC">Maj rÃ©cente</option>
       </select>
     </div>
   </section>
 
-  <!-- ═══ MAIN CONTENT ═══ -->
+  <!-- â•â•â• MAIN CONTENT â•â•â• -->
   <main id="main-content">
     <!-- LIST VIEW -->
     <section id="view-list" class="view active">
@@ -105,7 +108,7 @@
     <section id="view-analyze" class="view"></section>
   </main>
 
-  <!-- ═══ DETAIL MODAL ═══ -->
+  <!-- â•â•â• DETAIL MODAL â•â•â• -->
   <div id="detail-overlay" class="detail-overlay">
     <div id="detail-sheet" class="detail-sheet">
       <header class="detail-header">
@@ -126,14 +129,15 @@
     </div>
   </div>
 
-  <!-- ═══ TOAST ═══ -->
+  <!-- â•â•â• TOAST â•â•â• -->
   <div id="toast" class="toast"></div>
 
   <script src="./config.js?v=20260316b"></script>
-  <script src="./app.js?v=20260316e"></script>
+  <script src="./app.js?v=20260317i"></script>
   <script src="./qwi-mode.js?v=20260317h"></script>
 </body>
 </html>
+
 
 
 

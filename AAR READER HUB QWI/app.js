@@ -796,6 +796,7 @@ function populateDynamicFilters() {
   fillSelectOptions(el.filterFleet, "Flotte: Toutes", getUniqueValues("fleet"));
   fillSelectOptions(el.filterUnit, "Unité: Toutes", getUniqueValues("unit"));
   fillSelectOptions(el.filterCountry, "Pays: Tous", getUniqueValues("country"));
+  fillSelectOptions(el.filterHashtag, "Hashtag: Tous", getUniqueValues("hashtag"));
 }
 
 function fillSelectOptions(selectEl, allLabel, values) {
@@ -821,6 +822,7 @@ function filtered() {
   const fleet = el.filterFleet?.value || "ALL";
   const unit = el.filterUnit?.value || "ALL";
   const country = el.filterCountry?.value || "ALL";
+  const hashtag = el.filterHashtag?.value || "ALL";
   const sort = el.filterSort?.value || "DATE_DESC";
 
   let rows = state.reports;
@@ -830,6 +832,7 @@ function filtered() {
   if (fleet !== "ALL") rows = rows.filter((r) => r.fleet === fleet);
   if (unit !== "ALL") rows = rows.filter((r) => r.unit === unit);
   if (country !== "ALL") rows = rows.filter((r) => r.country === country);
+  if (hashtag !== "ALL") rows = rows.filter((r) => r.hashtag === hashtag);
 
   if (q) {
     rows = rows.filter((r) => [
@@ -1184,6 +1187,7 @@ async function init() {
     filterFleet: document.getElementById("filter-fleet"),
     filterUnit: document.getElementById("filter-unit"),
     filterCountry: document.getElementById("filter-country"),
+    filterHashtag: document.getElementById("filter-hashtag"),
     filterSort: document.getElementById("filter-sort"),
     aarGrid: document.getElementById("aar-grid"),
     aarCount: document.getElementById("aar-count"),
@@ -1220,7 +1224,7 @@ async function init() {
   });
 
   // Filter events
-  const allFilters = [el.searchInput, el.filterMissionType, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterSort];
+  const allFilters = [el.searchInput, el.filterMissionType, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterHashtag, el.filterSort];
   allFilters.forEach((n) => {
     if (!n) return;
     n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); });
