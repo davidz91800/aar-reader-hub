@@ -2933,8 +2933,8 @@
 
             const bar = document.createElement('div');
             bar.style.position = 'fixed';
-            bar.style.right = '16px';
-            bar.style.bottom = '16px';
+            bar.style.left = '16px';
+            bar.style.top = 'calc(16px + env(safe-area-inset-top))';
             bar.style.display = 'flex';
             bar.style.gap = '8px';
             bar.style.zIndex = '3000';
