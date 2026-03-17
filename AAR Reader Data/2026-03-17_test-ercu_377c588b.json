@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "TEST eRCU",
+    "date": "2026-03-17",
+    "grade": "CDT",
+    "gradeAutre": "",
+    "nom": "ZEMMOUR",
+    "prenom": "David",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "flotte": "C-130J",
+    "flotteAutre": "",
+    "classification": "SECRET SPECIAL FRANCE",
+    "missionType": "TAC",
+    "logCountry": "AUTRE",
+    "logCountryAutre": "Test",
+    "logAirfield": "AUTRE",
+    "logAirfieldAutre": "XXXX",
+    "tacContext": "OPERATIONS",
+    "tacOperation": "AUTRE",
+    "tacOperationAutre": "PROUT",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "",
+    "why": "",
+    "when": "",
+    "where": "",
+    "who": "",
+    "how": "",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
