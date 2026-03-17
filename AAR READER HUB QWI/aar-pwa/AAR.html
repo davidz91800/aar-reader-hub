@@ -1567,11 +1567,13 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Pays</label>
-                        <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
-                            list="meta-log-country-datalist" autocomplete="off"
-                            oninput="App.filterLogCountries(this.value)">
-                        <datalist id="meta-log-country-datalist"></datalist>
-                        <select id="meta-log-country" onchange="App.updateLogCountrySelection(this.value)">
+                        <div class="combo-box" id="country-search-combo">
+                            <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
+                                autocomplete="off" onfocus="App.openLogCountryMenu()"
+                                oninput="App.filterLogCountries(this.value)">
+                            <div id="meta-log-country-menu" class="combo-menu" role="listbox" aria-label="Suggestions pays"></div>
+                        </div>
+                        <select id="meta-log-country" style="display:none;" onchange="App.updateLogCountrySelection(this.value)">
                             <option value="">-- Sélectionner --</option>
                         </select>
                         <input type="text" id="meta-log-country-autre" placeholder="Précisez le pays..."
@@ -2271,6 +2273,7 @@
                 currentW6Tab: 0,
                 currentDoreseTab: 0,
                 logCountrySearch: "",
+                showCountryMenu: false,
                 logAirfieldSearch: "",
                 hashtagSearch: "",
                 isExternalEditor: false
@@ -2622,16 +2625,10 @@
 
                 const current = App.data.meta.logCountry || '';
                 const baseCountries = App.missionConfig.allCountries || [];
-                const hasSearch = Boolean(String(App.ui.logCountrySearch || '').trim());
-                let countries = hasSearch
-                    ? App.filterValues(baseCountries, App.ui.logCountrySearch)
-                    : (current && current !== 'AUTRE' ? [current] : [...baseCountries]);
-                if (current && current !== 'AUTRE' && !countries.includes(current)) countries = [current, ...countries];
-
                 select.innerHTML = '';
                 select.appendChild(App.createOption('', '-- Sélectionner --'));
                 select.appendChild(App.createOption('AUTRE', 'AUTRE'));
-                countries.forEach((country) => {
+                baseCountries.forEach((country) => {
                     if (country !== 'AUTRE') select.appendChild(App.createOption(country, country));
                 });
                 select.value = current;
@@ -2640,26 +2637,65 @@
                     otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
                     if (current !== 'AUTRE') otherInput.value = '';
                 }
-                App.renderLogCountryDatalist();
-                App.refreshLiveSelectMode('meta-log-country', App.ui.logCountrySearch);
+                App.renderLogCountryMenu();
             },
 
-            renderLogCountryDatalist: () => {
-                const datalist = document.getElementById('meta-log-country-datalist');
-                if (!datalist) return;
-
+            renderLogCountryMenu: () => {
+                const menu = document.getElementById('meta-log-country-menu');
+                if (!menu) return;
                 const baseCountries = App.missionConfig.allCountries || [];
-                const hasSearch = Boolean(String(App.ui.logCountrySearch || '').trim());
-                const countries = hasSearch
+                const filtered = App.ui.logCountrySearch
                     ? App.filterValues(baseCountries, App.ui.logCountrySearch)
                     : baseCountries;
+                const countries = filtered.slice(0, 60);
 
-                datalist.innerHTML = '';
-                countries.slice(0, 100).forEach((country) => {
-                    const option = document.createElement('option');
-                    option.value = country;
-                    datalist.appendChild(option);
+                menu.innerHTML = '';
+                if (!App.ui.showCountryMenu) {
+                    menu.classList.remove('open');
+                    return;
+                }
+
+                countries.forEach((country) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'combo-option';
+                    btn.textContent = country;
+                    btn.addEventListener('click', () => App.selectLogCountryFromMenu(country));
+                    menu.appendChild(btn);
                 });
+                const autre = document.createElement('button');
+                autre.type = 'button';
+                autre.className = 'combo-option';
+                autre.textContent = 'AUTRE';
+                autre.addEventListener('click', () => App.selectLogCountryFromMenu('AUTRE'));
+                menu.appendChild(autre);
+
+                if (!countries.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'combo-empty';
+                    empty.textContent = 'Aucun pays correspondant.';
+                    menu.appendChild(empty);
+                }
+
+                menu.classList.add('open');
+            },
+
+            openLogCountryMenu: () => {
+                App.ui.showCountryMenu = true;
+                const input = document.getElementById('meta-log-country-search');
+                if (input) App.ui.logCountrySearch = input.value || '';
+                App.renderLogCountryMenu();
+            },
+
+            closeLogCountryMenu: () => {
+                App.ui.showCountryMenu = false;
+                App.renderLogCountryMenu();
+            },
+
+            selectLogCountryFromMenu: (country) => {
+                App.updateLogCountrySelection(country);
+                const input = document.getElementById('meta-log-country-search');
+                if (input) input.blur();
             },
 
             renderLogAirfieldSelect: () => {
@@ -2720,16 +2756,8 @@
 
             filterLogCountries: (query) => {
                 App.ui.logCountrySearch = query || '';
+                App.ui.showCountryMenu = true;
                 App.renderLogCountrySelect();
-
-                const normalized = App.normalizeKey(query);
-                if (!normalized) return;
-
-                const exactCountry = (App.missionConfig.allCountries || [])
-                    .find((country) => App.normalizeKey(country) === normalized);
-                if (exactCountry) {
-                    App.updateLogCountrySelection(exactCountry);
-                }
             },
 
             filterLogAirfields: (query) => {
@@ -2950,10 +2978,14 @@
                 App.data.meta.logCountry = value;
                 if (value !== 'AUTRE') App.data.meta.logCountryAutre = "";
                 App.ui.logCountrySearch = "";
+                App.ui.showCountryMenu = false;
                 const countrySearch = document.getElementById('meta-log-country-search');
-                if (countrySearch) countrySearch.value = "";
-                const countrySelect = document.getElementById('meta-log-country');
-                if (countrySelect) countrySelect.size = 1;
+                if (countrySearch) {
+                    const selectedLabel = value === 'AUTRE'
+                        ? (App.data.meta.logCountryAutre || '')
+                        : (value || '');
+                    countrySearch.value = selectedLabel;
+                }
 
                 const nextCountryRaw = value === 'AUTRE' ? App.data.meta.logCountryAutre : value;
                 const nextCountry = App.resolveCountryName(nextCountryRaw);
@@ -2985,6 +3017,10 @@
 
             updateLogCountryAutre: (value) => {
                 App.data.meta.logCountryAutre = value;
+                if (App.data.meta.logCountry === 'AUTRE') {
+                    const countrySearch = document.getElementById('meta-log-country-search');
+                    if (countrySearch) countrySearch.value = value || '';
+                }
                 App.renderLogAirfieldOptions();
                 App.save();
             },
@@ -3040,6 +3076,13 @@
 
                 // Bind Input Change Listener for Import
                 document.getElementById('file-input').addEventListener('change', App.importJSON);
+                document.addEventListener('click', (event) => {
+                    const wrap = document.getElementById('country-search-combo');
+                    if (!wrap) return;
+                    if (wrap.contains(event.target)) return;
+                    if (!App.ui.showCountryMenu) return;
+                    App.closeLogCountryMenu();
+                });
 
                 App.renderForm();
                 if (repairedOnLoad) App.save();
@@ -3230,7 +3273,7 @@
                 document.getElementById('meta-flotte-autre').value = d.meta.flotteAutre || '';
                 document.getElementById('meta-flotte-autre').style.display = (d.meta.flotte === 'AUTRE') ? 'block' : 'none';
                 document.getElementById('meta-mission-type').value = d.meta.missionType || '';
-                document.getElementById('meta-log-country-search').value = App.ui.logCountrySearch || '';
+                document.getElementById('meta-log-country-search').value = App.ui.logCountrySearch || App.getEffectiveLogCountry() || '';
                 document.getElementById('meta-log-airfield-search').value = App.ui.logAirfieldSearch || '';
                 document.getElementById('meta-log-country').value = d.meta.logCountry || '';
                 document.getElementById('meta-log-country-autre').value = d.meta.logCountryAutre || '';
