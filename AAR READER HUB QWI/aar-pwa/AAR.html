@@ -2274,6 +2274,7 @@
             }
         };
         const HASHTAG_CATALOG_KEY = 'aar_hashtag_catalog_v1';
+        const MISSION_CATALOG_KEY = 'aar_mission_catalog_v1';
         const DORESE_DEFINITIONS = {
             DORESE_D: {
                 title: "D - Doctrine",
@@ -2465,18 +2466,41 @@
                     : (Array.isArray(external.allAirfields) && external.allAirfields.length)
                     ? external.allAirfields.filter(Boolean)
                     : Object.values(logAirfieldsByCountry || {}).flat().filter(Boolean);
-                const localHashtags = App.loadHashtagCatalogFromStorage();
-                const hashtags = App.normalizeHashtagArray([...(configuredHashtags || []), ...(localHashtags || [])]);
-                const allAirfields = [...new Set(configuredAllAirfields.map((value) => String(value).trim()).filter(Boolean))];
+                const cachedCatalog = App.loadMissionCatalogFromStorage();
+                const hashtags = App.normalizeHashtagArray(
+                    (cachedCatalog && Array.isArray(cachedCatalog.hashtags) && cachedCatalog.hashtags.length)
+                        ? cachedCatalog.hashtags
+                        : (configuredHashtags || [])
+                );
+                const allCountriesMerged = App.normalizeCatalogTextArray(
+                    (cachedCatalog && Array.isArray(cachedCatalog.countries) && cachedCatalog.countries.length)
+                        ? cachedCatalog.countries
+                        : allCountries
+                );
+                const tacOperationsMerged = App.normalizeCatalogTextArray(
+                    (cachedCatalog && Array.isArray(cachedCatalog.operations) && cachedCatalog.operations.length)
+                        ? cachedCatalog.operations
+                        : tacOperations
+                );
+                const tacExercisesMerged = App.normalizeCatalogTextArray(
+                    (cachedCatalog && Array.isArray(cachedCatalog.exercises) && cachedCatalog.exercises.length)
+                        ? cachedCatalog.exercises
+                        : tacExercises
+                );
+                const allAirfields = App.normalizeOaciArray(
+                    (cachedCatalog && Array.isArray(cachedCatalog.oaci) && cachedCatalog.oaci.length)
+                        ? cachedCatalog.oaci
+                        : configuredAllAirfields
+                );
 
-                allCountries.sort((a, b) => a.localeCompare(b));
+                allCountriesMerged.sort((a, b) => a.localeCompare(b));
                 allAirfields.sort((a, b) => a.localeCompare(b));
 
                 App.missionConfig = {
-                    allCountries,
+                    allCountries: allCountriesMerged,
                     allAirfields,
-                    tacOperations,
-                    tacExercises,
+                    tacOperations: tacOperationsMerged,
+                    tacExercises: tacExercisesMerged,
                     logAirfieldsByCountry,
                     hashtags,
                     appsScript: {
@@ -2675,6 +2699,34 @@
                 }
             },
 
+            loadMissionCatalogFromStorage: () => {
+                try {
+                    const raw = localStorage.getItem(MISSION_CATALOG_KEY);
+                    const parsed = raw ? JSON.parse(raw) : null;
+                    if (!parsed || typeof parsed !== 'object') return null;
+                    return {
+                        hashtags: App.normalizeHashtagArray(parsed.hashtags || []),
+                        countries: App.normalizeCatalogTextArray(parsed.countries || []),
+                        oaci: App.normalizeOaciArray(parsed.oaci || []),
+                        operations: App.normalizeCatalogTextArray(parsed.operations || []),
+                        exercises: App.normalizeCatalogTextArray(parsed.exercises || [])
+                    };
+                } catch (error) {
+                    console.warn('Mission catalog parse failed:', error);
+                    return null;
+                }
+            },
+
+            saveMissionCatalogToStorage: () => {
+                try {
+                    const payload = App.buildMissionCatalogPayload();
+                    localStorage.setItem(MISSION_CATALOG_KEY, JSON.stringify(payload));
+                    localStorage.setItem(HASHTAG_CATALOG_KEY, JSON.stringify(payload.hashtags || []));
+                } catch (error) {
+                    console.warn('Mission catalog save failed:', error);
+                }
+            },
+
             setHashtagCatalog: (values, persist = true) => {
                 App.missionConfig.hashtags = App.normalizeHashtagArray(values);
                 if (persist) App.saveHashtagCatalogToStorage();
@@ -2704,35 +2756,41 @@
                 App.applyDynamicMissionCatalog({ hashtags: values });
             },
 
-            applyDynamicMissionCatalog: (catalog) => {
+            applyDynamicMissionCatalog: (catalog, options = {}) => {
                 const src = (catalog && typeof catalog === 'object') ? catalog : {};
-                const mergedHashtags = App.normalizeHashtagArray([
-                    ...(App.missionConfig.hashtags || []),
-                    ...(Array.isArray(src.hashtags) ? src.hashtags : [])
-                ]);
-                const mergedCountries = App.normalizeCatalogTextArray([
-                    ...(App.missionConfig.allCountries || []),
-                    ...(Array.isArray(src.countries) ? src.countries : [])
-                ]);
-                const mergedOaci = App.normalizeOaciArray([
-                    ...(App.missionConfig.allAirfields || []),
-                    ...(Array.isArray(src.oaci) ? src.oaci : [])
-                ]);
-                const mergedOperations = App.normalizeCatalogTextArray([
-                    ...(App.missionConfig.tacOperations || []),
-                    ...(Array.isArray(src.operations) ? src.operations : [])
-                ]);
-                const mergedExercises = App.normalizeCatalogTextArray([
-                    ...(App.missionConfig.tacExercises || []),
-                    ...(Array.isArray(src.exercises) ? src.exercises : [])
-                ]);
+                const replace = options.mode === 'replace';
+                const mergedHashtags = App.normalizeHashtagArray(
+                    replace
+                        ? (Array.isArray(src.hashtags) ? src.hashtags : [])
+                        : [...(App.missionConfig.hashtags || []), ...(Array.isArray(src.hashtags) ? src.hashtags : [])]
+                );
+                const mergedCountries = App.normalizeCatalogTextArray(
+                    replace
+                        ? (Array.isArray(src.countries) ? src.countries : [])
+                        : [...(App.missionConfig.allCountries || []), ...(Array.isArray(src.countries) ? src.countries : [])]
+                );
+                const mergedOaci = App.normalizeOaciArray(
+                    replace
+                        ? (Array.isArray(src.oaci) ? src.oaci : [])
+                        : [...(App.missionConfig.allAirfields || []), ...(Array.isArray(src.oaci) ? src.oaci : [])]
+                );
+                const mergedOperations = App.normalizeCatalogTextArray(
+                    replace
+                        ? (Array.isArray(src.operations) ? src.operations : [])
+                        : [...(App.missionConfig.tacOperations || []), ...(Array.isArray(src.operations) ? src.operations : [])]
+                );
+                const mergedExercises = App.normalizeCatalogTextArray(
+                    replace
+                        ? (Array.isArray(src.exercises) ? src.exercises : [])
+                        : [...(App.missionConfig.tacExercises || []), ...(Array.isArray(src.exercises) ? src.exercises : [])]
+                );
 
                 App.missionConfig.hashtags = mergedHashtags;
                 App.missionConfig.allCountries = mergedCountries;
                 App.missionConfig.allAirfields = mergedOaci;
                 App.missionConfig.tacOperations = mergedOperations;
                 App.missionConfig.tacExercises = mergedExercises;
-                App.saveHashtagCatalogToStorage();
+                App.saveMissionCatalogToStorage();
 
                 App.countryNameLookup = {};
                 App.missionConfig.allCountries.forEach((country) => {
@@ -2767,7 +2825,7 @@
                     const remoteCatalog = (payload && payload.catalog && typeof payload.catalog === 'object')
                         ? payload.catalog
                         : { hashtags: Array.isArray(payload?.hashtags) ? payload.hashtags : [] };
-                    App.applyDynamicMissionCatalog(remoteCatalog);
+                    App.applyDynamicMissionCatalog(remoteCatalog, { mode: 'replace' });
                     App.renderMissionSelectors();
                     App.renderHashtagSelect();
                     App.refreshHashtagHint();
