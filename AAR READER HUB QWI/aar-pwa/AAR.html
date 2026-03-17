@@ -2400,7 +2400,10 @@
 
                 const current = App.data.meta.logCountry || '';
                 const baseCountries = App.missionConfig.allCountries || [];
-                let countries = App.filterValues(baseCountries, App.ui.logCountrySearch);
+                const hasSearch = Boolean(String(App.ui.logCountrySearch || '').trim());
+                let countries = hasSearch
+                    ? App.filterValues(baseCountries, App.ui.logCountrySearch)
+                    : (current && current !== 'AUTRE' ? [current] : [...baseCountries]);
                 if (current && current !== 'AUTRE' && !countries.includes(current)) countries = [current, ...countries];
 
                 select.innerHTML = '';
