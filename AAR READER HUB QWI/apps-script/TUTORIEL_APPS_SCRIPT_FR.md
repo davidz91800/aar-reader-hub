@@ -36,7 +36,11 @@ Objectif: supprimer la friction OAuth dans la PWA QWI (iPad), en passant par un 
 4. Ajoute:
    - Cle: `AAR_FOLDER_ID`
    - Valeur: `18RTzOZzYWEIFWS5NXyYA_Ts3Xyf2X5kX`
-5. (Optionnel) ajoute aussi:
+5. (Optionnel, recommande) ajoute aussi:
+   - Cle: `AAR_CATALOG_JSON`
+   - Valeur:
+     `{"hashtags":["#RETEX"],"countries":[],"oaci":[],"operations":[],"exercises":[]}`
+6. (Legacy, optionnel) tu peux garder:
    - Cle: `AAR_HASHTAGS_JSON`
    - Valeur: `["#RETEX"]`
 6. Enregistre.
@@ -108,6 +112,9 @@ Si tu utilises deja le process habituel de push, garde ce process.
 3. Test lecture complete:
    - `https://script.google.com/macros/s/.../exec?action=listAars&accessKey=TA_CLE_AAR_ACCESS_KEY`
    - tu dois voir `action: "listAars"` et `count` > 0.
+4. Test catalogue mission:
+   - `https://script.google.com/macros/s/.../exec?action=getCatalog&accessKey=TA_CLE_AAR_ACCESS_KEY`
+   - tu dois voir `catalog.hashtags/countries/oaci/operations/exercises`.
 
 ### Test 2 - PWA QWI
 1. Ouvre la PWA QWI sur iPad.
@@ -120,10 +127,11 @@ Si tu utilises deja le process habituel de push, garde ce process.
    - la modif doit etre presente.
 7. Verifie dans Drive:
    - le JSON du dossier cible est mis a jour.
-8. Test hashtags:
-   - ajoute un hashtag dans l'editeur QWI,
-   - enregistre un AAR,
-   - le catalogue hashtag est pousse automatiquement au backend Apps Script.
+8. Test administration referentiels (nouvel onglet HUB QWI):
+   - ouvre l'onglet `Administration` dans le HUB QWI,
+   - ajoute un element dans `Pays` (ou `OACI`, `Operations`, `Exercices`, `Hashtags`),
+   - verifie qu'il apparait dans `getCatalog`,
+   - ouvre ensuite l'appli AAR: l'element doit apparaitre comme choix possible.
 
 ### Test 3 - Suppression
 1. Supprime un AAR depuis le HUB QWI.

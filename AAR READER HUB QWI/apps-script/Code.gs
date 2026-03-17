@@ -1,20 +1,25 @@
-/**
+﻿/**
  * AAR Reader Hub QWI - Apps Script backend
  * Purpose:
- * - upsert JSON AAR files in Google Drive
- * - delete JSON AAR files in Google Drive
- * Called by the QWI web app (GitHub Pages / iPad PWA).
+ * - upsert/delete JSON AAR files in Google Drive
+ * - read/write shared mission catalog (hashtags/countries/OACI/operations/exercises)
+ * Called by QWI Hub and AAR app.
  *
  * Script Properties expected (optional but recommended):
- * - AAR_ACCESS_KEY: shared secret with the web app config (appsScript.accessKey)
+ * - AAR_ACCESS_KEY: shared secret with web apps (appsScript.accessKey)
  * - AAR_FOLDER_ID: default Drive folder id used when payload.folderId is missing
- * - AAR_HASHTAGS_JSON: persisted hashtag catalog as JSON array
+ * - AAR_CATALOG_JSON: full catalog object
+ * - AAR_HASHTAGS_JSON: legacy hashtag array (kept for backward compatibility)
  */
+
+var CATALOG_PROPERTY = "AAR_CATALOG_JSON";
+var LEGACY_HASHTAG_PROPERTY = "AAR_HASHTAGS_JSON";
 
 function doGet(e) {
   try {
     var cfg = readScriptConfig_();
     var action = String((e && e.parameter && e.parameter.action) || "").trim().toLowerCase();
+
     if (action === "status") {
       return jsonOutput_({
         ok: true,
@@ -23,21 +28,33 @@ function doGet(e) {
         now: new Date().toISOString()
       });
     }
+
     if (action === "listaars") {
       assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
       return handleListAars_(e && e.parameter ? e.parameter : {}, cfg);
     }
+
     if (action === "gethashtags" || action === "hashtags") {
       assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
       return jsonOutput_({
         ok: true,
         action: "getHashtags",
-        hashtags: readHashtags_()
+        hashtags: readCatalog_().hashtags
       });
     }
+
+    if (action === "getcatalog" || action === "catalog") {
+      assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
+      return jsonOutput_({
+        ok: true,
+        action: "getCatalog",
+        catalog: readCatalog_()
+      });
+    }
+
     return jsonOutput_({
       ok: true,
-      message: "Use POST action=upsert|delete|setHashtags or GET action=status|getHashtags"
+      message: "Use POST action=upsert|delete|setHashtags|setCatalog or GET action=status|getHashtags|getCatalog|listAars"
     });
   } catch (error) {
     return errorOutput_(error);
@@ -54,8 +71,9 @@ function doPost(e) {
     if (action === "upsert") return handleUpsert_(payload, cfg);
     if (action === "delete") return handleDelete_(payload);
     if (action === "sethashtags") return handleSetHashtags_(payload);
+    if (action === "setcatalog") return handleSetCatalog_(payload);
 
-    throw new Error("Action unsupported. Expected: upsert, delete or setHashtags.");
+    throw new Error("Action unsupported. Expected: upsert, delete, setHashtags or setCatalog.");
   } catch (error) {
     return errorOutput_(error);
   }
@@ -103,7 +121,6 @@ function handleUpsert_(payload, cfg) {
       file.setContent(jsonText);
       if (fileName) file.setName(fileName);
     } catch (error) {
-      // If an id was provided but cannot be updated, fallback to create a new file.
       file = null;
     }
   }
@@ -135,20 +152,30 @@ function handleDelete_(payload) {
   return jsonOutput_({
     ok: true,
     action: "delete",
-    file: {
-      id: driveFileId
-    }
+    file: { id: driveFileId }
   });
 }
 
 function handleSetHashtags_(payload) {
-  var normalized = normalizeHashtagArray_(payload.hashtags);
-  writeHashtags_(normalized);
+  var catalog = readCatalog_();
+  catalog.hashtags = normalizeCatalogArray_(payload.hashtags, "hashtag");
+  writeCatalog_(catalog);
   return jsonOutput_({
     ok: true,
     action: "setHashtags",
-    count: normalized.length,
-    hashtags: normalized
+    count: catalog.hashtags.length,
+    hashtags: catalog.hashtags
+  });
+}
+
+function handleSetCatalog_(payload) {
+  var incoming = payload && payload.catalog ? payload.catalog : payload;
+  var normalized = normalizeCatalogObject_(incoming);
+  writeCatalog_(normalized);
+  return jsonOutput_({
+    ok: true,
+    action: "setCatalog",
+    catalog: normalized
   });
 }
 
@@ -201,39 +228,82 @@ function handleListAars_(params, cfg) {
   });
 }
 
-function normalizeHashtagArray_(values) {
+function normalizeCatalogObject_(input) {
+  var src = (input && typeof input === "object") ? input : {};
+  return {
+    hashtags: normalizeCatalogArray_(src.hashtags, "hashtag"),
+    countries: normalizeCatalogArray_(src.countries, "text"),
+    oaci: normalizeCatalogArray_(src.oaci, "oaci"),
+    operations: normalizeCatalogArray_(src.operations, "text"),
+    exercises: normalizeCatalogArray_(src.exercises, "text")
+  };
+}
+
+function normalizeCatalogArray_(values, kind) {
   var source = Array.isArray(values) ? values : [];
   var out = [];
   var seen = {};
+
   for (var i = 0; i < source.length; i++) {
-    var raw = String(source[i] || "").trim();
-    if (!raw) continue;
-    var tag = raw.replace(/\s+/g, "-");
-    if (tag.charAt(0) !== "#") tag = "#" + tag;
-    var key = tag.toUpperCase();
+    var norm = normalizeCatalogValue_(source[i], kind);
+    if (!norm) continue;
+    var key = norm.toUpperCase();
     if (seen[key]) continue;
     seen[key] = true;
-    out.push(tag);
+    out.push(norm);
   }
-  out.sort();
+
+  out.sort(function(a, b) { return a.localeCompare(b); });
   return out;
 }
 
-function readHashtags_() {
-  var props = PropertiesService.getScriptProperties();
-  var raw = String(props.getProperty("AAR_HASHTAGS_JSON") || "").trim();
-  if (!raw) return [];
-  try {
-    var parsed = JSON.parse(raw);
-    return normalizeHashtagArray_(parsed);
-  } catch (error) {
-    return [];
+function normalizeCatalogValue_(value, kind) {
+  var text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+
+  if (kind === "hashtag") {
+    text = text.replace(/\s+/g, "-");
+    if (text.charAt(0) !== "#") text = "#" + text;
+    return text;
   }
+
+  if (kind === "oaci") {
+    return text.toUpperCase();
+  }
+
+  return text;
 }
 
-function writeHashtags_(hashtags) {
+function readCatalog_() {
   var props = PropertiesService.getScriptProperties();
-  props.setProperty("AAR_HASHTAGS_JSON", JSON.stringify(normalizeHashtagArray_(hashtags)));
+  var raw = String(props.getProperty(CATALOG_PROPERTY) || "").trim();
+
+  if (raw) {
+    try {
+      return normalizeCatalogObject_(JSON.parse(raw));
+    } catch (error) {
+      // fallback legacy migration below
+    }
+  }
+
+  var legacyTags = [];
+  var rawLegacy = String(props.getProperty(LEGACY_HASHTAG_PROPERTY) || "").trim();
+  if (rawLegacy) {
+    try {
+      legacyTags = JSON.parse(rawLegacy);
+    } catch (error) {
+      legacyTags = [];
+    }
+  }
+
+  return normalizeCatalogObject_({ hashtags: legacyTags });
+}
+
+function writeCatalog_(catalog) {
+  var normalized = normalizeCatalogObject_(catalog);
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty(CATALOG_PROPERTY, JSON.stringify(normalized));
+  props.setProperty(LEGACY_HASHTAG_PROPERTY, JSON.stringify(normalized.hashtags));
 }
 
 function sanitizeFileName_(name) {

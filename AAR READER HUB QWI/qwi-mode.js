@@ -3,16 +3,27 @@
   const LOCAL_SOURCE = "qwi_local";
   const REQUEST_PREFIX = "aar_qwi_editor_request:";
   const DELETED_KEY = "aar_qwi_deleted_ids_v1";
+  const MISSION_CATALOG_KEY = "aar_mission_catalog_v1";
   const HASHTAG_CATALOG_KEY = "aar_hashtag_catalog_v1";
   const EDITOR_RELATIVE_URL = "./aar-pwa/AAR.html";
   const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
   const sessions = new Map();
+  const CATALOG_DEFS = {
+    hashtags: { label: "Hashtags", normalize: (value) => normalizeHashtag(value), selectKey: "hashtag", otherKey: "hashtagAutre" },
+    countries: { label: "Pays", normalize: (value) => normalizeTextValue(value), selectKey: "logCountry", otherKey: "logCountryAutre" },
+    oaci: { label: "Codes OACI", normalize: (value) => normalizeTextValue(value).toUpperCase(), selectKey: "logAirfield", otherKey: "logAirfieldAutre" },
+    operations: { label: "Operations", normalize: (value) => normalizeTextValue(value), selectKey: "tacOperation", otherKey: "tacOperationAutre", contextKey: "tacContext", contextValue: "OPERATIONS" },
+    exercises: { label: "Exercices", normalize: (value) => normalizeTextValue(value), selectKey: "tacExercise", otherKey: "tacExerciseAutre", contextKey: "tacContext", contextValue: "EXERCICE" }
+  };
+  const CATALOG_KEYS = Object.keys(CATALOG_DEFS);
 
   let tokenClient = null;
   let accessToken = "";
   let tokenExpiryAt = 0;
   let gsiLoader = null;
   let silentReconnectTried = false;
+  let adminBusy = false;
+  let currentCatalog = createEmptyCatalog();
 
   function hasValidDriveToken() {
     return !!accessToken && Date.now() < tokenExpiryAt - 30000;
@@ -20,6 +31,10 @@
 
   function sortRecords(rows) {
     return [...rows].sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  function normalizeTextValue(value) {
+    return String(value || "").replace(/\s+/g, " ").trim();
   }
 
   function normalizeHashtag(value) {
@@ -44,23 +59,118 @@
     return out.sort((a, b) => a.localeCompare(b, "fr"));
   }
 
-  function collectKnownHashtags() {
-    const fromReports = state.reports.flatMap((r) => {
-      const meta = r?.mission?.meta || {};
-      const selected = String(meta.hashtag || "").trim();
-      const other = String(meta.hashtagAutre || "").trim();
-      if (selected === "AUTRE") return other ? [other] : [];
-      return selected ? [selected] : [];
+  function createEmptyCatalog() {
+    return { hashtags: [], countries: [], oaci: [], operations: [], exercises: [] };
+  }
+
+  function normalizeCatalogValues(key, values) {
+    const def = CATALOG_DEFS[key];
+    if (!def) return [];
+    const out = [];
+    const seen = new Set();
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const normalized = String(def.normalize(value) || "").trim();
+      if (!normalized) return;
+      const dedupKey = normalized.toUpperCase();
+      if (seen.has(dedupKey)) return;
+      seen.add(dedupKey);
+      out.push(normalized);
     });
+    return out.sort((a, b) => a.localeCompare(b, "fr"));
+  }
 
-    let fromStorage = [];
+  function normalizeCatalogObject(input) {
+    const src = input && typeof input === "object" ? input : {};
+    const out = createEmptyCatalog();
+    CATALOG_KEYS.forEach((key) => {
+      out[key] = normalizeCatalogValues(key, src[key]);
+    });
+    return out;
+  }
+
+  function readCatalogFromStorage() {
     try {
-      const raw = localStorage.getItem(HASHTAG_CATALOG_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      fromStorage = Array.isArray(parsed) ? parsed : [];
-    } catch {}
+      const raw = localStorage.getItem(MISSION_CATALOG_KEY);
+      if (raw) return normalizeCatalogObject(JSON.parse(raw));
+    } catch {
+      // fallback below
+    }
 
-    return uniqueHashtags([...fromStorage, ...fromReports]);
+    // Legacy fallback if only hashtags were persisted
+    try {
+      const rawLegacy = localStorage.getItem(HASHTAG_CATALOG_KEY);
+      const parsedLegacy = rawLegacy ? JSON.parse(rawLegacy) : [];
+      return normalizeCatalogObject({ hashtags: Array.isArray(parsedLegacy) ? parsedLegacy : [] });
+    } catch {
+      return createEmptyCatalog();
+    }
+  }
+
+  function writeCatalogToStorage(catalog) {
+    const normalized = normalizeCatalogObject(catalog);
+    try {
+      localStorage.setItem(MISSION_CATALOG_KEY, JSON.stringify(normalized));
+      localStorage.setItem(HASHTAG_CATALOG_KEY, JSON.stringify(normalized.hashtags || []));
+    } catch (error) {
+      console.warn("Catalog storage write failed", error);
+    }
+  }
+
+  function getMetaValueForCategory(meta, key) {
+    const def = CATALOG_DEFS[key];
+    if (!def) return "";
+    if (def.contextKey && def.contextValue) {
+      const ctx = String(meta?.[def.contextKey] || "").trim().toUpperCase();
+      if (ctx !== String(def.contextValue || "").trim().toUpperCase()) return "";
+    }
+    const selected = String(meta?.[def.selectKey] || "").trim();
+    const other = String(meta?.[def.otherKey] || "").trim();
+    return selected === "AUTRE" ? def.normalize(other) : def.normalize(selected);
+  }
+
+  function collectKnownCatalogFromReports() {
+    const out = createEmptyCatalog();
+    (state.reports || []).forEach((record) => {
+      const meta = record?.mission?.meta || {};
+      CATALOG_KEYS.forEach((key) => {
+        const value = getMetaValueForCategory(meta, key);
+        if (value) out[key].push(value);
+      });
+    });
+    CATALOG_KEYS.forEach((key) => { out[key] = normalizeCatalogValues(key, out[key]); });
+    return out;
+  }
+
+  function mergeCatalogs(...catalogs) {
+    const merged = createEmptyCatalog();
+    CATALOG_KEYS.forEach((key) => {
+      const values = [];
+      catalogs.forEach((catalog) => {
+        if (catalog && Array.isArray(catalog[key])) values.push(...catalog[key]);
+      });
+      merged[key] = normalizeCatalogValues(key, values);
+    });
+    return merged;
+  }
+
+  function collectKnownHashtags() {
+    return (currentCatalog && Array.isArray(currentCatalog.hashtags))
+      ? [...currentCatalog.hashtags]
+      : [];
+  }
+
+  function getCurrentCatalog() {
+    return normalizeCatalogObject(currentCatalog || {});
+  }
+
+  function setCurrentCatalog(catalog, persist = true) {
+    currentCatalog = normalizeCatalogObject(catalog);
+    if (persist) writeCatalogToStorage(currentCatalog);
+  }
+
+  function getEffectiveCategorySet(key) {
+    const list = (currentCatalog && Array.isArray(currentCatalog[key])) ? currentCatalog[key] : [];
+    return new Set(list.map((value) => String(value || "").toUpperCase()));
   }
 
   function getDeletedIds() {
@@ -311,12 +421,55 @@
     }
   }
 
-  async function syncHashtagsCatalogToBackend(catalog) {
+  async function callAppsScriptGet(action, extraParams = {}) {
+    const cfg = getAppsScriptConfig();
+    if (!cfg.enabled || !cfg.webAppUrl) {
+      throw new Error("Apps Script non configure (appsScript.webAppUrl).");
+    }
+    const url = new URL(cfg.webAppUrl);
+    url.searchParams.set("action", action);
+    if (cfg.accessKey) url.searchParams.set("accessKey", cfg.accessKey);
+    Object.entries(extraParams || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        url.searchParams.set(key, String(value));
+      }
+    });
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), cfg.timeoutMs);
+    try {
+      const response = await fetch(url.toString(), { method: "GET", cache: "no-store", signal: controller.signal });
+      const text = await response.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch {}
+      if (!response.ok) {
+        const detail = data?.error || data?.message || text || response.statusText;
+        throw new Error(`Apps Script HTTP ${response.status}: ${detail}`);
+      }
+      if (!data || data.ok !== true) {
+        throw new Error(data?.error || data?.message || "Reponse Apps Script invalide.");
+      }
+      return data;
+    } catch (error) {
+      if (error?.name === "AbortError") throw new Error("Timeout Apps Script.");
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function fetchRemoteCatalogFromBackend() {
     if (!usesAppsScriptBackend()) return;
-    const hashtags = uniqueHashtags(catalog);
+    const data = await callAppsScriptGet("getCatalog");
+    return normalizeCatalogObject(data?.catalog || {});
+  }
+
+  async function syncMissionCatalogToBackend(catalog) {
+    if (!usesAppsScriptBackend()) return;
+    const normalized = normalizeCatalogObject(catalog);
     await callAppsScript({
-      action: "setHashtags",
-      hashtags
+      action: "setCatalog",
+      catalog: normalized
     });
   }
 
@@ -517,6 +670,7 @@
       recordId: record ? record.id : "",
       driveFileId,
       hashtagsCatalog: collectKnownHashtags(),
+      missionCatalog: getCurrentCatalog(),
       aar: record ? record.mission : null,
       createdAt: new Date().toISOString()
     };
@@ -613,6 +767,345 @@
     else toast("AAR supprime localement.");
   }
 
+  function ensureCategoryValueInCatalog(category, value) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return false;
+    const normalized = def.normalize(value);
+    if (!normalized) return false;
+    const current = getCurrentCatalog();
+    const nextValues = normalizeCatalogValues(category, [...(current[category] || []), normalized]);
+    const changed = JSON.stringify(nextValues) !== JSON.stringify(current[category] || []);
+    if (!changed) return false;
+    current[category] = nextValues;
+    setCurrentCatalog(current, true);
+    return true;
+  }
+
+  function extractOtherCandidates(category) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return [];
+    const known = getEffectiveCategorySet(category);
+    const counts = new Map();
+
+    (state.reports || []).forEach((record) => {
+      const meta = record?.mission?.meta || {};
+      if (def.contextKey && def.contextValue) {
+        const ctx = String(meta?.[def.contextKey] || "").trim().toUpperCase();
+        if (ctx !== String(def.contextValue).trim().toUpperCase()) return;
+      }
+
+      const selectedRaw = String(meta?.[def.selectKey] || "").trim();
+      const otherRaw = String(meta?.[def.otherKey] || "").trim();
+      const selected = def.normalize(selectedRaw);
+      const other = def.normalize(otherRaw);
+
+      let candidate = "";
+      if (selectedRaw === "AUTRE" && other) candidate = other;
+      else if (selected && !known.has(selected.toUpperCase())) candidate = selected;
+      if (!candidate) return;
+      counts.set(candidate, (counts.get(candidate) || 0) + 1);
+    });
+
+    return [...counts.entries()]
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "fr"));
+  }
+
+  async function applyRecordsMutation(mutator, successLabel) {
+    if (adminBusy) return;
+    adminBusy = true;
+    try {
+      const changed = [];
+      const now = new Date().toISOString();
+      const rows = state.reports.map((record) => {
+        const clone = JSON.parse(JSON.stringify(record));
+        const hasChanged = mutator(clone);
+        if (!hasChanged) return record;
+        clone.updatedAt = now;
+        changed.push(clone);
+        return clone;
+      });
+
+      if (!changed.length) {
+        toast("Aucune donnee a modifier.");
+        return;
+      }
+
+      let ok = 0;
+      let ko = 0;
+      for (const rec of changed) {
+        try {
+          const driveMeta = await pushUpsertToDrive(rec, rec);
+          rec.driveFileId = driveMeta.id || rec.driveFileId || "";
+          rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
+          rec.source = "drive_file";
+          rec.sourceName = "google_drive_qwi";
+          rec.qwiDirty = false;
+          delete rec.qwiError;
+          ok += 1;
+        } catch (error) {
+          rec.qwiDirty = true;
+          rec.qwiError = String(error?.message || error || "erreur inconnue");
+          ko += 1;
+        }
+      }
+
+      await persistRecords(rows);
+      renderAdmin();
+      if (ko) toast(`${successLabel}: ${ok} MAJ, ${ko} en echec.`);
+      else toast(`${successLabel}: ${ok} AAR mis a jour.`);
+    } finally {
+      adminBusy = false;
+    }
+  }
+
+  function applyCategoryValue(meta, category, targetValue) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return false;
+    if (def.contextKey && def.contextValue) {
+      const ctx = String(meta?.[def.contextKey] || "").trim().toUpperCase();
+      if (ctx !== String(def.contextValue).trim().toUpperCase()) return false;
+    }
+    const normalizedTarget = def.normalize(targetValue);
+    if (!normalizedTarget) return false;
+    const current = getMetaValueForCategory(meta, category);
+    if (!current) return false;
+    if (String(current).toUpperCase() !== String(normalizedTarget).toUpperCase()) return false;
+    meta[def.selectKey] = normalizedTarget;
+    meta[def.otherKey] = "";
+    return true;
+  }
+
+  async function mapOtherCandidate(category, sourceValue, targetValue) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return;
+    const source = def.normalize(sourceValue);
+    const target = def.normalize(targetValue);
+    if (!source || !target) {
+      toast("Valeur source/cible invalide.");
+      return;
+    }
+    ensureCategoryValueInCatalog(category, target);
+    await applyRecordsMutation((record) => {
+      const meta = record?.mission?.meta || {};
+      const current = getMetaValueForCategory(meta, category);
+      if (!current) return false;
+      if (String(current).toUpperCase() !== String(source).toUpperCase()) return false;
+      meta[def.selectKey] = target;
+      meta[def.otherKey] = "";
+      return true;
+    }, `${def.label}: normalisation`);
+    try {
+      await syncMissionCatalogToBackend(getCurrentCatalog());
+    } catch (error) {
+      console.warn("Catalog sync failed after mapping", error);
+    }
+  }
+
+  async function addCatalogItem(category, value) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return;
+    const normalized = def.normalize(value);
+    if (!normalized) {
+      toast(`${def.label}: valeur invalide.`);
+      return;
+    }
+    const changed = ensureCategoryValueInCatalog(category, normalized);
+    renderAdmin();
+    if (!changed) {
+      toast(`${def.label}: deja present.`);
+      return;
+    }
+    try {
+      await syncMissionCatalogToBackend(getCurrentCatalog());
+      toast(`${def.label}: element ajoute.`);
+    } catch (error) {
+      toast(`Ajout local OK, sync backend KO: ${error.message || error}`);
+    }
+  }
+
+  async function renameCatalogItem(category, oldValue, nextValue) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return;
+    const oldNorm = def.normalize(oldValue);
+    const nextNorm = def.normalize(nextValue);
+    if (!oldNorm || !nextNorm) {
+      toast(`${def.label}: renommage invalide.`);
+      return;
+    }
+
+    const catalog = getCurrentCatalog();
+    const nextList = normalizeCatalogValues(category, (catalog[category] || []).map((value) => {
+      return String(value).toUpperCase() === String(oldNorm).toUpperCase() ? nextNorm : value;
+    }));
+    catalog[category] = nextList;
+    setCurrentCatalog(catalog, true);
+
+    await applyRecordsMutation((record) => {
+      const meta = record?.mission?.meta || {};
+      const current = getMetaValueForCategory(meta, category);
+      if (!current) return false;
+      if (String(current).toUpperCase() !== String(oldNorm).toUpperCase()) return false;
+      meta[def.selectKey] = nextNorm;
+      meta[def.otherKey] = "";
+      return true;
+    }, `${def.label}: renommage`);
+
+    try {
+      await syncMissionCatalogToBackend(getCurrentCatalog());
+    } catch (error) {
+      toast(`Renommage local OK, sync backend KO: ${error.message || error}`);
+      return;
+    }
+    renderAdmin();
+  }
+
+  async function deleteCatalogItem(category, value) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return;
+    const normalized = def.normalize(value);
+    if (!normalized) return;
+    if (!window.confirm(`Supprimer '${normalized}' de ${def.label} ?`)) return;
+
+    const catalog = getCurrentCatalog();
+    const nextList = (catalog[category] || []).filter((item) => {
+      return String(item).toUpperCase() !== String(normalized).toUpperCase();
+    });
+    catalog[category] = normalizeCatalogValues(category, nextList);
+    setCurrentCatalog(catalog, true);
+    renderAdmin();
+
+    try {
+      await syncMissionCatalogToBackend(getCurrentCatalog());
+      toast(`${def.label}: element supprime.`);
+    } catch (error) {
+      toast(`Suppression locale OK, sync backend KO: ${error.message || error}`);
+    }
+  }
+
+  function renderAdminCard(category) {
+    const def = CATALOG_DEFS[category];
+    const catalog = getCurrentCatalog();
+    const values = catalog[category] || [];
+    const candidates = extractOtherCandidates(category);
+    const categorySlug = esc(def.label.toLowerCase().replace(/\s+/g, "-"));
+    const optionsHtml = values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("");
+
+    return `
+      <article class="admin-card" data-category="${esc(category)}">
+        <h3>${esc(def.label)}</h3>
+        <div class="admin-row">
+          <input class="admin-input" data-admin-add-input="${esc(category)}" placeholder="Ajouter un element ${categorySlug}">
+          <button class="admin-btn admin-btn-primary" data-admin-add-btn="${esc(category)}" type="button">Ajouter</button>
+        </div>
+        <div class="admin-list">
+          ${values.length ? values.map((value) => `
+            <div class="admin-item">
+              <div class="admin-item-top">
+                <div class="admin-item-value">${esc(value)}</div>
+              </div>
+              <div class="admin-row">
+                <button class="admin-btn" data-admin-rename-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Renommer</button>
+                <button class="admin-btn admin-btn-danger" data-admin-delete-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Supprimer</button>
+              </div>
+            </div>
+          `).join("") : `<div class="admin-empty">Aucun element catalogue.</div>`}
+        </div>
+        <div class="admin-note">Valeurs AUTRE detectees dans les AAR: ${candidates.length}</div>
+        <div class="admin-list">
+          ${candidates.length ? candidates.map((row, idx) => `
+            <div class="admin-item">
+              <div class="admin-item-top">
+                <div class="admin-item-value">${esc(row.value)}</div>
+                <div class="admin-item-count">${row.count} AAR</div>
+              </div>
+              <div class="admin-row">
+                <select class="admin-select" data-admin-map-select="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}">
+                  <option value="">Mapper vers...</option>
+                  <option value="__NEW__">Creer cet element</option>
+                  ${optionsHtml}
+                </select>
+                <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Appliquer</button>
+              </div>
+            </div>
+          `).join("") : `<div class="admin-empty">Aucune valeur AUTRE a normaliser.</div>`}
+        </div>
+      </article>
+    `;
+  }
+
+  function bindAdminEvents(container) {
+    if (!container) return;
+
+    container.querySelectorAll("[data-admin-add-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const category = btn.getAttribute("data-admin-add-btn");
+        const input = container.querySelector(`[data-admin-add-input="${category}"]`);
+        const value = input ? input.value : "";
+        addCatalogItem(category, value).then(() => {
+          if (input) input.value = "";
+        });
+      });
+    });
+
+    container.querySelectorAll("[data-admin-rename-btn]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const category = btn.getAttribute("data-admin-rename-btn");
+        const value = btn.getAttribute("data-admin-value") || "";
+        const next = window.prompt("Nouveau libelle :", value);
+        if (next === null) return;
+        await renameCatalogItem(category, value, next);
+      });
+    });
+
+    container.querySelectorAll("[data-admin-delete-btn]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const category = btn.getAttribute("data-admin-delete-btn");
+        const value = btn.getAttribute("data-admin-value") || "";
+        await deleteCatalogItem(category, value);
+      });
+    });
+
+    container.querySelectorAll("[data-admin-map-btn]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const category = btn.getAttribute("data-admin-map-btn");
+        const source = btn.getAttribute("data-admin-source") || "";
+        const idx = btn.getAttribute("data-admin-idx") || "";
+        const select = container.querySelector(`[data-admin-map-select="${category}"][data-admin-idx="${idx}"]`);
+        const selected = select ? String(select.value || "") : "";
+        if (!selected) {
+          toast("Selectionne une cible.");
+          return;
+        }
+        const target = selected === "__NEW__" ? source : selected;
+        await mapOtherCandidate(category, source, target);
+      });
+    });
+  }
+
+  function renderAdmin(targetEl = document.getElementById("view-admin")) {
+    if (!targetEl) return;
+    const catalog = getCurrentCatalog();
+    const totalValues = CATALOG_KEYS.reduce((sum, key) => sum + ((catalog[key] || []).length), 0);
+
+    targetEl.innerHTML = `
+      <div class="admin-wrap">
+        <div class="admin-header">
+          <div>
+            <div class="admin-title">Administration des referentiels QWI</div>
+            <div class="admin-subtitle">Ajout, suppression, renommage et normalisation des valeurs AUTRE (pays, OACI, operation, exercice, hashtag).</div>
+          </div>
+          <div class="admin-subtitle">${totalValues} element(s) catalogue</div>
+        </div>
+        <div class="admin-grid">
+          ${CATALOG_KEYS.map((key) => renderAdminCard(key)).join("")}
+        </div>
+      </div>
+    `;
+
+    bindAdminEvents(targetEl);
+  }
+
   function injectDetailActions() {
     if (!state.openDetailId) return;
 
@@ -654,6 +1147,24 @@
     } catch (error) {
       toast(`Connexion Drive impossible: ${error.message || error}`);
     }
+  }
+
+  async function initMissionCatalog() {
+    const localCatalog = readCatalogFromStorage();
+    const fromReports = collectKnownCatalogFromReports();
+    let merged = mergeCatalogs(localCatalog, fromReports);
+
+    if (usesAppsScriptBackend()) {
+      try {
+        const remoteCatalog = await fetchRemoteCatalogFromBackend();
+        merged = mergeCatalogs(remoteCatalog, merged);
+      } catch (error) {
+        console.warn("Remote mission catalog unavailable", error);
+      }
+    }
+
+    setCurrentCatalog(merged, true);
+    if (state.mode === "admin") renderAdmin();
   }
 
   function installTopActions() {
@@ -718,6 +1229,11 @@
     if (merged.length !== state.reports.length || localRecords.length || deletedIds.size) {
       await persistRecords(merged);
     }
+
+    const fromReports = collectKnownCatalogFromReports();
+    const mergedCatalog = mergeCatalogs(getCurrentCatalog(), fromReports);
+    setCurrentCatalog(mergedCatalog, true);
+    if (state.mode === "admin") renderAdmin();
   };
 
   window.addEventListener("message", async (evt) => {
@@ -729,17 +1245,22 @@
 
     let incomingCatalog = null;
     try {
-      if (Array.isArray(msg.hashtagsCatalog)) {
-        const catalog = uniqueHashtags(msg.hashtagsCatalog);
-        try { localStorage.setItem(HASHTAG_CATALOG_KEY, JSON.stringify(catalog)); } catch {}
-        incomingCatalog = catalog;
+      if (msg.missionCatalog && typeof msg.missionCatalog === "object") {
+        incomingCatalog = normalizeCatalogObject(msg.missionCatalog);
+      } else if (Array.isArray(msg.hashtagsCatalog)) {
+        incomingCatalog = normalizeCatalogObject({ hashtags: msg.hashtagsCatalog });
       }
+
       await upsertFromEditor(sessionId, msg.aar || msg.data || {});
+
       if (incomingCatalog) {
+        const mergedCatalog = mergeCatalogs(getCurrentCatalog(), incomingCatalog, collectKnownCatalogFromReports());
+        setCurrentCatalog(mergedCatalog, true);
+        if (state.mode === "admin") renderAdmin();
         try {
-          await syncHashtagsCatalogToBackend(incomingCatalog);
+          await syncMissionCatalogToBackend(mergedCatalog);
         } catch (error) {
-          console.warn("Hashtag catalog sync failed", error);
+          console.warn("Mission catalog sync failed", error);
         }
       }
     } catch (error) {
@@ -764,5 +1285,12 @@
     }
   }
 
+  window.QwiMode = Object.assign({}, window.QwiMode || {}, {
+    renderAdmin
+  });
+
   installTopActions();
+  initMissionCatalog().catch((error) => {
+    console.warn("Mission catalog init failed", error);
+  });
 })();

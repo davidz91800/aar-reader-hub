@@ -11,7 +11,7 @@ const DRIVE_COOLDOWN_KEY = "aar_reader_drive_cooldown_until_qwi_v1";
 
 const state = {
   reports: [],
-  mode: "list",        // "list" | "analyze"
+  mode: "list",        // "list" | "analyze" | "admin"
   openDetailId: null
 };
 
@@ -1238,12 +1238,26 @@ function setView(view) {
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   const target = document.getElementById(`view-${view}`);
   if (target) target.classList.add("active");
+  const filtersBar = document.getElementById("filters-bar");
+  if (filtersBar) filtersBar.style.display = view === "admin" ? "none" : "";
   renderCurrentView();
 }
 
 function renderCurrentView() {
   if (state.mode === "list") renderList();
   else if (state.mode === "analyze") renderAnalyze();
+  else if (state.mode === "admin") {
+    if (window.QwiMode && typeof window.QwiMode.renderAdmin === "function") {
+      window.QwiMode.renderAdmin(el.viewAdmin || document.getElementById("view-admin"));
+    } else if (el.viewAdmin) {
+      el.viewAdmin.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⚙️</div>
+          <h3>Administration QWI</h3>
+          <p>Module d'administration indisponible.</p>
+        </div>`;
+    }
+  }
 }
 
 function renderAll() {
@@ -1268,6 +1282,7 @@ async function init() {
     aarCount: document.getElementById("aar-count"),
     viewList: document.getElementById("view-list"),
     viewAnalyze: document.getElementById("view-analyze"),
+    viewAdmin: document.getElementById("view-admin"),
     detailOverlay: document.getElementById("detail-overlay"),
     detailSheet: document.getElementById("detail-sheet"),
     detailTitle: document.getElementById("detail-title"),

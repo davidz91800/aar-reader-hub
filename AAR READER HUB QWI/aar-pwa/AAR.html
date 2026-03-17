@@ -2241,6 +2241,19 @@
 
         const FALLBACK_MISSION_CONFIG = {
             allCountries: ['France'],
+            allAirfields: [
+                'LFOE Evreux',
+                'LFOJ Orleans-Bricy',
+                'LFBM Mont-de-Marsan',
+                'LFBO Toulouse-Blagnac',
+                'LFOA Avord',
+                'LFMI Istres',
+                'LFSI Saint-Dizier',
+                'LFMO Orange-Caritat',
+                'LFMY Salon-de-Provence',
+                'LFKS Solenzara',
+                'LFBF Toulouse-Francazal'
+            ],
             tacOperations: ['Proche et Moyen Orient (PMO)'],
             tacExercises: ['TRAINING', 'ATLC', 'TLP', 'ETAP-C Single Ship', 'ETAP-C Multiple Ship'],
             hashtags: ['#RETEX'],
@@ -2414,35 +2427,54 @@
                 const external = (window.AARMissionConfig && typeof window.AARMissionConfig === 'object')
                     ? window.AARMissionConfig
                     : {};
+                const externalCatalog = (external.catalog && typeof external.catalog === 'object')
+                    ? external.catalog
+                    : {};
 
                 const logAirfieldsByCountry = (external.logAirfieldsByCountry && typeof external.logAirfieldsByCountry === 'object')
                     ? external.logAirfieldsByCountry
                     : FALLBACK_MISSION_CONFIG.logAirfieldsByCountry;
 
-                const allCountries = (Array.isArray(external.allCountries) && external.allCountries.length)
+                const allCountries = (Array.isArray(externalCatalog.countries) && externalCatalog.countries.length)
+                    ? [...new Set(externalCatalog.countries.filter(Boolean))]
+                    : (Array.isArray(external.allCountries) && external.allCountries.length)
                     ? [...new Set(external.allCountries.filter(Boolean))]
                     : [...new Set(Object.keys(logAirfieldsByCountry))];
 
-                const tacOperations = (Array.isArray(external.tacOperations) && external.tacOperations.length)
+                const tacOperations = (Array.isArray(externalCatalog.operations) && externalCatalog.operations.length)
+                    ? externalCatalog.operations.filter(Boolean)
+                    : (Array.isArray(external.tacOperations) && external.tacOperations.length)
                     ? external.tacOperations.filter(Boolean)
                     : FALLBACK_MISSION_CONFIG.tacOperations;
 
-                const tacExercises = (Array.isArray(external.tacExercises) && external.tacExercises.length)
+                const tacExercises = (Array.isArray(externalCatalog.exercises) && externalCatalog.exercises.length)
+                    ? externalCatalog.exercises.filter(Boolean)
+                    : (Array.isArray(external.tacExercises) && external.tacExercises.length)
                     ? external.tacExercises.filter(Boolean)
                     : FALLBACK_MISSION_CONFIG.tacExercises;
                 const appsScriptCfg = (external.appsScript && typeof external.appsScript === 'object')
                     ? external.appsScript
                     : {};
-                const configuredHashtags = (Array.isArray(external.hashtags) && external.hashtags.length)
+                const configuredHashtags = (Array.isArray(externalCatalog.hashtags) && externalCatalog.hashtags.length)
+                    ? externalCatalog.hashtags.filter(Boolean)
+                    : (Array.isArray(external.hashtags) && external.hashtags.length)
                     ? external.hashtags.filter(Boolean)
                     : FALLBACK_MISSION_CONFIG.hashtags;
+                const configuredAllAirfields = (Array.isArray(externalCatalog.oaci) && externalCatalog.oaci.length)
+                    ? externalCatalog.oaci.filter(Boolean)
+                    : (Array.isArray(external.allAirfields) && external.allAirfields.length)
+                    ? external.allAirfields.filter(Boolean)
+                    : Object.values(logAirfieldsByCountry || {}).flat().filter(Boolean);
                 const localHashtags = App.loadHashtagCatalogFromStorage();
                 const hashtags = App.normalizeHashtagArray([...(configuredHashtags || []), ...(localHashtags || [])]);
+                const allAirfields = [...new Set(configuredAllAirfields.map((value) => String(value).trim()).filter(Boolean))];
 
                 allCountries.sort((a, b) => a.localeCompare(b));
+                allAirfields.sort((a, b) => a.localeCompare(b));
 
                 App.missionConfig = {
                     allCountries,
+                    allAirfields,
                     tacOperations,
                     tacExercises,
                     logAirfieldsByCountry,
@@ -2650,33 +2682,97 @@
                 App.refreshHashtagHint();
             },
 
-            applyDynamicHashtagCatalog: (values) => {
-                const merged = App.normalizeHashtagArray([
-                    ...(App.missionConfig.hashtags || []),
-                    ...(Array.isArray(values) ? values : [])
-                ]);
-                App.setHashtagCatalog(merged, true);
+            normalizeCatalogTextArray: (values) => {
+                const out = [];
+                const seen = new Set();
+                (Array.isArray(values) ? values : []).forEach((value) => {
+                    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+                    if (!normalized) return;
+                    const key = App.normalizeKey(normalized);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    out.push(normalized);
+                });
+                return out.sort((a, b) => a.localeCompare(b, 'fr'));
             },
 
-            loadRemoteHashtagCatalog: async () => {
+            normalizeOaciArray: (values) => {
+                return App.normalizeCatalogTextArray(values).map((value) => String(value).toUpperCase());
+            },
+
+            applyDynamicHashtagCatalog: (values) => {
+                App.applyDynamicMissionCatalog({ hashtags: values });
+            },
+
+            applyDynamicMissionCatalog: (catalog) => {
+                const src = (catalog && typeof catalog === 'object') ? catalog : {};
+                const mergedHashtags = App.normalizeHashtagArray([
+                    ...(App.missionConfig.hashtags || []),
+                    ...(Array.isArray(src.hashtags) ? src.hashtags : [])
+                ]);
+                const mergedCountries = App.normalizeCatalogTextArray([
+                    ...(App.missionConfig.allCountries || []),
+                    ...(Array.isArray(src.countries) ? src.countries : [])
+                ]);
+                const mergedOaci = App.normalizeOaciArray([
+                    ...(App.missionConfig.allAirfields || []),
+                    ...(Array.isArray(src.oaci) ? src.oaci : [])
+                ]);
+                const mergedOperations = App.normalizeCatalogTextArray([
+                    ...(App.missionConfig.tacOperations || []),
+                    ...(Array.isArray(src.operations) ? src.operations : [])
+                ]);
+                const mergedExercises = App.normalizeCatalogTextArray([
+                    ...(App.missionConfig.tacExercises || []),
+                    ...(Array.isArray(src.exercises) ? src.exercises : [])
+                ]);
+
+                App.missionConfig.hashtags = mergedHashtags;
+                App.missionConfig.allCountries = mergedCountries;
+                App.missionConfig.allAirfields = mergedOaci;
+                App.missionConfig.tacOperations = mergedOperations;
+                App.missionConfig.tacExercises = mergedExercises;
+                App.saveHashtagCatalogToStorage();
+
+                App.countryNameLookup = {};
+                App.missionConfig.allCountries.forEach((country) => {
+                    App.countryNameLookup[App.normalizeKey(country)] = country;
+                });
+                Object.keys(App.missionConfig.logAirfieldsByCountry || {}).forEach((country) => {
+                    App.countryNameLookup[App.normalizeKey(country)] = country;
+                });
+            },
+
+            buildMissionCatalogPayload: () => {
+                return {
+                    hashtags: App.normalizeHashtagArray(App.missionConfig.hashtags || []),
+                    countries: App.normalizeCatalogTextArray(App.missionConfig.allCountries || []),
+                    oaci: App.normalizeOaciArray(App.missionConfig.allAirfields || []),
+                    operations: App.normalizeCatalogTextArray(App.missionConfig.tacOperations || []),
+                    exercises: App.normalizeCatalogTextArray(App.missionConfig.tacExercises || [])
+                };
+            },
+
+            loadRemoteMissionCatalog: async () => {
                 const remote = App.missionConfig.appsScript || {};
                 if (!remote.webAppUrl) return;
                 try {
                     const url = new URL(remote.webAppUrl);
-                    url.searchParams.set('action', 'getHashtags');
+                    url.searchParams.set('action', 'getCatalog');
                     if (remote.accessKey) url.searchParams.set('accessKey', remote.accessKey);
 
                     const response = await fetch(url.toString(), { cache: 'no-store' });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const payload = await response.json();
-                    const hashtags = Array.isArray(payload?.hashtags) ? payload.hashtags : [];
-                    if (!hashtags.length) return;
-
-                    App.applyDynamicHashtagCatalog(hashtags);
+                    const remoteCatalog = (payload && payload.catalog && typeof payload.catalog === 'object')
+                        ? payload.catalog
+                        : { hashtags: Array.isArray(payload?.hashtags) ? payload.hashtags : [] };
+                    App.applyDynamicMissionCatalog(remoteCatalog);
+                    App.renderMissionSelectors();
                     App.renderHashtagSelect();
                     App.refreshHashtagHint();
                 } catch (error) {
-                    console.warn('Remote hashtag catalog unavailable:', error);
+                    console.warn('Remote mission catalog unavailable:', error);
                 }
             },
 
@@ -3199,7 +3295,9 @@
 
             getLogAirfieldsForCurrentCountry: () => {
                 const resolvedCountry = App.resolveCountryName(App.getEffectiveLogCountry());
-                return App.missionConfig.logAirfieldsByCountry[resolvedCountry] || [];
+                const scoped = App.missionConfig.logAirfieldsByCountry[resolvedCountry] || [];
+                const globalOaci = App.missionConfig.allAirfields || [];
+                return [...new Set([...(scoped || []), ...(globalOaci || [])])];
             },
 
             renderLogAirfieldOptions: () => {
@@ -3238,7 +3336,7 @@
                 toggle('meta-log-country-autre', m.logCountry === 'AUTRE');
                 toggle('meta-log-airfield-autre', m.logAirfield === 'AUTRE');
                 toggle('meta-hashtag-autre', m.hashtag === 'AUTRE');
-                toggle('hashtag-admin-block', !!App.ui.isExternalEditor);
+                toggle('hashtag-admin-block', false);
                 toggle('meta-tac-operation-autre', isTacOperations && m.tacOperation === 'AUTRE');
                 toggle('meta-tac-exercise-autre', isTacExercise && m.tacExercise === 'AUTRE');
             },
@@ -3399,7 +3497,7 @@
                 App.renderForm();
                 if (repairedOnLoad) App.save();
                 App.nav(0);
-                App.loadRemoteHashtagCatalog();
+                App.loadRemoteMissionCatalog();
             },
 
             save: () => {
@@ -3883,7 +3981,9 @@
             } else {
                 App.data = {};
             }
-            if (request && Array.isArray(request.hashtagsCatalog)) {
+            if (request && request.missionCatalog && typeof request.missionCatalog === 'object') {
+                App.applyDynamicMissionCatalog(request.missionCatalog);
+            } else if (request && Array.isArray(request.hashtagsCatalog)) {
                 App.applyDynamicHashtagCatalog(request.hashtagsCatalog);
             }
             App.ensureDataShape();
@@ -3915,7 +4015,8 @@
                         type: 'aar-qwi-save',
                         session,
                         aar: payload,
-                        hashtagsCatalog: App.missionConfig.hashtags || []
+                        hashtagsCatalog: App.missionConfig.hashtags || [],
+                        missionCatalog: App.buildMissionCatalogPayload()
                     }, '*');
                     return true;
                 }

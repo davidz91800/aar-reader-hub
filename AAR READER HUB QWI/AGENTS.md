@@ -41,8 +41,9 @@ Toute evolution de schema/champ AAR ou de rendu detail doit etre synchronisee av
   - Le hub peut passer par `appsScript` dans `config.js` (`enabled=true`) pour ecriture/suppression.
   - Dans ce mode, `qwi-mode.js` appelle un Web App Apps Script et le bouton nuage OAuth est masque.
   - Sources backend livrees dans `apps-script/Code.gs` et `apps-script/TUTORIEL_APPS_SCRIPT_FR.md`.
-  - Le catalogue hashtags est synchronise vers Apps Script via `action=setHashtags` apres enregistrement depuis l'editeur QWI.
-  - L'application AAR recharge ce catalogue via `action=getHashtags` au demarrage.
+  - Le catalogue mission complet (hashtags + pays + OACI + operations + exercices) est synchronise vers Apps Script via `action=setCatalog`.
+  - L'application AAR recharge ce catalogue via `action=getCatalog` au demarrage.
+  - L'onglet `Administration` du HUB QWI est la reference ergonomique pour ces listes (plus d'admin hashtags dans le formulaire AAR).
   - Les hubs peuvent aussi lire la liste complete des AAR via Apps Script (`action=listAars`) pour eviter les limites/referrer de la Drive API frontend.
 - Politique credentials:
   - Projet Google Cloud recommande: `RETEX`.
