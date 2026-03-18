@@ -52,6 +52,8 @@
   let adminOpenHelpKey = "";
   const adminCatalogSearch = {};
   let confirmUi = null;
+  let busyUi = null;
+  let busyDepth = 0;
 
   function ensureConfirmUi() {
     if (confirmUi) return confirmUi;
@@ -251,6 +253,59 @@
     const result = await ui.open({ ...options, withInput: true });
     if (!result || !result.ok) return null;
     return String(result.value || "");
+  }
+
+  function ensureBusyUi() {
+    if (busyUi) return busyUi;
+    let root = document.getElementById("qwi-busy-hud");
+    if (!root) {
+      root = document.createElement("div");
+      root.id = "qwi-busy-hud";
+      root.className = "qwi-busy-hud";
+      root.setAttribute("aria-live", "polite");
+      root.setAttribute("aria-atomic", "true");
+      root.innerHTML = `
+        <div class="qwi-busy-orb" aria-hidden="true"></div>
+        <div class="qwi-busy-copy">
+          <div class="qwi-busy-title">Traitement en cours</div>
+          <div class="qwi-busy-message" data-qwi-busy-message>Synchronisation...</div>
+        </div>
+      `;
+      document.body.appendChild(root);
+    }
+    busyUi = {
+      root,
+      messageEl: root.querySelector("[data-qwi-busy-message]")
+    };
+    return busyUi;
+  }
+
+  function setBusyMessage(message) {
+    const ui = ensureBusyUi();
+    if (ui.messageEl) ui.messageEl.textContent = String(message || "Synchronisation...");
+  }
+
+  function showBusy(message) {
+    busyDepth += 1;
+    const ui = ensureBusyUi();
+    if (message) setBusyMessage(message);
+    ui.root.classList.add("is-visible");
+  }
+
+  function hideBusy() {
+    busyDepth = Math.max(0, busyDepth - 1);
+    if (busyDepth !== 0) return;
+    const ui = ensureBusyUi();
+    ui.root.classList.remove("is-visible");
+  }
+
+  async function withBusy(message, run) {
+    showBusy(message);
+    try {
+      return await run();
+    } finally {
+      hideBusy();
+    }
   }
 
   function hasValidDriveToken() {
@@ -1114,52 +1169,53 @@
   async function upsertFromEditor(sessionId, aarData) {
     const pending = sessions.get(sessionId);
     if (!pending) return;
+    await withBusy("Enregistrement AAR en cours...", async () => {
+      const normalized = normalizeAar(aarData || {});
+      let rec = buildRecord(normalized, LOCAL_SOURCE, "qwi_editor");
+      const pendingRecordId = String(pending.recordId || "").trim();
+      const pendingDriveFileId = String(pending.driveFileId || "").trim();
+      const existingById = pendingRecordId ? state.reports.find((x) => x.id === pendingRecordId) : null;
+      const existingByDriveId = pendingDriveFileId ? state.reports.find((x) => String(x.driveFileId || "").trim() === pendingDriveFileId) : null;
+      const existing = existingById || existingByDriveId || null;
 
-    const normalized = normalizeAar(aarData || {});
-    let rec = buildRecord(normalized, LOCAL_SOURCE, "qwi_editor");
-    const pendingRecordId = String(pending.recordId || "").trim();
-    const pendingDriveFileId = String(pending.driveFileId || "").trim();
-    const existingById = pendingRecordId ? state.reports.find((x) => x.id === pendingRecordId) : null;
-    const existingByDriveId = pendingDriveFileId ? state.reports.find((x) => String(x.driveFileId || "").trim() === pendingDriveFileId) : null;
-    const existing = existingById || existingByDriveId || null;
+      if (existing) {
+        rec.id = existing.id;
+        rec.createdAt = existing.createdAt || rec.createdAt;
+        rec.driveFileId = existing.driveFileId || "";
+        rec.driveModifiedTime = existing.driveModifiedTime || "";
+      } else if (pendingDriveFileId) {
+        // Defensive fallback: if recordId mapping is lost, still update the same Drive file.
+        rec.driveFileId = pendingDriveFileId;
+      }
 
-    if (existing) {
-      rec.id = existing.id;
-      rec.createdAt = existing.createdAt || rec.createdAt;
-      rec.driveFileId = existing.driveFileId || "";
-      rec.driveModifiedTime = existing.driveModifiedTime || "";
-    } else if (pendingDriveFileId) {
-      // Defensive fallback: if recordId mapping is lost, still update the same Drive file.
-      rec.driveFileId = pendingDriveFileId;
-    }
+      rec.source = LOCAL_SOURCE;
+      rec.sourceName = "qwi_editor";
+      rec.updatedAt = new Date().toISOString();
 
-    rec.source = LOCAL_SOURCE;
-    rec.sourceName = "qwi_editor";
-    rec.updatedAt = new Date().toISOString();
+      let pushError = "";
+      try {
+        const driveMeta = await pushUpsertToDrive(rec, existing);
+        rec.driveFileId = driveMeta.id || rec.driveFileId || "";
+        rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
+        rec.source = "drive_file";
+        rec.sourceName = "google_drive_qwi";
+        rec.qwiDirty = false;
+        delete rec.qwiError;
+      } catch (error) {
+        pushError = String(error?.message || error || "erreur inconnue");
+        rec.qwiDirty = true;
+        rec.qwiError = pushError;
+      }
 
-    let pushError = "";
-    try {
-      const driveMeta = await pushUpsertToDrive(rec, existing);
-      rec.driveFileId = driveMeta.id || rec.driveFileId || "";
-      rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
-      rec.source = "drive_file";
-      rec.sourceName = "google_drive_qwi";
-      rec.qwiDirty = false;
-      delete rec.qwiError;
-    } catch (error) {
-      pushError = String(error?.message || error || "erreur inconnue");
-      rec.qwiDirty = true;
-      rec.qwiError = pushError;
-    }
+      const rows = state.reports.filter((x) => x.id !== rec.id);
+      rows.push(rec);
 
-    const rows = state.reports.filter((x) => x.id !== rec.id);
-    rows.push(rec);
-
-    unmarkDeleted(rec.id);
-    await persistRecords(rows);
-    if (pushError) toast(`AAR sauvegarde localement (Drive KO): ${pushError}`);
-    else toast(existing ? "AAR modifie (Drive + local)." : "AAR ajoute (Drive + local).");
-    openDetail(rec.id);
+      unmarkDeleted(rec.id);
+      await persistRecords(rows);
+      if (pushError) toast(`AAR sauvegarde localement (Drive KO): ${pushError}`);
+      else toast(existing ? "AAR modifie (Drive + local)." : "AAR ajoute (Drive + local).");
+      openDetail(rec.id);
+    });
   }
 
   async function publishRecord(recordId) {
@@ -1178,30 +1234,32 @@
     });
     if (!canPublish) return;
 
-    const rec = JSON.parse(JSON.stringify(existing));
-    rec.mission = normalizeAar(rec.mission || {});
-    rec.mission.meta.workflowStatus = "PUBLISHED";
-    rec.mission.meta.qwiReviewedAt = new Date().toISOString();
-    rec.mission.meta.publishedAt = rec.mission.meta.qwiReviewedAt;
-    rec.workflowStatus = "PUBLISHED";
-    rec.updatedAt = new Date().toISOString();
+    await withBusy("Publication Reader en cours...", async () => {
+      const rec = JSON.parse(JSON.stringify(existing));
+      rec.mission = normalizeAar(rec.mission || {});
+      rec.mission.meta.workflowStatus = "PUBLISHED";
+      rec.mission.meta.qwiReviewedAt = new Date().toISOString();
+      rec.mission.meta.publishedAt = rec.mission.meta.qwiReviewedAt;
+      rec.workflowStatus = "PUBLISHED";
+      rec.updatedAt = new Date().toISOString();
 
-    try {
-      const driveMeta = await pushUpsertToDrive(rec, existing);
-      rec.driveFileId = driveMeta.id || rec.driveFileId || "";
-      rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
-      rec.source = "drive_file";
-      rec.sourceName = "google_drive_qwi";
-      rec.qwiDirty = false;
-      delete rec.qwiError;
-      const rows = state.reports.filter((x) => x.id !== rec.id);
-      rows.push(rec);
-      await persistRecords(rows);
-      toast("AAR publie sur le Reader.");
-      openDetail(rec.id);
-    } catch (error) {
-      toast(`Publication impossible: ${error?.message || error}`);
-    }
+      try {
+        const driveMeta = await pushUpsertToDrive(rec, existing);
+        rec.driveFileId = driveMeta.id || rec.driveFileId || "";
+        rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
+        rec.source = "drive_file";
+        rec.sourceName = "google_drive_qwi";
+        rec.qwiDirty = false;
+        delete rec.qwiError;
+        const rows = state.reports.filter((x) => x.id !== rec.id);
+        rows.push(rec);
+        await persistRecords(rows);
+        toast("AAR publie sur le Reader.");
+        openDetail(rec.id);
+      } catch (error) {
+        toast(`Publication impossible: ${error?.message || error}`);
+      }
+    });
   }
 
   async function deleteRecord(recordId) {
@@ -1218,22 +1276,24 @@
     });
     if (!canDelete) return;
 
-    if (rec.driveFileId) {
-      try {
-        await pushDeleteToDrive(rec);
-      } catch (error) {
-        toast(`Suppression Drive refusee: ${error.message || error}`);
-        return;
+    await withBusy("Suppression AAR en cours...", async () => {
+      if (rec.driveFileId) {
+        try {
+          await pushDeleteToDrive(rec);
+        } catch (error) {
+          toast(`Suppression Drive refusee: ${error.message || error}`);
+          return;
+        }
       }
-    }
 
-    markDeleted(recordId);
-    const rows = state.reports.filter((x) => x.id !== recordId);
-    await persistRecords(rows);
-    closeDetail();
+      markDeleted(recordId);
+      const rows = state.reports.filter((x) => x.id !== recordId);
+      await persistRecords(rows);
+      closeDetail();
 
-    if (rec.driveFileId) toast("AAR supprime (Drive + local).");
-    else toast("AAR supprime localement.");
+      if (rec.driveFileId) toast("AAR supprime (Drive + local).");
+      else toast("AAR supprime localement.");
+    });
   }
 
   function ensureCategoryValueInCatalog(category, value) {
@@ -1405,45 +1465,51 @@
     if (adminBusy) return;
     adminBusy = true;
     try {
-      const changed = [];
-      const now = new Date().toISOString();
-      const rows = state.reports.map((record) => {
-        const clone = JSON.parse(JSON.stringify(record));
-        const hasChanged = mutator(clone);
-        if (!hasChanged) return record;
-        clone.updatedAt = now;
-        changed.push(clone);
-        return clone;
-      });
+      await withBusy(`${successLabel}: traitement en cours...`, async () => {
+        const changed = [];
+        const now = new Date().toISOString();
+        const rows = state.reports.map((record) => {
+          const clone = JSON.parse(JSON.stringify(record));
+          const hasChanged = mutator(clone);
+          if (!hasChanged) return record;
+          clone.updatedAt = now;
+          changed.push(clone);
+          return clone;
+        });
 
-      if (!changed.length) {
-        toast("Aucune donnee a modifier.");
-        return;
-      }
-
-      let ok = 0;
-      let ko = 0;
-      for (const rec of changed) {
-        try {
-          const driveMeta = await pushUpsertToDrive(rec, rec);
-          rec.driveFileId = driveMeta.id || rec.driveFileId || "";
-          rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
-          rec.source = "drive_file";
-          rec.sourceName = "google_drive_qwi";
-          rec.qwiDirty = false;
-          delete rec.qwiError;
-          ok += 1;
-        } catch (error) {
-          rec.qwiDirty = true;
-          rec.qwiError = String(error?.message || error || "erreur inconnue");
-          ko += 1;
+        if (!changed.length) {
+          toast("Aucune donnee a modifier.");
+          return;
         }
-      }
 
-      await persistRecords(rows);
-      renderAdmin();
-      if (ko) toast(`${successLabel}: ${ok} MAJ, ${ko} en echec.`);
-      else toast(`${successLabel}: ${ok} AAR mis a jour.`);
+        let ok = 0;
+        let ko = 0;
+        let idx = 0;
+        for (const rec of changed) {
+          idx += 1;
+          setBusyMessage(`${successLabel}: MAJ Drive ${idx}/${changed.length}`);
+          try {
+            const driveMeta = await pushUpsertToDrive(rec, rec);
+            rec.driveFileId = driveMeta.id || rec.driveFileId || "";
+            rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
+            rec.source = "drive_file";
+            rec.sourceName = "google_drive_qwi";
+            rec.qwiDirty = false;
+            delete rec.qwiError;
+            ok += 1;
+          } catch (error) {
+            rec.qwiDirty = true;
+            rec.qwiError = String(error?.message || error || "erreur inconnue");
+            ko += 1;
+          }
+        }
+
+        setBusyMessage(`${successLabel}: finalisation...`);
+        await persistRecords(rows);
+        renderAdmin();
+        if (ko) toast(`${successLabel}: ${ok} MAJ, ${ko} en echec.`);
+        else toast(`${successLabel}: ${ok} AAR mis a jour.`);
+      });
     } finally {
       adminBusy = false;
     }
@@ -1510,7 +1576,9 @@
       return true;
     }, `${def.label}: normalisation`);
     try {
-      await syncMissionCatalogToBackend(getCurrentCatalog());
+      await withBusy(`${def.label}: synchronisation...`, async () => {
+        await syncMissionCatalogToBackend(getCurrentCatalog());
+      });
     } catch (error) {
       console.warn("Catalog sync failed after mapping", error);
     }
@@ -1531,7 +1599,9 @@
       return;
     }
     try {
-      await syncMissionCatalogToBackend(getCurrentCatalog());
+      await withBusy(`${def.label}: synchronisation...`, async () => {
+        await syncMissionCatalogToBackend(getCurrentCatalog());
+      });
       toast(`${def.label}: element ajoute.`);
     } catch (error) {
       toast(`Ajout local OK, sync backend KO: ${error.message || error}`);
@@ -1580,7 +1650,9 @@
     }, `${def.label}: renommage`);
 
     try {
-      await syncMissionCatalogToBackend(getCurrentCatalog());
+      await withBusy(`${def.label}: synchronisation...`, async () => {
+        await syncMissionCatalogToBackend(getCurrentCatalog());
+      });
     } catch (error) {
       toast(`Renommage local OK, sync backend KO: ${error.message || error}`);
       return;
@@ -1611,7 +1683,9 @@
     renderAdmin();
 
     try {
-      await syncMissionCatalogToBackend(getCurrentCatalog());
+      await withBusy(`${def.label}: synchronisation...`, async () => {
+        await syncMissionCatalogToBackend(getCurrentCatalog());
+      });
       toast(`${def.label}: element supprime.`);
     } catch (error) {
       toast(`Suppression locale OK, sync backend KO: ${error.message || error}`);
@@ -2142,31 +2216,35 @@
   }
 
   async function connectDrive() {
-    try {
-      await ensureDriveAccess(true);
-      toast("Connexion Google Drive OK.");
-    } catch (error) {
-      toast(`Connexion Drive impossible: ${error.message || error}`);
-    }
+    await withBusy("Connexion Google Drive en cours...", async () => {
+      try {
+        await ensureDriveAccess(true);
+        toast("Connexion Google Drive OK.");
+      } catch (error) {
+        toast(`Connexion Drive impossible: ${error.message || error}`);
+      }
+    });
   }
 
   async function initMissionCatalog() {
-    baseCatalog = buildBaseCatalogFromEditorConfig();
-    invalidateCatalogCaches();
-    const localCatalog = readCatalogFromStorage();
-    let merged = localCatalog;
+    await withBusy("Chargement du referentiel QWI...", async () => {
+      baseCatalog = buildBaseCatalogFromEditorConfig();
+      invalidateCatalogCaches();
+      const localCatalog = readCatalogFromStorage();
+      let merged = localCatalog;
 
-    if (usesAppsScriptBackend()) {
-      try {
-        const remoteCatalog = await fetchRemoteCatalogFromBackend();
-        merged = mergeCatalogs(remoteCatalog, merged);
-      } catch (error) {
-        console.warn("Remote mission catalog unavailable", error);
+      if (usesAppsScriptBackend()) {
+        try {
+          const remoteCatalog = await fetchRemoteCatalogFromBackend();
+          merged = mergeCatalogs(remoteCatalog, merged);
+        } catch (error) {
+          console.warn("Remote mission catalog unavailable", error);
+        }
       }
-    }
 
-    setCurrentCatalog(merged, true);
-    if (state.mode === "admin") renderAdmin();
+      setCurrentCatalog(merged, true);
+      if (state.mode === "admin") renderAdmin();
+    });
   }
 
   function installTopActions() {
@@ -2210,29 +2288,32 @@
 
   const baseSyncPreferred = syncPreferred;
   syncPreferred = async function patchedSyncPreferred(opts = {}) {
-    const localRecords = state.reports.filter((x) => x.source === LOCAL_SOURCE || x.qwiDirty);
-    let deletedIds = getDeletedIds();
+    await withBusy("Synchronisation HUB en cours...", async () => {
+      const localRecords = state.reports.filter((x) => x.source === LOCAL_SOURCE || x.qwiDirty);
+      let deletedIds = getDeletedIds();
 
-    await baseSyncPreferred(opts);
+      await baseSyncPreferred(opts);
 
-    // If Drive sync is unavailable and we are on static source, do not keep stale local deletions.
-    const hasDriveRecords = state.reports.some((x) => x.source === "drive_file");
-    if (!hasDriveRecords && deletedIds.size) {
-      saveDeletedIds(new Set());
-      deletedIds = new Set();
-    }
+      // If Drive sync is unavailable and we are on static source, do not keep stale local deletions.
+      const hasDriveRecords = state.reports.some((x) => x.source === "drive_file");
+      if (!hasDriveRecords && deletedIds.size) {
+        saveDeletedIds(new Set());
+        deletedIds = new Set();
+      }
 
-    let merged = state.reports.filter((x) => !deletedIds.has(x.id));
-    for (const localRec of localRecords) {
-      merged = merged.filter((x) => x.id !== localRec.id);
-      merged.push(localRec);
-    }
+      let merged = state.reports.filter((x) => !deletedIds.has(x.id));
+      for (const localRec of localRecords) {
+        merged = merged.filter((x) => x.id !== localRec.id);
+        merged.push(localRec);
+      }
 
-    if (merged.length !== state.reports.length || localRecords.length || deletedIds.size) {
-      await persistRecords(merged);
-    }
+      if (merged.length !== state.reports.length || localRecords.length || deletedIds.size) {
+        setBusyMessage("Synchronisation HUB: finalisation locale...");
+        await persistRecords(merged);
+      }
 
-    if (state.mode === "admin") renderAdmin();
+      if (state.mode === "admin") renderAdmin();
+    });
   };
 
   window.addEventListener("message", async (evt) => {

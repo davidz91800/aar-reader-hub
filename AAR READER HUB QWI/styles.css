@@ -1515,6 +1515,83 @@ body {
   padding: 0.6rem 0.2rem;
 }
 
+/* QWI busy HUD */
+.qwi-busy-hud {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  right: calc(env(safe-area-inset-right, 0px) + 14px);
+  z-index: 1200;
+  min-width: 250px;
+  max-width: min(440px, calc(100vw - 28px));
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.62rem 0.72rem;
+  border-radius: 14px;
+  border: 1px solid rgba(96, 165, 250, 0.48);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 29, 56, 0.96));
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45), inset 0 0 0 1px rgba(59, 130, 246, 0.16);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.qwi-busy-hud.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.qwi-busy-orb {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  position: relative;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(59, 130, 246, 0.22) 45%, rgba(15, 23, 42, 0.1) 70%);
+}
+.qwi-busy-orb::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid transparent;
+  border-top-color: rgba(56, 189, 248, 1);
+  border-right-color: rgba(96, 165, 250, 0.95);
+  animation: qwiBusySpin 0.95s linear infinite;
+}
+.qwi-busy-orb::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  border: 2px solid rgba(147, 197, 253, 0.22);
+}
+.qwi-busy-copy {
+  min-width: 0;
+}
+.qwi-busy-title {
+  font-size: 0.71rem;
+  font-weight: 900;
+  line-height: 1.15;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(191, 219, 254, 0.95);
+}
+.qwi-busy-message {
+  margin-top: 0.1rem;
+  font-size: 0.8rem;
+  line-height: 1.28;
+  color: rgba(226, 232, 240, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@keyframes qwiBusySpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* â•â•â• TOAST â•â•â• */
 .toast {
   position: fixed;
