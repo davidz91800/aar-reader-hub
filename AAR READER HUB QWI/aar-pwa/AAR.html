@@ -1808,8 +1808,9 @@
                     <div class="form-group">
                         <label>Pays</label>
                         <div class="combo-box" id="country-search-combo">
-                                <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
-                                    autocomplete="off" onfocus="App.openLogCountryMenu()" onclick="App.openLogCountryMenu()"
+                                <input type="text" id="meta-log-country-search" placeholder="Rechercher un pays..."
+                                    autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done"
+                                    onfocus="App.openLogCountryMenu()" onclick="App.openLogCountryMenu()"
                                     oninput="App.filterLogCountries(this.value)">
                             <div id="meta-log-country-menu" class="combo-menu" role="listbox" aria-label="Suggestions pays"></div>
                         </div>
@@ -1822,8 +1823,9 @@
                     <div class="form-group">
                         <label>Terrain OACI</label>
                         <div class="combo-box" id="airfield-search-combo">
-                                <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
-                                    autocomplete="off" onfocus="App.openLogAirfieldMenu()" onclick="App.openLogAirfieldMenu()"
+                                <input type="text" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
+                                    autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="done"
+                                    onfocus="App.openLogAirfieldMenu()" onclick="App.openLogAirfieldMenu()"
                                     oninput="App.filterLogAirfields(this.value)">
                             <div id="meta-log-airfield-menu" class="combo-menu" role="listbox" aria-label="Suggestions terrain OACI"></div>
                         </div>
