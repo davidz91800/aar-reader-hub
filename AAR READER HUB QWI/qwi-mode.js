@@ -5,6 +5,7 @@
   const DELETED_KEY = "aar_qwi_deleted_ids_v1";
   const MISSION_CATALOG_KEY = "aar_mission_catalog_v1";
   const HASHTAG_CATALOG_KEY = "aar_hashtag_catalog_v1";
+  const ADMIN_UI_STATE_KEY = "aar_qwi_admin_ui_v2";
   const EDITOR_RELATIVE_URL = "./aar-pwa/AAR.html";
   const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
   const sessions = new Map();
@@ -27,6 +28,8 @@
   let baseCatalog = createEmptyCatalog();
   let effectiveCatalogCache = null;
   const effectiveCategorySetCache = new Map();
+  let adminActiveCategory = CATALOG_KEYS[0];
+  let adminOpenHelpKey = "";
   const adminCatalogSearch = {};
   let confirmUi = null;
 
@@ -266,6 +269,37 @@
 
   function createEmptyCatalog() {
     return { hashtags: [], countries: [], oaci: [], operations: [], exercises: [] };
+  }
+
+  function readAdminUiState() {
+    try {
+      const raw = localStorage.getItem(ADMIN_UI_STATE_KEY);
+      if (!raw) return { activeCategory: CATALOG_KEYS[0], searches: {} };
+      const parsed = JSON.parse(raw);
+      return {
+        activeCategory: CATALOG_KEYS.includes(parsed?.activeCategory) ? parsed.activeCategory : CATALOG_KEYS[0],
+        searches: parsed?.searches && typeof parsed.searches === "object" ? parsed.searches : {}
+      };
+    } catch {
+      return { activeCategory: CATALOG_KEYS[0], searches: {} };
+    }
+  }
+
+  function saveAdminUiState() {
+    try {
+      localStorage.setItem(ADMIN_UI_STATE_KEY, JSON.stringify({
+        activeCategory: adminActiveCategory,
+        searches: adminCatalogSearch
+      }));
+    } catch {
+      // Ignore localStorage failures.
+    }
+  }
+
+  {
+    const savedAdminUi = readAdminUiState();
+    adminActiveCategory = savedAdminUi.activeCategory;
+    Object.assign(adminCatalogSearch, savedAdminUi.searches || {});
   }
 
   function cloneCatalog(catalog) {
@@ -1201,12 +1235,12 @@
         noteSuffix = `${values.length} code(s) disponibles dans la PWA AAR. Le socle OACI complet est masque ici par defaut; tape un code pour le rechercher.`;
         emptyText = officialValues.length
           ? "Aucune valeur ne correspond au filtre."
-          : "Aucun code OACI officiel QWI. Le socle complet n'est pas affiche ici; utilise le filtre pour rechercher un code precis.";
+          : "Aucun code OACI officiel QWI.";
       } else if (category === "countries") {
         noteSuffix = `${values.length} pays disponibles dans la PWA AAR. Le socle pays complet est masque ici par defaut; tape un pays pour le rechercher.`;
         emptyText = officialValues.length
           ? "Aucune valeur ne correspond au filtre."
-          : "Aucun pays officiel QWI. Le socle complet n'est pas affiche ici; utilise le filtre pour rechercher un pays precis.";
+          : "Aucun pays officiel QWI.";
       }
     } else if (!query && filteredValues.length > renderLimit) {
       noteSuffix += `, affichage des ${renderLimit} premieres.`;
@@ -1219,7 +1253,10 @@
       filteredValues,
       visibleValues,
       noteText: noteSuffix,
-      emptyText
+      emptyText,
+      query,
+      hidesFullBaseByDefault,
+      isCollapsedBase: hidesFullBaseByDefault && !query
     };
   }
 
@@ -1511,84 +1548,223 @@
     }
   }
 
-  function renderAdminCard(category, candidates = []) {
-    const def = CATALOG_DEFS[category];
-    const searchValue = String(adminCatalogSearch[category] || "");
-    const view = getAdminCatalogView(category, searchValue);
-    const values = view.values;
+  function getAdminHelpContent(kind, category, model) {
+    const def = CATALOG_DEFS[category] || {};
+    const label = String(def.label || "").trim();
+    const lowerLabel = label ? label.toLowerCase() : "valeurs";
+    const extraBaseNote = model?.view?.isCollapsedBase
+      ? "Le socle embarque complet n'est pas affiche d'un bloc ici. Utilise le filtre pour aller chercher une valeur precise."
+      : "";
+
+    switch (kind) {
+      case "overview":
+        return {
+          title: "Mode d'emploi",
+          body: [
+            "Chaque sous-onglet gere un referentiel visible dans la PWA AAR.",
+            "Commence par 'A classer'. 'Creer' officialise la valeur telle quelle. 'Rattacher' remplace une variante par une valeur deja existante dans les AAR concernes.",
+            "Si une valeur officielle est supprimee alors qu'elle est encore utilisee, elle ne disparait pas des AAR: elle redevient simplement 'a classer'."
+          ]
+        };
+      case "category":
+        return {
+          title: `Referentiel ${label}`,
+          body: [
+            `Ce sous-onglet pilote les valeurs ${lowerLabel} proposees aux redacteurs dans la PWA AAR.`,
+            extraBaseNote || "Les valeurs officielles QWI s'ajoutent au socle embarque du formulaire."
+          ].filter(Boolean)
+        };
+      case "pending":
+        return {
+          title: "Valeurs a classer",
+          body: [
+            "Cette liste montre les valeurs vues dans les AAR mais pas encore presentes dans le referentiel officiel.",
+            "Utilise 'Creer' si la valeur doit devenir officielle telle quelle. Utilise 'Rattacher' si c'est juste une variante d'une valeur deja existante."
+          ]
+        };
+      case "add":
+        return {
+          title: "Ajouter manuellement",
+          body: [
+            "Ajoute ici une valeur officielle meme si aucun AAR ne l'a encore proposee.",
+            "Une fois synchronisee, elle sera disponible pour les redacteurs dans la PWA AAR."
+          ]
+        };
+      case "catalog":
+        return {
+          title: "Referentiel actuel",
+          body: [
+            "Cette liste correspond a ce que la PWA AAR sait proposer aux redacteurs.",
+            "Socle AAR = valeur deja embarquee dans le formulaire. Officiel QWI = valeur geree dynamiquement depuis cette administration.",
+            model?.view?.noteText || "",
+            extraBaseNote
+          ].filter(Boolean)
+        };
+      default:
+        return null;
+    }
+  }
+
+  function renderAdminHelp(helpKey, payload, className = "") {
+    if (!payload) return "";
+    const isOpen = adminOpenHelpKey === helpKey;
+    return `
+      <div class="admin-help ${className} ${isOpen ? "is-open" : ""}">
+        <button class="admin-help-btn" type="button" data-admin-help-toggle="${esc(helpKey)}" aria-label="${esc(payload.title || "Aide")}">?</button>
+        ${isOpen ? `
+          <div class="admin-help-pop" role="note">
+            <div class="admin-help-pop-title">${esc(payload.title || "Aide")}</div>
+            <div class="admin-help-pop-body">
+              ${(payload.body || []).map((line) => `<p>${esc(line)}</p>`).join("")}
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  function renderAdminTab(category, model, isActive) {
+    const def = model.def;
+    return `
+      <button
+        class="admin-tab ${isActive ? "is-active" : ""}"
+        type="button"
+        data-admin-tab="${esc(category)}"
+        aria-pressed="${isActive ? "true" : "false"}"
+      >
+        <span class="admin-tab-label">${esc(def.label)}</span>
+        <span class="admin-tab-meta">${model.pendingCount ? `${model.pendingCount} a classer` : `${model.officialCount} officiels`}</span>
+        <span class="admin-tab-badge ${model.pendingCount ? "is-alert" : "is-ok"}">${model.pendingCount || "OK"}</span>
+      </button>
+    `;
+  }
+
+  function renderAdminCard(category, model) {
+    const def = model.def;
+    const view = model.view;
+    const candidates = model.candidates;
     const visibleValues = view.visibleValues;
     const singular = esc(def.singular || def.label.toLowerCase());
+    const searchPlaceholder = category === "hashtags"
+      ? "Filtrer les hashtags"
+      : category === "countries"
+      ? "Rechercher un pays"
+      : category === "oaci"
+      ? "Rechercher un code OACI"
+      : `Filtrer ${singular}`;
 
     return `
-      <article class="admin-card" data-category="${esc(category)}">
-        <div class="admin-card-head">
-          <div>
-            <h3>${esc(def.label)}</h3>
-            <div class="admin-note">Classe ici les valeurs proposees par les AAR pour obtenir un referentiel propre et reutilisable.</div>
+      <article class="admin-stage" data-category="${esc(category)}">
+        <div class="admin-stage-head">
+          <div class="admin-stage-copy">
+            <div class="admin-stage-kicker">Referentiel actif</div>
+            <div class="admin-stage-title-row">
+              <h3>${esc(def.label)}</h3>
+              ${renderAdminHelp(`category:${category}`, getAdminHelpContent("category", category, model))}
+            </div>
           </div>
-          <div class="admin-chip ${candidates.length ? "admin-chip-alert" : "admin-chip-ok"}">
-            ${candidates.length ? `${candidates.length} a classer` : `Rien a classer`}
+          <div class="admin-stage-stats">
+            <div class="admin-stage-stat">
+              <span class="admin-stage-stat-value">${model.pendingCount}</span>
+              <span class="admin-stage-stat-label">A classer</span>
+            </div>
+            <div class="admin-stage-stat">
+              <span class="admin-stage-stat-value">${model.officialCount}</span>
+              <span class="admin-stage-stat-label">Officiels QWI</span>
+            </div>
+            <div class="admin-stage-stat">
+              <span class="admin-stage-stat-value">${model.availableCount}</span>
+              <span class="admin-stage-stat-label">Visibles PWA</span>
+            </div>
           </div>
         </div>
 
-        <div class="admin-section">
-          <div class="admin-section-title">1. Valeurs a classer</div>
-          <div class="admin-section-help">Si la valeur doit devenir officielle, clique sur "Creer". Si c'est une variante d'une valeur existante, choisis la cible puis clique sur "Rattacher".</div>
-        </div>
-        <div class="admin-list admin-list-pending">
-          ${candidates.length ? candidates.map((row, idx) => `
-            <div class="admin-item admin-item-pending">
-              <div class="admin-item-top">
-                <div>
-                  <div class="admin-item-value">${esc(row.value)}</div>
-                  <div class="admin-item-meta">${esc(getCandidateReasonLabel(row))}</div>
+        <div class="admin-stage-grid">
+          <section class="admin-panel admin-panel-priority">
+            <div class="admin-panel-head">
+              <div class="admin-panel-title-wrap">
+                <div class="admin-panel-title">Valeurs a classer</div>
+                <div class="admin-panel-submeta">${candidates.length ? `${candidates.length} valeur(s) en attente` : "File vide"}</div>
+              </div>
+              ${renderAdminHelp(`pending:${category}`, getAdminHelpContent("pending", category, model))}
+            </div>
+            <div class="admin-list admin-list-pending">
+              ${candidates.length ? candidates.map((row, idx) => `
+                <div class="admin-item admin-item-pending">
+                  <div class="admin-item-top">
+                    <div>
+                      <div class="admin-item-value">${esc(row.value)}</div>
+                      <div class="admin-item-meta">${esc(getCandidateReasonLabel(row))}</div>
+                    </div>
+                    <div class="admin-item-count">${row.count} AAR</div>
+                  </div>
+                  ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<button class="admin-example-chip" data-admin-open-record="${esc(example.id || "")}" type="button">${esc(example.label || "")}</button>`).join("")}</div>` : ""}
+                  <div class="admin-action-grid">
+                    <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Creer</button>
+                    <select class="admin-select" data-admin-map-select="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}">
+                      <option value="">Rattacher a...</option>
+                      ${getMappingOptionsForCandidate(category, row.value).map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}
+                    </select>
+                    <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Rattacher</button>
+                  </div>
                 </div>
-                <div class="admin-item-count">${row.count} AAR</div>
-              </div>
-              ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<button class="admin-example-chip" data-admin-open-record="${esc(example.id || "")}" type="button">${esc(example.label || "")}</button>`).join("")}</div>` : ""}
-              <div class="admin-action-grid">
-                <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Creer ce ${singular}</button>
-                <select class="admin-select" data-admin-map-select="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}">
-                  <option value="">Rattacher a une valeur existante...</option>
-                  ${getMappingOptionsForCandidate(category, row.value).map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}
-                </select>
-                <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Rattacher</button>
-              </div>
+              `).join("") : `<div class="admin-empty">Aucune valeur en attente.</div>`}
             </div>
-          `).join("") : `<div class="admin-empty">Aucune valeur en attente. Tout ce qui a ete propose par les AAR existe deja dans ce referentiel.</div>`}
-        </div>
+          </section>
 
-        <div class="admin-section">
-          <div class="admin-section-title">2. Ajouter manuellement</div>
-          <div class="admin-section-help">Utilise cette zone pour creer une valeur officielle, meme si aucun AAR ne l'a encore proposee.</div>
-          <div class="admin-row">
-            <input class="admin-input" data-admin-add-input="${esc(category)}" placeholder="Ajouter un ${singular}">
-            <button class="admin-btn admin-btn-primary" data-admin-add-btn="${esc(category)}" type="button">Ajouter</button>
-          </div>
-        </div>
-
-        <div class="admin-section">
-          <div class="admin-section-title">3. Referentiel actuel</div>
-          <div class="admin-section-help">Cette liste correspond aux valeurs effectivement proposees dans la PWA AAR. Les valeurs marquees "Socle AAR" viennent du formulaire embarque; les valeurs "Officiel QWI" viennent du referentiel dynamique.${category === "oaci" ? " Le socle OACI complet n'est jamais affiche d'un bloc." : category === "countries" ? " Le socle pays complet n'est jamais affiche d'un bloc." : ""}</div>
-          <div class="admin-row">
-            <input class="admin-input" data-admin-search-input="${esc(category)}" value="${esc(searchValue)}" placeholder="Filtrer le referentiel ${singular}">
-          </div>
-          <div class="admin-note">${view.noteText}</div>
-        </div>
-        <div class="admin-list">
-          ${visibleValues.length ? visibleValues.map((value) => `
-            <div class="admin-item">
-              <div class="admin-item-top">
-                <div class="admin-item-value">${esc(value)}</div>
-                <div class="admin-item-meta">${isOfficialCatalogValue(category, value) ? "Officiel QWI" : "Socle AAR"}</div>
+          <div class="admin-stage-side">
+            <section class="admin-panel">
+              <div class="admin-panel-head">
+                <div class="admin-panel-title-wrap">
+                  <div class="admin-panel-title">Ajouter</div>
+                  <div class="admin-panel-submeta">Creation directe</div>
+                </div>
+                ${renderAdminHelp(`add:${category}`, getAdminHelpContent("add", category, model))}
               </div>
-              ${isOfficialCatalogValue(category, value) ? `
               <div class="admin-row">
-                <button class="admin-btn" data-admin-rename-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Renommer</button>
-                <button class="admin-btn admin-btn-danger" data-admin-delete-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Supprimer</button>
-              </div>` : ""}
-            </div>
-          `).join("") : `<div class="admin-empty">${view.emptyText}</div>`}
+                <input class="admin-input" data-admin-add-input="${esc(category)}" placeholder="Ajouter un ${singular}">
+                <button class="admin-btn admin-btn-primary" data-admin-add-btn="${esc(category)}" type="button">Ajouter</button>
+              </div>
+            </section>
+
+            <section class="admin-panel">
+              <div class="admin-panel-head">
+                <div class="admin-panel-title-wrap">
+                  <div class="admin-panel-title">Referentiel actuel</div>
+                  <div class="admin-panel-submeta">
+                    ${view.query ? `${view.filteredValues.length} resultat(s)` : `${visibleValues.length} visible(s)`}
+                  </div>
+                </div>
+                ${renderAdminHelp(`catalog:${category}`, getAdminHelpContent("catalog", category, model))}
+              </div>
+              <div class="admin-row admin-row-search">
+                <input class="admin-input" data-admin-search-input="${esc(category)}" value="${esc(model.searchValue)}" placeholder="${esc(searchPlaceholder)}">
+              </div>
+              <div class="admin-inline-metrics">
+                <span class="admin-mini-chip">${model.availableCount} total</span>
+                <span class="admin-mini-chip">${model.officialCount} officiel(s)</span>
+                ${view.isCollapsedBase ? `<span class="admin-mini-chip is-muted">Socle masque</span>` : ""}
+              </div>
+              <div class="admin-list">
+                ${visibleValues.length ? visibleValues.map((value) => `
+                  <div class="admin-item">
+                    <div class="admin-item-top">
+                      <div>
+                        <div class="admin-item-value">${esc(value)}</div>
+                        <div class="admin-item-meta">${isOfficialCatalogValue(category, value) ? "Officiel QWI" : "Socle AAR"}</div>
+                      </div>
+                    </div>
+                    ${isOfficialCatalogValue(category, value) ? `
+                      <div class="admin-row">
+                        <button class="admin-btn" data-admin-rename-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Renommer</button>
+                        <button class="admin-btn admin-btn-danger" data-admin-delete-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Supprimer</button>
+                      </div>
+                    ` : ""}
+                  </div>
+                `).join("") : `<div class="admin-empty">${esc(view.emptyText)}</div>`}
+              </div>
+            </section>
+          </div>
         </div>
       </article>
     `;
@@ -1596,6 +1772,27 @@
 
   function bindAdminEvents(container) {
     if (!container) return;
+
+    container.querySelectorAll("[data-admin-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const nextCategory = btn.getAttribute("data-admin-tab");
+        if (!CATALOG_KEYS.includes(nextCategory)) return;
+        adminActiveCategory = nextCategory;
+        adminOpenHelpKey = "";
+        saveAdminUiState();
+        renderAdmin(container);
+      });
+    });
+
+    container.querySelectorAll("[data-admin-help-toggle]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const helpKey = String(btn.getAttribute("data-admin-help-toggle") || "").trim();
+        adminOpenHelpKey = adminOpenHelpKey === helpKey ? "" : helpKey;
+        renderAdmin(container);
+      });
+    });
 
     container.querySelectorAll("[data-admin-add-input]").forEach((input) => {
       input.addEventListener("keydown", (event) => {
@@ -1623,6 +1820,7 @@
       input.addEventListener("input", () => {
         const category = input.getAttribute("data-admin-search-input");
         adminCatalogSearch[category] = input.value || "";
+        saveAdminUiState();
         renderAdmin(container, {
           focusCategory: category,
           selectionStart: input.selectionStart,
@@ -1700,28 +1898,57 @@
     const totalOfficialValues = CATALOG_KEYS.reduce((sum, key) => sum + ((officialCatalog[key] || []).length), 0);
     const totalAvailableValues = CATALOG_KEYS.reduce((sum, key) => sum + ((effectiveCatalog[key] || []).length), 0);
     const pendingSummary = getAdminPendingSummary();
+    if (!CATALOG_KEYS.includes(adminActiveCategory)) adminActiveCategory = CATALOG_KEYS[0];
+
+    const categoryModels = {};
+    CATALOG_KEYS.forEach((key) => {
+      const def = CATALOG_DEFS[key];
+      const searchValue = String(adminCatalogSearch[key] || "");
+      const view = getAdminCatalogView(key, searchValue);
+      const candidates = extractOtherCandidates(key);
+      categoryModels[key] = {
+        key,
+        def,
+        searchValue,
+        view,
+        candidates,
+        pendingCount: candidates.length,
+        officialCount: (officialCatalog[key] || []).length,
+        availableCount: (effectiveCatalog[key] || []).length
+      };
+    });
+    const activeModel = categoryModels[adminActiveCategory];
 
     targetEl.innerHTML = `
       <div class="admin-wrap">
         <div class="admin-header">
-          <div>
-            <div class="admin-title">Administration des referentiels QWI</div>
-            <div class="admin-subtitle">But: transformer les valeurs proposees par les AAR en valeurs officielles simples a reutiliser dans toute l'application.</div>
+          <div class="admin-header-copy">
+            <div class="admin-title-row">
+              <div class="admin-title">Administration QWI</div>
+              ${renderAdminHelp("overview", getAdminHelpContent("overview", adminActiveCategory, activeModel), "admin-help-header")}
+            </div>
+            <div class="admin-subtitle">Hashtags, pays, OACI, operations et exercices.</div>
           </div>
-          <div class="admin-kpis">
-            <div class="admin-chip ${pendingSummary.total ? "admin-chip-alert" : "admin-chip-ok"}">${pendingSummary.total} valeur(s) a classer</div>
-            <div class="admin-chip">${totalAvailableValues} valeur(s) visibles dans la PWA AAR</div>
-            <div class="admin-chip">${totalOfficialValues} valeur(s) officielles QWI</div>
+          <div class="admin-stat-strip">
+            <div class="admin-stat-card ${pendingSummary.total ? "is-alert" : "is-ok"}">
+              <span class="admin-stat-value">${pendingSummary.total}</span>
+              <span class="admin-stat-label">A classer</span>
+            </div>
+            <div class="admin-stat-card">
+              <span class="admin-stat-value">${totalAvailableValues}</span>
+              <span class="admin-stat-label">Visibles PWA</span>
+            </div>
+            <div class="admin-stat-card">
+              <span class="admin-stat-value">${totalOfficialValues}</span>
+              <span class="admin-stat-label">Officiels QWI</span>
+            </div>
           </div>
         </div>
-        <div class="admin-guide">
-          <div class="admin-step"><span>1</span> Va d'abord dans "Valeurs a classer".</div>
-          <div class="admin-step"><span>2</span> Clique sur "Creer" si la valeur doit devenir officielle.</div>
-          <div class="admin-step"><span>3</span> Utilise "Rattacher" si c'est juste une variante d'une valeur existante.</div>
-          <div class="admin-step"><span>4</span> Si tu supprimes une valeur officielle encore utilisee dans un AAR, elle redevient simplement "a classer".</div>
+        <div class="admin-tabs" role="tablist" aria-label="Referentiels QWI">
+          ${CATALOG_KEYS.map((key) => renderAdminTab(key, categoryModels[key], key === adminActiveCategory)).join("")}
         </div>
         <div class="admin-grid">
-          ${CATALOG_KEYS.map((key) => renderAdminCard(key, extractOtherCandidates(key))).join("")}
+          ${renderAdminCard(adminActiveCategory, activeModel)}
         </div>
       </div>
     `;
