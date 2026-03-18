@@ -920,6 +920,43 @@
     return { total, byCategory };
   }
 
+  function getAdminCatalogView(category, searchValue) {
+    const effectiveCatalog = getEffectiveCatalog();
+    const officialCatalog = getCurrentCatalog();
+    const values = effectiveCatalog[category] || [];
+    const officialValues = officialCatalog[category] || [];
+    const query = normalizeTextValue(searchValue);
+    const filteredValues = query
+      ? values.filter((value) => normalizeTextValue(value).toUpperCase().includes(query.toUpperCase()))
+      : values;
+
+    const isOaci = category === "oaci";
+    const renderLimit = query ? filteredValues.length : Math.min(filteredValues.length, 120);
+    let visibleValues = filteredValues.slice(0, renderLimit);
+    let noteSuffix = `${values.length} valeur(s) disponibles au total${query ? `, ${filteredValues.length} correspondance(s)` : ""}`;
+    let emptyText = values.length ? "Aucune valeur ne correspond au filtre." : "Aucun element disponible dans ce referentiel.";
+
+    if (isOaci && !query) {
+      visibleValues = [...officialValues];
+      noteSuffix = `${values.length} code(s) disponibles dans la PWA AAR. Le socle OACI complet est masque ici par defaut; tape un code pour le rechercher.`;
+      emptyText = officialValues.length
+        ? "Aucune valeur ne correspond au filtre."
+        : "Aucun code OACI officiel QWI. Le socle complet n'est pas affiche ici; utilise le filtre pour rechercher un code precis.";
+    } else if (!query && filteredValues.length > renderLimit) {
+      noteSuffix += `, affichage des ${renderLimit} premieres.`;
+    } else {
+      noteSuffix += ".";
+    }
+
+    return {
+      values,
+      filteredValues,
+      visibleValues,
+      noteText: noteSuffix,
+      emptyText
+    };
+  }
+
   function extractOtherCandidates(category) {
     const def = CATALOG_DEFS[category];
     if (!def) return [];
@@ -1203,16 +1240,10 @@
 
   function renderAdminCard(category, candidates = []) {
     const def = CATALOG_DEFS[category];
-    const officialCatalog = getCurrentCatalog();
-    const effectiveCatalog = getEffectiveCatalog();
-    const values = effectiveCatalog[category] || [];
     const searchValue = String(adminCatalogSearch[category] || "");
-    const query = normalizeTextValue(searchValue);
-    const filteredValues = query
-      ? values.filter((value) => normalizeTextValue(value).toUpperCase().includes(query.toUpperCase()))
-      : values;
-    const renderLimit = query ? filteredValues.length : Math.min(filteredValues.length, 120);
-    const visibleValues = filteredValues.slice(0, renderLimit);
+    const view = getAdminCatalogView(category, searchValue);
+    const values = view.values;
+    const visibleValues = view.visibleValues;
     const singular = esc(def.singular || def.label.toLowerCase());
 
     return `
@@ -1265,11 +1296,11 @@
 
         <div class="admin-section">
           <div class="admin-section-title">3. Referentiel actuel</div>
-          <div class="admin-section-help">Cette liste correspond aux valeurs effectivement proposees dans la PWA AAR. Les valeurs marquees "Socle AAR" viennent du formulaire embarque; les valeurs "Officiel QWI" viennent du referentiel dynamique.</div>
+          <div class="admin-section-help">Cette liste correspond aux valeurs effectivement proposees dans la PWA AAR. Les valeurs marquees "Socle AAR" viennent du formulaire embarque; les valeurs "Officiel QWI" viennent du referentiel dynamique.${category === "oaci" ? " Le socle OACI complet n'est jamais affiche d'un bloc." : ""}</div>
           <div class="admin-row">
             <input class="admin-input" data-admin-search-input="${esc(category)}" value="${esc(searchValue)}" placeholder="Filtrer le referentiel ${singular}">
           </div>
-          <div class="admin-note">${values.length} valeur(s) disponibles au total${query ? `, ${filteredValues.length} correspondance(s)` : ""}${(!query && filteredValues.length > renderLimit) ? `, affichage des ${renderLimit} premieres` : ""}.</div>
+          <div class="admin-note">${view.noteText}</div>
         </div>
         <div class="admin-list">
           ${visibleValues.length ? visibleValues.map((value) => `
@@ -1284,7 +1315,7 @@
                 <button class="admin-btn admin-btn-danger" data-admin-delete-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Supprimer</button>
               </div>` : ""}
             </div>
-          `).join("") : `<div class="admin-empty">${values.length ? "Aucune valeur ne correspond au filtre." : "Aucun element disponible dans ce referentiel."}</div>`}
+          `).join("") : `<div class="admin-empty">${view.emptyText}</div>`}
         </div>
       </article>
     `;
@@ -1319,7 +1350,11 @@
       input.addEventListener("input", () => {
         const category = input.getAttribute("data-admin-search-input");
         adminCatalogSearch[category] = input.value || "";
-        renderAdmin(container);
+        renderAdmin(container, {
+          focusCategory: category,
+          selectionStart: input.selectionStart,
+          selectionEnd: input.selectionEnd
+        });
       });
     });
 
@@ -1378,7 +1413,7 @@
     });
   }
 
-  function renderAdmin(targetEl = document.getElementById("view-admin")) {
+  function renderAdmin(targetEl = document.getElementById("view-admin"), options = {}) {
     if (!targetEl) return;
     const officialCatalog = getCurrentCatalog();
     const effectiveCatalog = getEffectiveCatalog();
@@ -1412,6 +1447,19 @@
     `;
 
     bindAdminEvents(targetEl);
+
+    if (options && options.focusCategory) {
+      const searchInput = targetEl.querySelector(`[data-admin-search-input="${options.focusCategory}"]`);
+      if (searchInput) {
+        searchInput.focus({ preventScroll: true });
+        if (typeof options.selectionStart === "number" && typeof options.selectionEnd === "number" && searchInput.setSelectionRange) {
+          searchInput.setSelectionRange(options.selectionStart, options.selectionEnd);
+        } else {
+          const end = String(searchInput.value || "").length;
+          if (searchInput.setSelectionRange) searchInput.setSelectionRange(end, end);
+        }
+      }
+    }
   }
 
   function injectDetailActions() {
