@@ -1,7 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0f172a" />
-  <rect x="40" y="40" width="432" height="432" rx="72" fill="#1e293b" />
-  <path d="M136 148h240v28H136zm0 68h240v28H136zm0 68h148v28H136z" fill="#3b82f6" />
-  <circle cx="368" cy="360" r="72" fill="#f97316" />
-  <text x="368" y="378" text-anchor="middle" font-size="50" font-family="Arial, sans-serif" font-weight="700" fill="#0f172a">DP</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="g" cx="28%" cy="22%" r="92%">
+      <stop offset="0%" stop-color="#ff914d"/>
+      <stop offset="44%" stop-color="#bf4336"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="url(#g)"/>
+  
+  <rect x="52" y="42" width="152" height="172" rx="28" fill="rgba(248,250,252,0.96)"/>
+  <path d="M162 42h42v42z" fill="#ffd7bc"/>
+  <rect x="74" y="85" width="104" height="10" rx="5" fill="#93a3b8" opacity="0.9"/>
+  <rect x="74" y="108" width="104" height="10" rx="5" fill="#93a3b8" opacity="0.72"/>
+  <rect x="74" y="131" width="104" height="10" rx="5" fill="#93a3b8" opacity="0.72"/>
+  <path d="M78 160 C96 152,113 162,128 176 S161 170,178 154" stroke="#2563eb" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <circle cx="78" cy="160" r="6" fill="#fff" stroke="#2563eb" stroke-width="3"/>
+  <circle cx="128" cy="176" r="6" fill="#fff" stroke="#2563eb" stroke-width="3"/>
+  <polygon points="178,143 203,154 178,165 183,154" fill="#2563eb"/>
+  <path d="M20 116 A158 158 0 0 1 232 62" stroke="rgba(255,255,255,0.24)" stroke-width="8" fill="none" stroke-linecap="round"/>
+
 </svg>
