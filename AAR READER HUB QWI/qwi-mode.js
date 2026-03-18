@@ -9,11 +9,11 @@
   const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
   const sessions = new Map();
   const CATALOG_DEFS = {
-    hashtags: { label: "Hashtags", normalize: (value) => normalizeHashtag(value), selectKey: "hashtag", otherKey: "hashtagAutre" },
-    countries: { label: "Pays", normalize: (value) => normalizeTextValue(value), selectKey: "logCountry", otherKey: "logCountryAutre" },
-    oaci: { label: "Codes OACI", normalize: (value) => normalizeTextValue(value).toUpperCase(), selectKey: "logAirfield", otherKey: "logAirfieldAutre" },
-    operations: { label: "Operations", normalize: (value) => normalizeTextValue(value), selectKey: "tacOperation", otherKey: "tacOperationAutre", contextKey: "tacContext", contextValue: "OPERATIONS" },
-    exercises: { label: "Exercices", normalize: (value) => normalizeTextValue(value), selectKey: "tacExercise", otherKey: "tacExerciseAutre", contextKey: "tacContext", contextValue: "EXERCICE" }
+    hashtags: { label: "Hashtags", singular: "hashtag", normalize: (value) => normalizeHashtag(value), selectKey: "hashtag", otherKey: "hashtagAutre" },
+    countries: { label: "Pays", singular: "pays", normalize: (value) => normalizeTextValue(value), selectKey: "logCountry", otherKey: "logCountryAutre" },
+    oaci: { label: "Codes OACI", singular: "code OACI", normalize: (value) => normalizeTextValue(value).toUpperCase(), selectKey: "logAirfield", otherKey: "logAirfieldAutre" },
+    operations: { label: "Operations", singular: "operation", normalize: (value) => normalizeTextValue(value), selectKey: "tacOperation", otherKey: "tacOperationAutre", contextKey: "tacContext", contextValue: "OPERATIONS" },
+    exercises: { label: "Exercices", singular: "exercice", normalize: (value) => normalizeTextValue(value), selectKey: "tacExercise", otherKey: "tacExerciseAutre", contextKey: "tacContext", contextValue: "EXERCICE" }
   };
   const CATALOG_KEYS = Object.keys(CATALOG_DEFS);
 
@@ -781,6 +781,39 @@
     return true;
   }
 
+  function buildAdminExampleLabel(record) {
+    const title = normalizeTextValue(record?.title || record?.mission?.meta?.title || "AAR sans titre");
+    const date = normalizeTextValue(record?.date || record?.mission?.meta?.date || "");
+    return date ? `${date} - ${title}` : title;
+  }
+
+  function getCandidateReasonLabel(row) {
+    const parts = [];
+    if (row.fromOtherCount) parts.push(`${row.fromOtherCount} via AUTRE`);
+    if (row.fromUnknownCount) parts.push(`${row.fromUnknownCount} hors referentiel`);
+    return parts.length ? parts.join(" · ") : `${row.count} AAR`;
+  }
+
+  function getMappingOptionsForCandidate(category, sourceValue) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return [];
+    const source = String(def.normalize(sourceValue) || "").trim().toUpperCase();
+    return (getCurrentCatalog()[category] || []).filter((value) => {
+      return String(def.normalize(value) || "").trim().toUpperCase() !== source;
+    });
+  }
+
+  function getAdminPendingSummary() {
+    const byCategory = {};
+    let total = 0;
+    CATALOG_KEYS.forEach((key) => {
+      const count = extractOtherCandidates(key).length;
+      byCategory[key] = count;
+      total += count;
+    });
+    return { total, byCategory };
+  }
+
   function extractOtherCandidates(category) {
     const def = CATALOG_DEFS[category];
     if (!def) return [];
@@ -800,14 +833,41 @@
       const other = def.normalize(otherRaw);
 
       let candidate = "";
-      if (selectedRaw === "AUTRE" && other) candidate = other;
-      else if (selected && !known.has(selected.toUpperCase())) candidate = selected;
-      if (!candidate) return;
-      counts.set(candidate, (counts.get(candidate) || 0) + 1);
+      let sourceKind = "";
+      if (selectedRaw === "AUTRE" && other) {
+        candidate = other;
+        sourceKind = "other";
+      } else if (selected && !known.has(selected.toUpperCase())) {
+        candidate = selected;
+        sourceKind = "unknown";
+      }
+      const normalizedCandidate = def.normalize(candidate);
+      if (!normalizedCandidate) return;
+      if (known.has(normalizedCandidate.toUpperCase())) return;
+      const key = normalizedCandidate.toUpperCase();
+      let entry = counts.get(key);
+      if (!entry) {
+        entry = {
+          value: normalizedCandidate,
+          count: 0,
+          fromOtherCount: 0,
+          fromUnknownCount: 0,
+          examples: [],
+          exampleKeys: new Set()
+        };
+        counts.set(key, entry);
+      }
+      entry.count += 1;
+      if (sourceKind === "other") entry.fromOtherCount += 1;
+      if (sourceKind === "unknown") entry.fromUnknownCount += 1;
+      const exampleKey = String(record?.id || buildAdminExampleLabel(record));
+      if (!entry.exampleKeys.has(exampleKey) && entry.examples.length < 3) {
+        entry.exampleKeys.add(exampleKey);
+        entry.examples.push(buildAdminExampleLabel(record));
+      }
     });
 
-    return [...counts.entries()]
-      .map(([value, count]) => ({ value, count }))
+    return [...counts.values()]
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "fr"));
   }
 
@@ -983,20 +1043,63 @@
     }
   }
 
-  function renderAdminCard(category) {
+  function renderAdminCard(category, candidates = []) {
     const def = CATALOG_DEFS[category];
     const catalog = getCurrentCatalog();
     const values = catalog[category] || [];
-    const candidates = extractOtherCandidates(category);
-    const categorySlug = esc(def.label.toLowerCase().replace(/\s+/g, "-"));
-    const optionsHtml = values.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("");
+    const singular = esc(def.singular || def.label.toLowerCase());
 
     return `
       <article class="admin-card" data-category="${esc(category)}">
-        <h3>${esc(def.label)}</h3>
-        <div class="admin-row">
-          <input class="admin-input" data-admin-add-input="${esc(category)}" placeholder="Ajouter un element ${categorySlug}">
-          <button class="admin-btn admin-btn-primary" data-admin-add-btn="${esc(category)}" type="button">Ajouter</button>
+        <div class="admin-card-head">
+          <div>
+            <h3>${esc(def.label)}</h3>
+            <div class="admin-note">Classe ici les valeurs proposees par les AAR pour obtenir un referentiel propre et reutilisable.</div>
+          </div>
+          <div class="admin-chip ${candidates.length ? "admin-chip-alert" : "admin-chip-ok"}">
+            ${candidates.length ? `${candidates.length} a classer` : `Rien a classer`}
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <div class="admin-section-title">1. Valeurs a classer</div>
+          <div class="admin-section-help">Si la valeur doit devenir officielle, clique sur "Creer". Si c'est une variante d'une valeur existante, choisis la cible puis clique sur "Rattacher".</div>
+        </div>
+        <div class="admin-list admin-list-pending">
+          ${candidates.length ? candidates.map((row, idx) => `
+            <div class="admin-item admin-item-pending">
+              <div class="admin-item-top">
+                <div>
+                  <div class="admin-item-value">${esc(row.value)}</div>
+                  <div class="admin-item-meta">${esc(getCandidateReasonLabel(row))}</div>
+                </div>
+                <div class="admin-item-count">${row.count} AAR</div>
+              </div>
+              ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<span class="admin-example-chip">${esc(example)}</span>`).join("")}</div>` : ""}
+              <div class="admin-action-grid">
+                <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Creer ce ${singular}</button>
+                <select class="admin-select" data-admin-map-select="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}">
+                  <option value="">Rattacher a une valeur existante...</option>
+                  ${getMappingOptionsForCandidate(category, row.value).map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}
+                </select>
+                <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Rattacher</button>
+              </div>
+            </div>
+          `).join("") : `<div class="admin-empty">Aucune valeur en attente. Tout ce qui a ete propose par les AAR existe deja dans ce referentiel.</div>`}
+        </div>
+
+        <div class="admin-section">
+          <div class="admin-section-title">2. Ajouter manuellement</div>
+          <div class="admin-section-help">Utilise cette zone pour creer une valeur officielle, meme si aucun AAR ne l'a encore proposee.</div>
+          <div class="admin-row">
+            <input class="admin-input" data-admin-add-input="${esc(category)}" placeholder="Ajouter un ${singular}">
+            <button class="admin-btn admin-btn-primary" data-admin-add-btn="${esc(category)}" type="button">Ajouter</button>
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <div class="admin-section-title">3. Referentiel actuel</div>
+          <div class="admin-section-help">Renomme ou supprime les valeurs officielles existantes.</div>
         </div>
         <div class="admin-list">
           ${values.length ? values.map((value) => `
@@ -1009,26 +1112,7 @@
                 <button class="admin-btn admin-btn-danger" data-admin-delete-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Supprimer</button>
               </div>
             </div>
-          `).join("") : `<div class="admin-empty">Aucun element catalogue.</div>`}
-        </div>
-        <div class="admin-note">Valeurs AUTRE detectees dans les AAR: ${candidates.length}</div>
-        <div class="admin-list">
-          ${candidates.length ? candidates.map((row, idx) => `
-            <div class="admin-item">
-              <div class="admin-item-top">
-                <div class="admin-item-value">${esc(row.value)}</div>
-                <div class="admin-item-count">${row.count} AAR</div>
-              </div>
-              <div class="admin-row">
-                <select class="admin-select" data-admin-map-select="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}">
-                  <option value="">Mapper vers...</option>
-                  <option value="__NEW__">Creer cet element</option>
-                  ${optionsHtml}
-                </select>
-                <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Appliquer</button>
-              </div>
-            </div>
-          `).join("") : `<div class="admin-empty">Aucune valeur AUTRE a normaliser.</div>`}
+          `).join("") : `<div class="admin-empty">Aucun element officiel dans ce referentiel.</div>`}
         </div>
       </article>
     `;
@@ -1036,6 +1120,17 @@
 
   function bindAdminEvents(container) {
     if (!container) return;
+
+    container.querySelectorAll("[data-admin-add-input]").forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        const category = input.getAttribute("data-admin-add-input");
+        addCatalogItem(category, input.value).then(() => {
+          input.value = "";
+        });
+      });
+    });
 
     container.querySelectorAll("[data-admin-add-btn]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1045,6 +1140,14 @@
         addCatalogItem(category, value).then(() => {
           if (input) input.value = "";
         });
+      });
+    });
+
+    container.querySelectorAll("[data-admin-create-btn]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const category = btn.getAttribute("data-admin-create-btn");
+        const source = btn.getAttribute("data-admin-source") || "";
+        await mapOtherCandidate(category, source, source);
       });
     });
 
@@ -1087,18 +1190,27 @@
     if (!targetEl) return;
     const catalog = getCurrentCatalog();
     const totalValues = CATALOG_KEYS.reduce((sum, key) => sum + ((catalog[key] || []).length), 0);
+    const pendingSummary = getAdminPendingSummary();
 
     targetEl.innerHTML = `
       <div class="admin-wrap">
         <div class="admin-header">
           <div>
             <div class="admin-title">Administration des referentiels QWI</div>
-            <div class="admin-subtitle">Ajout, suppression, renommage et normalisation des valeurs AUTRE (pays, OACI, operation, exercice, hashtag).</div>
+            <div class="admin-subtitle">But: transformer les valeurs proposees par les AAR en valeurs officielles simples a reutiliser dans toute l'application.</div>
           </div>
-          <div class="admin-subtitle">${totalValues} element(s) catalogue</div>
+          <div class="admin-kpis">
+            <div class="admin-chip ${pendingSummary.total ? "admin-chip-alert" : "admin-chip-ok"}">${pendingSummary.total} valeur(s) a classer</div>
+            <div class="admin-chip">${totalValues} valeur(s) officielles</div>
+          </div>
+        </div>
+        <div class="admin-guide">
+          <div class="admin-step"><span>1</span> Va d'abord dans "Valeurs a classer".</div>
+          <div class="admin-step"><span>2</span> Clique sur "Creer" si la valeur doit devenir officielle.</div>
+          <div class="admin-step"><span>3</span> Utilise "Rattacher" si c'est juste une variante d'une valeur existante.</div>
         </div>
         <div class="admin-grid">
-          ${CATALOG_KEYS.map((key) => renderAdminCard(key)).join("")}
+          ${CATALOG_KEYS.map((key) => renderAdminCard(key, extractOtherCandidates(key))).join("")}
         </div>
       </div>
     `;
