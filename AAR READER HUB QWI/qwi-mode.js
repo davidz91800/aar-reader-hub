@@ -441,16 +441,17 @@
       : {};
   }
 
-  function normalizeCatalogValues(key, values) {
+  function normalizeCatalogValues(key, values, options = {}) {
     const def = CATALOG_DEFS[key];
     if (!def) return [];
+    const enforceScope = !!options.enforceScope;
     const out = [];
     const seen = new Set();
     (Array.isArray(values) ? values : []).forEach((value) => {
       const normalized = String(def.normalize(value) || "").trim();
       if (!normalized) return;
-      if (key === "oaci" && !isScopedOaciValue(normalized)) return;
-      if (key === "countries" && !isScopedCountryValue(normalized)) return;
+      if (enforceScope && key === "oaci" && !isScopedOaciValue(normalized)) return;
+      if (enforceScope && key === "countries" && !isScopedCountryValue(normalized)) return;
       const dedupKey = normalized.toUpperCase();
       if (seen.has(dedupKey)) return;
       seen.add(dedupKey);
@@ -459,24 +460,24 @@
     return out.sort((a, b) => a.localeCompare(b, "fr"));
   }
 
-  function normalizeCatalogObject(input) {
+  function normalizeCatalogObject(input, options = {}) {
     const src = input && typeof input === "object" ? input : {};
     const out = createEmptyCatalog();
     CATALOG_KEYS.forEach((key) => {
-      out[key] = normalizeCatalogValues(key, src[key]);
+      out[key] = normalizeCatalogValues(key, src[key], options);
     });
     return out;
   }
 
   function buildBaseCatalogFromEditorConfig() {
     const cfg = getBundledMissionConfig();
-    const scopedCountries = normalizeCatalogValues("countries", buildScopedCountriesFromConfig(cfg));
+    const scopedCountries = normalizeCatalogValues("countries", buildScopedCountriesFromConfig(cfg), { enforceScope: true });
     setCatalogCountryScope(scopedCountries);
 
     const allAirfields = (Array.isArray(cfg.allAirfields) && cfg.allAirfields.length)
       ? cfg.allAirfields
       : Object.values(cfg.logAirfieldsByCountry || {}).flat();
-    const scopedOaci = normalizeCatalogValues("oaci", allAirfields);
+    const scopedOaci = normalizeCatalogValues("oaci", allAirfields, { enforceScope: true });
 
     return normalizeCatalogObject({
       hashtags: cfg.hashtags || [],
@@ -484,7 +485,7 @@
       oaci: scopedOaci,
       operations: cfg.tacOperations || [],
       exercises: cfg.tacExercises || []
-    });
+    }, { enforceScope: true });
   }
 
   function compactCatalogAgainstBase(catalog) {
