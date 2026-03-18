@@ -1,6 +1,6 @@
 ﻿{
-  "name": "AAR Reader Hub",
-  "short_name": "AARReader",
+  "name": "AAR_Reader_QWI",
+  "short_name": "AAR_Reader_QWI",
   "description": "AAR Reader Hub - lecture seule avec synchro Google Drive",
   "start_url": "./index.html",
   "scope": "./",
