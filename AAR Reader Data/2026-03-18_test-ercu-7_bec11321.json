@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "title": "TEST eRCU 7",
+    "date": "2026-03-18",
+    "grade": "AUTRE",
+    "gradeAutre": "GAL",
+    "nom": "ZEMMOUR",
+    "prenom": "David",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "flotte": "C-130J",
+    "flotteAutre": "",
+    "classification": "SECRET SPECIAL FRANCE",
+    "missionType": "LOG",
+    "logCountry": "Mali",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "hashtag": "AUTRE",
+    "hashtagAutre": "#mali",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "",
+    "why": "",
+    "when": "",
+    "where": "",
+    "who": "",
+    "how": "",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
