@@ -1,10 +1,11 @@
-﻿const CACHE_NAME = "aar-shell-v3";
+const CACHE_NAME = "aar-shell-v4";
 const SHELL_URL = "./AAR.html";
 const CORE_ASSETS = [SHELL_URL];
 const OPTIONAL_ASSETS = [
   "./",
   "./manifest.webmanifest",
   "./mission-config.js",
+  "./Logo QWI.png",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
 ];
