@@ -249,7 +249,11 @@ function deriveMeta(a) {
   const missionType = meta.missionType || "";
   const country = meta.logCountry === "AUTRE" ? (meta.logCountryAutre || "") : (meta.logCountry || "");
   const airfield = meta.logAirfield === "AUTRE" ? (meta.logAirfieldAutre || "") : (meta.logAirfield || "");
-  const hashtag = meta.hashtag === "AUTRE" ? (meta.hashtagAutre || "") : (meta.hashtag || "");
+  const hashtagSelected = String(meta.hashtag || "").trim();
+  const hashtagOther = String(meta.hashtagAutre || "").trim();
+  const hashtag = hashtagSelected.toUpperCase() === "AUTRE"
+    ? hashtagOther
+    : (hashtagSelected || hashtagOther);
   const tacContext = meta.tacContext || "";
   const tacDetail = tacContext === "OPERATIONS"
     ? (meta.tacOperation === "AUTRE" ? meta.tacOperationAutre : meta.tacOperation) || ""
