@@ -13,7 +13,7 @@
     },
     appsScript: {
       enabled: true,
-      webAppUrl: "https://script.google.com/macros/s/AKfycbxfcbZyqwm8_fH6p0R3I_ucLbzS9ZYw8i6UHuzoJTN306GHccPD-7-rCRu59-IRvlOGgA/exec",
+      webAppUrl: "https://script.google.com/macros/s/AKfycbzAB36XlBoE5vo1fSfxeMkn05r6FrUlFkEw8iAxiEaTsj1maU82c4d9GgB7W6p72rOPSg/exec",
       accessKey: "AAR-READER-HUB-QWI",
       timeoutMs: 25000
     },
