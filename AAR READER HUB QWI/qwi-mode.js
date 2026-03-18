@@ -28,6 +28,207 @@
   let effectiveCatalogCache = null;
   const effectiveCategorySetCache = new Map();
   const adminCatalogSearch = {};
+  let confirmUi = null;
+
+  function ensureConfirmUi() {
+    if (confirmUi) return confirmUi;
+
+    if (!document.getElementById("qwi-confirm-style")) {
+      const style = document.createElement("style");
+      style.id = "qwi-confirm-style";
+      style.textContent = `
+        .qwi-confirm-overlay{
+          position:fixed; inset:0; z-index:9999; display:none;
+          align-items:center; justify-content:center; padding:20px;
+          background:rgba(2,6,23,.72); backdrop-filter:blur(4px);
+        }
+        .qwi-confirm-overlay.open{display:flex;}
+        .qwi-confirm-card{
+          width:min(560px,96vw);
+          border-radius:16px;
+          border:1px solid rgba(59,130,246,.35);
+          background:linear-gradient(180deg,rgba(30,41,59,.98),rgba(15,23,42,.98));
+          box-shadow:0 24px 56px rgba(2,6,23,.62),inset 0 0 0 1px rgba(148,163,184,.06);
+          padding:18px 18px 16px;
+          color:#e2e8f0;
+          transform:translateY(10px);
+          opacity:0;
+          transition:transform .18s ease,opacity .18s ease;
+        }
+        .qwi-confirm-overlay.open .qwi-confirm-card{transform:translateY(0); opacity:1;}
+        .qwi-confirm-title{
+          margin:0 0 10px 0;
+          font-weight:800;
+          font-size:16px;
+          letter-spacing:.2px;
+          color:#f8fafc;
+        }
+        .qwi-confirm-message{
+          margin:0;
+          white-space:pre-line;
+          line-height:1.45;
+          font-size:14px;
+          color:#cbd5e1;
+        }
+        .qwi-confirm-input-wrap{margin-top:12px;}
+        .qwi-confirm-input{
+          width:100%;
+          border-radius:10px;
+          border:1px solid rgba(100,116,139,.45);
+          background:rgba(2,6,23,.75);
+          color:#f8fafc;
+          padding:10px 12px;
+          font-size:14px;
+          outline:none;
+        }
+        .qwi-confirm-input:focus{
+          border-color:rgba(59,130,246,.9);
+          box-shadow:0 0 0 3px rgba(59,130,246,.2);
+        }
+        .qwi-confirm-actions{
+          margin-top:14px;
+          display:flex;
+          justify-content:flex-end;
+          gap:10px;
+        }
+        .qwi-confirm-btn{
+          border:1px solid rgba(71,85,105,.65);
+          background:rgba(30,41,59,.85);
+          color:#e2e8f0;
+          border-radius:10px;
+          padding:8px 13px;
+          font-size:13px;
+          font-weight:700;
+          cursor:pointer;
+        }
+        .qwi-confirm-btn:hover{border-color:rgba(148,163,184,.9); color:#fff;}
+        .qwi-confirm-btn.primary{
+          border-color:rgba(59,130,246,.95);
+          background:linear-gradient(180deg,#1d4ed8,#1e40af);
+          color:#eff6ff;
+        }
+        .qwi-confirm-btn.danger{
+          border-color:rgba(239,68,68,.85);
+          background:linear-gradient(180deg,#dc2626,#991b1b);
+          color:#fee2e2;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "qwi-confirm-overlay";
+    overlay.innerHTML = `
+      <div class="qwi-confirm-card" role="dialog" aria-modal="true" aria-labelledby="qwi-confirm-title">
+        <h3 id="qwi-confirm-title" class="qwi-confirm-title"></h3>
+        <p class="qwi-confirm-message"></p>
+        <div class="qwi-confirm-input-wrap" hidden>
+          <input class="qwi-confirm-input" type="text" autocomplete="off" />
+        </div>
+        <div class="qwi-confirm-actions">
+          <button type="button" class="qwi-confirm-btn" data-role="cancel">Annuler</button>
+          <button type="button" class="qwi-confirm-btn primary" data-role="confirm">Confirmer</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const titleEl = overlay.querySelector(".qwi-confirm-title");
+    const messageEl = overlay.querySelector(".qwi-confirm-message");
+    const inputWrap = overlay.querySelector(".qwi-confirm-input-wrap");
+    const inputEl = overlay.querySelector(".qwi-confirm-input");
+    const cancelBtn = overlay.querySelector('[data-role="cancel"]');
+    const confirmBtn = overlay.querySelector('[data-role="confirm"]');
+
+    const state = { resolver: null, activeEl: null };
+
+    const close = (payload) => {
+      if (!state.resolver) return;
+      const done = state.resolver;
+      state.resolver = null;
+      overlay.classList.remove("open");
+      const previous = state.activeEl;
+      state.activeEl = null;
+      if (previous && typeof previous.focus === "function") {
+        setTimeout(() => previous.focus(), 0);
+      }
+      done(payload);
+    };
+
+    cancelBtn.addEventListener("click", () => close({ ok: false }));
+    confirmBtn.addEventListener("click", () => {
+      close({
+        ok: true,
+        value: inputWrap.hidden ? "" : String(inputEl.value || "")
+      });
+    });
+
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close({ ok: false });
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (!overlay.classList.contains("open")) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close({ ok: false });
+        return;
+      }
+      if (event.key === "Enter" && !inputWrap.hidden && document.activeElement === inputEl) {
+        event.preventDefault();
+        close({ ok: true, value: String(inputEl.value || "") });
+      }
+    });
+
+    confirmUi = {
+      open: (options = {}) => {
+        if (state.resolver) {
+          const pending = state.resolver;
+          state.resolver = null;
+          pending({ ok: false });
+        }
+        state.activeEl = document.activeElement;
+        titleEl.textContent = String(options.title || "Confirmation");
+        messageEl.textContent = String(options.message || "");
+        const withInput = !!options.withInput;
+        inputWrap.hidden = !withInput;
+        if (withInput) {
+          inputEl.value = String(options.inputValue || "");
+          inputEl.placeholder = String(options.inputPlaceholder || "");
+        } else {
+          inputEl.value = "";
+          inputEl.placeholder = "";
+        }
+        cancelBtn.textContent = String(options.cancelLabel || "Annuler");
+        confirmBtn.textContent = String(options.confirmLabel || "Confirmer");
+        confirmBtn.classList.toggle("danger", options.kind === "danger");
+        confirmBtn.classList.toggle("primary", options.kind !== "danger");
+        overlay.classList.add("open");
+        setTimeout(() => {
+          if (withInput) inputEl.focus();
+          else confirmBtn.focus();
+        }, 20);
+        return new Promise((resolve) => {
+          state.resolver = resolve;
+        });
+      }
+    };
+
+    return confirmUi;
+  }
+
+  async function askConfirmation(options = {}) {
+    const ui = ensureConfirmUi();
+    const result = await ui.open(options);
+    return !!(result && result.ok);
+  }
+
+  async function askTextInput(options = {}) {
+    const ui = ensureConfirmUi();
+    const result = await ui.open({ ...options, withInput: true });
+    if (!result || !result.ok) return null;
+    return String(result.value || "");
+  }
 
   function hasValidDriveToken() {
     return !!accessToken && Date.now() < tokenExpiryAt - 30000;
@@ -865,7 +1066,13 @@
       toast("Cet AAR est deja publie.");
       return;
     }
-    if (!window.confirm(`Publier cet AAR sur le Reader non QWI ?\n\n${existing.title || "AAR sans titre"}`)) return;
+    const canPublish = await askConfirmation({
+      title: "Publication Reader",
+      message: `Publier cet AAR sur le Reader non QWI ?\n\n${existing.title || "AAR sans titre"}`,
+      confirmLabel: "Publier",
+      cancelLabel: "Annuler"
+    });
+    if (!canPublish) return;
 
     const rec = JSON.parse(JSON.stringify(existing));
     rec.mission = normalizeAar(rec.mission || {});
@@ -898,7 +1105,14 @@
     const rec = state.reports.find((x) => x.id === recordId);
     if (!rec) return;
 
-    if (!window.confirm(`Supprimer cet AAR ?\n\n${rec.title}`)) return;
+    const canDelete = await askConfirmation({
+      title: "Suppression AAR",
+      message: `Supprimer cet AAR ?\n\n${rec.title}`,
+      confirmLabel: "Supprimer",
+      cancelLabel: "Annuler",
+      kind: "danger"
+    });
+    if (!canDelete) return;
 
     if (rec.driveFileId) {
       try {
@@ -1272,7 +1486,14 @@
     if (!def) return;
     const normalized = def.normalize(value);
     if (!normalized) return;
-    if (!window.confirm(`Supprimer '${normalized}' de ${def.label} ?`)) return;
+    const canDelete = await askConfirmation({
+      title: `Suppression ${def.singular || "element"}`,
+      message: `Supprimer '${normalized}' de ${def.label} ?`,
+      confirmLabel: "Supprimer",
+      cancelLabel: "Annuler",
+      kind: "danger"
+    });
+    if (!canDelete) return;
 
     const catalog = getCurrentCatalog();
     const nextList = (catalog[category] || []).filter((item) => {
@@ -1422,7 +1643,14 @@
       btn.addEventListener("click", async () => {
         const category = btn.getAttribute("data-admin-rename-btn");
         const value = btn.getAttribute("data-admin-value") || "";
-        const next = window.prompt("Nouveau libelle :", value);
+        const next = await askTextInput({
+          title: "Renommer",
+          message: "Saisis le nouveau libelle.",
+          inputValue: value,
+          inputPlaceholder: "Nouveau libelle",
+          confirmLabel: "Valider",
+          cancelLabel: "Annuler"
+        });
         if (next === null) return;
         await renameCatalogItem(category, value, next);
       });
