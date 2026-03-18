@@ -5,6 +5,7 @@
 const DB_NAME = "aar_reader_hub_qwi_v1";
 const STORE = "reports";
 const LAST_SYNC_KEY = "aar_reader_last_sync_qwi_v1";
+const REPORTS_SNAPSHOT_KEY = "aar_reader_reports_snapshot_qwi_v1";
 const AUTO_RESYNC_MIN_INTERVAL_MS = 300000;
 const AUTO_RESYNC_TICK_MS = 300000;
 const DRIVE_ERROR_COOLDOWN_MS = 10 * 60 * 1000;
@@ -122,6 +123,63 @@ function formatDateFr(iso) {
   const parts = String(iso).split("-");
   if (parts.length !== 3) return iso;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function sortReports(records) {
+  return [...(Array.isArray(records) ? records : [])]
+    .sort((a, b) => String(b?.date || "").localeCompare(String(a?.date || "")) || String(b?.updatedAt || "").localeCompare(String(a?.updatedAt || "")));
+}
+
+function haveSameReportVersions(a, b) {
+  const left = Array.isArray(a) ? a : [];
+  const right = Array.isArray(b) ? b : [];
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i += 1) {
+    const l = left[i] || {};
+    const r = right[i] || {};
+    if (String(l.id || "") !== String(r.id || "")) return false;
+    if (String(l.updatedAt || "") !== String(r.updatedAt || "")) return false;
+    if (String(l.driveModifiedTime || "") !== String(r.driveModifiedTime || "")) return false;
+    if (String(l.staticModifiedTime || "") !== String(r.staticModifiedTime || "")) return false;
+  }
+  return true;
+}
+
+function readReportsSnapshot() {
+  try {
+    const raw = localStorage.getItem(REPORTS_SNAPSHOT_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return sortReports(parsed);
+    if (parsed && Array.isArray(parsed.reports)) return sortReports(parsed.reports);
+  } catch (e) {
+    console.warn("Snapshot read failed:", e?.message || e);
+  }
+  return [];
+}
+
+function saveReportsSnapshot(records) {
+  try {
+    localStorage.setItem(REPORTS_SNAPSHOT_KEY, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      reports: sortReports(records)
+    }));
+  } catch (e) {
+    console.warn("Snapshot write failed:", e?.message || e);
+  }
+}
+
+async function hydrateReportsFromIndexedDb() {
+  try {
+    const records = sortReports(await dbGetAll());
+    if (!records.length) return;
+    saveReportsSnapshot(records);
+    if (haveSameReportVersions(state.reports, records)) return;
+    state.reports = records;
+    renderAll();
+  } catch (e) {
+    console.warn("IndexedDB unavailable:", e?.message || e);
+  }
 }
 
 /* ═══ AAR DATA MODEL ═══ */
@@ -726,6 +784,21 @@ async function syncFromAppsScript({ silent = false } = {}) {
       return;
     }
 
+    const currentDriveRecords = state.reports.filter((r) => r.source === "drive_file" && r.driveFileId);
+    const currentByDriveId = new Map(currentDriveRecords.map((r) => [String(r.driveFileId || "").trim(), r]));
+    const sameRemoteState = currentDriveRecords.length === files.length && files.every((f) => {
+      const driveId = String(f?.id || "").trim();
+      if (!driveId) return false;
+      const existing = currentByDriveId.get(driveId);
+      if (!existing) return false;
+      return String(existing.driveModifiedTime || "") === String(f?.modifiedTime || "");
+    });
+    if (sameRemoteState) {
+      saveLastSync();
+      setSubtitle(`${state.reports.length} AAR · Apps Script`);
+      return;
+    }
+
     const records = [];
     const errors = [];
     for (const f of files) {
@@ -786,6 +859,12 @@ async function tryAutoResync(reason = "") {
   } finally {
     autoResyncInFlight = false;
   }
+}
+
+function scheduleStartupResync() {
+  window.setTimeout(() => {
+    tryAutoResync("startup");
+  }, 350);
 }
 
 function saveLastSync() {
@@ -852,6 +931,7 @@ async function dbGetAll() {
 }
 
 async function dbReplaceAll(records) {
+  saveReportsSnapshot(records);
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -1305,7 +1385,16 @@ async function init() {
   });
 
   // Sync button
-  if (el.syncBtn) el.syncBtn.onclick = () => syncPreferred();
+  if (el.syncBtn) {
+    el.syncBtn.onclick = () => {
+      syncPreferred()
+        .then(() => { lastAutoResyncAt = Date.now(); })
+        .catch((e) => {
+          console.warn("Manual sync failed:", e?.message || e);
+          toast(`Erreur sync : ${e?.message || e}`);
+        });
+    };
+  }
 
   // View toggle
   document.querySelectorAll(".toggle-btn").forEach((b) => {
@@ -1340,18 +1429,9 @@ async function init() {
   else if (staticCfg.enabled) setSubtitle("Source : données statiques");
   else setSubtitle("Source non configurée");
 
-  // Load from IndexedDB
-  let dbOk = false;
-  try {
-    state.reports = await dbGetAll();
-    state.reports.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
-    dbOk = true;
-  } catch (e) {
-    // IndexedDB may fail on file:// too — that's OK
-    console.warn("IndexedDB unavailable:", e.message);
-  }
-
+  state.reports = readReportsSnapshot();
   renderAll();
+  hydrateReportsFromIndexedDb();
 
   // Detect file:// protocol — fetch won't work
   if (location.protocol === "file:") {
@@ -1362,8 +1442,7 @@ async function init() {
   // Auto-sync
   if (cfg.autoSyncOnStartup || staticCfg.enabled) {
     if (navigator.onLine) {
-      await syncPreferred({ silent: true });
-      lastAutoResyncAt = Date.now();
+      scheduleStartupResync();
     }
   }
 
