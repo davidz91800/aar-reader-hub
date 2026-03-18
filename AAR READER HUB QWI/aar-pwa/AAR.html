@@ -1590,7 +1590,7 @@
             <input type="file" id="file-input" style="display: none;" accept=".json">
             <button class="btn" onclick="document.getElementById('file-input').click()">📂 Charger JSON</button>
             <button class="btn" onclick="App.exportJSON()">💾 Sauvegarder JSON</button>
-            <button class="btn" onclick="App.sendQwiEmail()"><img class="btn-icon-img" src="./Logo QWI.png" alt="QWI">Send to QWI</button>
+            <button id="send-qwi-btn" class="btn" onclick="App.sendQwiEmail()"><img class="btn-icon-img" src="./Logo QWI.png" alt="QWI">Send to QWI</button>
             <button class="btn btn-primary" onclick="App.printReport()">🖨️ Imprimer / PDF</button>
             <button class="btn btn-danger" onclick="App.reset()" title="Effacer tout">🗑️</button>
         </div>
@@ -1640,8 +1640,8 @@
                         </div>
                         <div class="report-kind-item" data-kind="CONSOLIDE" onclick="App.handleReportKindClick(event, 'CONSOLIDE')">
                             <div class="report-kind-head">
-                                <span class="level">AAR CONSOLIDÉ</span>
-                                <button type="button" class="info-trigger" data-tooltip-key="REPORT_KIND_CONSOLIDE" aria-label="Info AAR Consolidé">ⓘ</button>
+                                <span class="level">AAR WEAPONS SCHOOL</span>
+                                <button type="button" class="info-trigger" data-tooltip-key="REPORT_KIND_CONSOLIDE" aria-label="Info AAR Weapons School">ⓘ</button>
                             </div>
                         </div>
                     </div>
@@ -2352,6 +2352,11 @@
             title: "",
             date: "",
             reportKind: "CONSOLIDE",
+            workflowStatus: "",
+            driveFileId: "",
+            sentToQwiAt: "",
+            publishedAt: "",
+            qwiReviewedAt: "",
             grade: "",
             gradeAutre: "",
             nom: "",
@@ -2423,8 +2428,8 @@
                 text: "Diffusion rapide, à utiliser pour des RETEX rapides et à chaud, ne nécessitant pas d'analyse particulière. Envoie directement l'AAR sur le AAR Reader sans relecture QWI."
             },
             REPORT_KIND_CONSOLIDE: {
-                title: "AAR CONSOLIDÉ",
-                text: "Version consolidée, à utiliser pour des AAR complets, nécessitant plus d'analyse. Envoie d'abord l'AAR pour relecture QWI avant diffusion sur l'AAR Reader."
+                title: "AAR WEAPONS SCHOOL",
+                text: "Version Weapons School, à utiliser pour des AAR complets, nécessitant plus d'analyse. Envoie d'abord l'AAR pour relecture QWI avant diffusion sur l'AAR Reader."
             },
             DORESE_D: {
                 title: "D - Doctrine",
@@ -2706,6 +2711,11 @@
                         : App.collectLegacyHashtags(App.data.meta)
                 );
                 App.syncLegacyHashtagFields();
+                App.data.meta.workflowStatus = App.normalizeWorkflowStatus(App.data.meta.workflowStatus);
+                App.data.meta.driveFileId = String(App.data.meta.driveFileId || '').trim();
+                App.data.meta.sentToQwiAt = String(App.data.meta.sentToQwiAt || '').trim();
+                App.data.meta.publishedAt = String(App.data.meta.publishedAt || '').trim();
+                App.data.meta.qwiReviewedAt = String(App.data.meta.qwiReviewedAt || '').trim();
 
                 return repairedRichText;
             },
@@ -3869,7 +3879,111 @@
             },
 
             getReportKindLabel: (kind) => {
-                return String(kind || '').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDÉ';
+                return String(kind || '').toUpperCase() === 'FLASH' ? 'FLASH' : 'WEAPONS SCHOOL';
+            },
+
+            normalizeWorkflowStatus: (status) => {
+                return String(status || '').trim().toUpperCase() === 'PENDING_QWI_REVIEW'
+                    ? 'PENDING_QWI_REVIEW'
+                    : 'PUBLISHED';
+            },
+
+            setSendQwiBusy: (busy) => {
+                const btn = document.getElementById('send-qwi-btn');
+                if (!btn) return;
+                btn.disabled = !!busy;
+                btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+                btn.style.opacity = busy ? '0.7' : '';
+                btn.style.pointerEvents = busy ? 'none' : '';
+            },
+
+            buildPortablePayload: () => {
+                App.ensureDataShape();
+                const payload = JSON.parse(JSON.stringify(App.data || {}));
+                if (!payload.meta || typeof payload.meta !== 'object') payload.meta = {};
+                delete payload.meta.driveFileId;
+                delete payload.meta.workflowStatus;
+                delete payload.meta.sentToQwiAt;
+                delete payload.meta.publishedAt;
+                delete payload.meta.qwiReviewedAt;
+                return payload;
+            },
+
+            buildDriveFileName: () => {
+                const date = App.data.meta.date || new Date().toISOString().split('T')[0];
+                const title = String(App.data.meta.title || 'aar').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase() || 'aar';
+                const identity = [App.data.meta.nom || '', App.data.meta.prenom || '']
+                    .join('_')
+                    .replace(/[^a-z0-9]+/gi, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .toLowerCase() || 'anon';
+                return `${date}_${title}_${identity}.json`;
+            },
+
+            callAppsScript: async (payload) => {
+                const cfg = (App.missionConfig && App.missionConfig.appsScript) || {};
+                const webAppUrl = String(cfg.webAppUrl || '').trim();
+                const accessKey = String(cfg.accessKey || '').trim();
+                if (!webAppUrl) throw new Error("Apps Script non configuré (mission-config.js).");
+
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 15000);
+                try {
+                    const response = await fetch(webAppUrl, {
+                        method: 'POST',
+                        cache: 'no-store',
+                        headers: {
+                            'Content-Type': 'application/json; charset=UTF-8'
+                        },
+                        body: JSON.stringify({
+                            ...payload,
+                            accessKey
+                        }),
+                        signal: controller.signal
+                    });
+                    const text = await response.text();
+                    let data = null;
+                    try { data = text ? JSON.parse(text) : null; } catch (_) {}
+                    if (!response.ok) {
+                        throw new Error(data?.error || data?.message || text || response.statusText || 'Erreur Apps Script.');
+                    }
+                    if (!data || data.ok !== true) {
+                        throw new Error(data?.error || data?.message || 'Réponse Apps Script invalide.');
+                    }
+                    return data;
+                } catch (error) {
+                    if (error?.name === 'AbortError') throw new Error('Timeout Apps Script.');
+                    throw error;
+                } finally {
+                    clearTimeout(timer);
+                }
+            },
+
+            pushToHubBeforeMail: async () => {
+                const reportKind = String(App.data.meta.reportKind || 'CONSOLIDE').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDE';
+                const workflowStatus = reportKind === 'FLASH' ? 'PUBLISHED' : 'PENDING_QWI_REVIEW';
+                const now = new Date().toISOString();
+                App.data.meta.workflowStatus = workflowStatus;
+                App.data.meta.sentToQwiAt = now;
+                if (workflowStatus === 'PUBLISHED') {
+                    App.data.meta.publishedAt = now;
+                } else {
+                    App.data.meta.publishedAt = '';
+                }
+                App.save();
+
+                const response = await App.callAppsScript({
+                    action: 'upsert',
+                    driveFileId: String(App.data.meta.driveFileId || '').trim(),
+                    fileName: App.buildDriveFileName(),
+                    mission: App.data
+                });
+                const file = response?.file || {};
+                if (file && file.id) {
+                    App.data.meta.driveFileId = String(file.id || '').trim();
+                    App.save();
+                }
+                return workflowStatus;
             },
 
             updateReportKind: (kind) => {
@@ -4134,7 +4248,7 @@
             // --- EXPORT / IMPORT ---
             exportJSON: () => {
                 if (!App.validateRequiredFields('export JSON')) return;
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(App.data, null, 2));
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(App.buildPortablePayload(), null, 2));
                 const dlAnchor = document.createElement('a');
                 dlAnchor.setAttribute("href", dataStr);
                 const safeName = (App.data.meta.title || 'aar').replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -4143,25 +4257,32 @@
                 dlAnchor.click();
                 dlAnchor.remove();
             },
-            sendQwiEmail: () => {
+            sendQwiEmail: async () => {
                 if (!App.validateRequiredFields('envoi QWI')) return;
-                const title = App.data.meta.title || "AAR";
-                const date = App.data.meta.date || "Unknown Date";
-                const reportKind = String(App.data.meta.reportKind || 'CONSOLIDE').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDE';
-                const reportKindLabel = App.getReportKindLabel(reportKind);
-                const rank = App.data.meta.grade === 'AUTRE' ? (App.data.meta.gradeAutre || "") : (App.data.meta.grade || "");
-                const identity = [rank, App.data.meta.nom || "", App.data.meta.prenom || ""].filter(Boolean).join(" ").trim() || "Unknown";
-                const payload = JSON.stringify(App.data);
-                const payloadBlock = `\n==================== AAR JSON PAYLOAD ====================\n---BEGIN-AAR-JSON---\n${payload}\n---END-AAR-JSON---\n==========================================================`;
-
-                const recipients = reportKind === 'FLASH'
-                    ? 'ciet-qwi.contact.fct@intradef.gouv.fr,david.zemmour3@gmail.com'
-                    : 'ciet-qwi.contact.fct@intradef.gouv.fr';
-                const subject = `[AAR] [${reportKindLabel}] ${date} - ${title}`;
-                const body = `Bonjour,\n\nAAR:\n\n- Type : ${reportKindLabel}\n- Date : ${date}\n- Titre : ${title}\n- Redacteur : ${identity}\n\nCordialement.${payloadBlock}`;
-                const mailto = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-                window.location.href = mailto;
+                App.setSendQwiBusy(true);
+                try {
+                    const workflowStatus = await App.pushToHubBeforeMail();
+                    const title = App.data.meta.title || "AAR";
+                    const date = App.data.meta.date || "Unknown Date";
+                    const reportKind = String(App.data.meta.reportKind || 'CONSOLIDE').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDE';
+                    const reportKindLabel = App.getReportKindLabel(reportKind);
+                    const rank = App.data.meta.grade === 'AUTRE' ? (App.data.meta.gradeAutre || "") : (App.data.meta.grade || "");
+                    const identity = [rank, App.data.meta.nom || "", App.data.meta.prenom || ""].filter(Boolean).join(" ").trim() || "Unknown";
+                    const portablePayload = JSON.stringify(App.buildPortablePayload());
+                    const payloadBlock = `\n==================== AAR JSON PAYLOAD ====================\n---BEGIN-AAR-JSON---\n${portablePayload}\n---END-AAR-JSON---\n==========================================================`;
+                    const recipients = 'ciet-qwi.contact.fct@intradef.gouv.fr';
+                    const subject = `[AAR] [${reportKindLabel}] ${date} - ${title}`;
+                    const diffusionLine = workflowStatus === 'PENDING_QWI_REVIEW'
+                        ? '- Statut HUB : En attente de relecture / publication QWI'
+                        : '- Statut HUB : Déjà publié sur le AAR Reader';
+                    const body = `Bonjour,\n\nAAR:\n\n- Type : ${reportKindLabel}\n- Date : ${date}\n- Titre : ${title}\n- Redacteur : ${identity}\n${diffusionLine}\n\nCordialement.${payloadBlock}`;
+                    const mailto = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    window.location.href = mailto;
+                } catch (error) {
+                    alert(`Impossible d'envoyer l'AAR au HUB QWI avant ouverture du mail.\n\n${error?.message || error}`);
+                } finally {
+                    App.setSendQwiBusy(false);
+                }
             },
             printReport: () => {
                 if (!App.validateRequiredFields('impression / PDF')) return;

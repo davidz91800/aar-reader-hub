@@ -333,6 +333,15 @@
     return `${Date.now()}_${rand}`;
   }
 
+  function getRecordWorkflowStatus(record) {
+    if (typeof normalizeWorkflowStatus === "function") {
+      return normalizeWorkflowStatus(record?.mission?.meta?.workflowStatus || record?.workflowStatus);
+    }
+    return String(record?.mission?.meta?.workflowStatus || record?.workflowStatus || "").trim().toUpperCase() === "PENDING_QWI_REVIEW"
+      ? "PENDING_QWI_REVIEW"
+      : "PUBLISHED";
+  }
+
   function getWriteDriveConfig() {
     const base = typeof getDriveConfig === "function" ? getDriveConfig() : {};
     const raw = (window.AAR_READER_CONFIG && window.AAR_READER_CONFIG.googleDrive) || {};
@@ -846,6 +855,42 @@
     if (pushError) toast(`AAR sauvegarde localement (Drive KO): ${pushError}`);
     else toast(existing ? "AAR modifie (Drive + local)." : "AAR ajoute (Drive + local).");
     openDetail(rec.id);
+  }
+
+  async function publishRecord(recordId) {
+    if (!recordId) return;
+    const existing = state.reports.find((x) => x.id === recordId);
+    if (!existing) return;
+    if (getRecordWorkflowStatus(existing) !== "PENDING_QWI_REVIEW") {
+      toast("Cet AAR est deja publie.");
+      return;
+    }
+    if (!window.confirm(`Publier cet AAR sur le Reader non QWI ?\n\n${existing.title || "AAR sans titre"}`)) return;
+
+    const rec = JSON.parse(JSON.stringify(existing));
+    rec.mission = normalizeAar(rec.mission || {});
+    rec.mission.meta.workflowStatus = "PUBLISHED";
+    rec.mission.meta.qwiReviewedAt = new Date().toISOString();
+    rec.mission.meta.publishedAt = rec.mission.meta.qwiReviewedAt;
+    rec.workflowStatus = "PUBLISHED";
+    rec.updatedAt = new Date().toISOString();
+
+    try {
+      const driveMeta = await pushUpsertToDrive(rec, existing);
+      rec.driveFileId = driveMeta.id || rec.driveFileId || "";
+      rec.driveModifiedTime = driveMeta.modifiedTime || rec.driveModifiedTime || "";
+      rec.source = "drive_file";
+      rec.sourceName = "google_drive_qwi";
+      rec.qwiDirty = false;
+      delete rec.qwiError;
+      const rows = state.reports.filter((x) => x.id !== rec.id);
+      rows.push(rec);
+      await persistRecords(rows);
+      toast("AAR publie sur le Reader.");
+      openDetail(rec.id);
+    } catch (error) {
+      toast(`Publication impossible: ${error?.message || error}`);
+    }
   }
 
   async function deleteRecord(recordId) {
@@ -1482,6 +1527,7 @@
       actions.className = "detail-qwi-actions";
       actions.innerHTML = `
         <button class="detail-qwi-btn" data-qwi-action="edit" type="button">Modifier</button>
+        <button class="detail-qwi-btn" data-qwi-action="publish" type="button">Publier</button>
         <button class="detail-qwi-btn" data-qwi-action="delete" type="button">Supprimer</button>
         <button class="detail-qwi-btn" data-qwi-action="new" type="button">Nouveau</button>
       `;
@@ -1494,11 +1540,18 @@
     }
 
     const recordId = state.openDetailId;
+    const record = state.reports.find((x) => x.id === recordId) || null;
+    const workflowStatus = getRecordWorkflowStatus(record);
     const editBtn = actions.querySelector('[data-qwi-action="edit"]');
+    const publishBtn = actions.querySelector('[data-qwi-action="publish"]');
     const deleteBtn = actions.querySelector('[data-qwi-action="delete"]');
     const newBtn = actions.querySelector('[data-qwi-action="new"]');
 
     if (editBtn) editBtn.onclick = () => openEditor(recordId);
+    if (publishBtn) {
+      publishBtn.style.display = workflowStatus === "PENDING_QWI_REVIEW" ? "" : "none";
+      publishBtn.onclick = () => publishRecord(recordId);
+    }
     if (deleteBtn) deleteBtn.onclick = () => deleteRecord(recordId);
     if (newBtn) newBtn.onclick = () => openEditor();
   }

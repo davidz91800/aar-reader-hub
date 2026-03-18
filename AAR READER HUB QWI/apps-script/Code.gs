@@ -422,8 +422,15 @@ function handleUpsert_(payload, cfg) {
 
   if (!file) {
     var folder = DriveApp.getFolderById(folderId);
-    var blob = Utilities.newBlob(jsonText, "application/json", fileName);
-    file = folder.createFile(blob);
+    var existing = folder.getFilesByName(fileName);
+    if (existing.hasNext()) {
+      file = existing.next();
+      file.setContent(jsonText);
+      if (fileName) file.setName(fileName);
+    } else {
+      var blob = Utilities.newBlob(jsonText, "application/json", fileName);
+      file = folder.createFile(blob);
+    }
   }
 
   return jsonOutput_({
@@ -791,6 +798,10 @@ function normalizeAar_(input) {
       flotte: str_(a.meta && a.meta.flotte),
       flotteAutre: str_(a.meta && a.meta.flotteAutre),
       reportKind: normalizeReportKind_(a.meta && a.meta.reportKind),
+      workflowStatus: normalizeWorkflowStatus_(a.meta && a.meta.workflowStatus),
+      sentToQwiAt: str_(a.meta && a.meta.sentToQwiAt),
+      publishedAt: str_(a.meta && a.meta.publishedAt),
+      qwiReviewedAt: str_(a.meta && a.meta.qwiReviewedAt),
       classification: normalizeClassification_(a.meta && a.meta.classification),
       missionType: str_(a.meta && a.meta.missionType),
       logCountry: str_(a.meta && a.meta.logCountry),
@@ -847,6 +858,12 @@ function normalizeClassification_(v) {
 
 function normalizeReportKind_(v) {
   return String(v || "").trim().toUpperCase() === "FLASH" ? "FLASH" : "CONSOLIDE";
+}
+
+function normalizeWorkflowStatus_(v) {
+  return String(v || "").trim().toUpperCase() === "PENDING_QWI_REVIEW"
+    ? "PENDING_QWI_REVIEW"
+    : "PUBLISHED";
 }
 
 function normalizeHashtag_(value) {

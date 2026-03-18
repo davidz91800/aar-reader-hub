@@ -10,6 +10,7 @@ const AUTO_RESYNC_MIN_INTERVAL_MS = 300000;
 const AUTO_RESYNC_TICK_MS = 300000;
 const DRIVE_ERROR_COOLDOWN_MS = 10 * 60 * 1000;
 const DRIVE_COOLDOWN_KEY = "aar_reader_drive_cooldown_until_qwi_v1";
+const SHOW_PENDING_QWI_REVIEW = true;
 
 const state = {
   reports: [],
@@ -79,7 +80,17 @@ function normalizeReportKind(v) {
 }
 
 function reportKindLabel(v) {
-  return normalizeReportKind(v) === "FLASH" ? "FLASH" : "CONSOLIDÉ";
+  return normalizeReportKind(v) === "FLASH" ? "FLASH" : "WEAPONS SCHOOL";
+}
+
+function normalizeWorkflowStatus(v) {
+  return String(v || "").trim().toUpperCase() === "PENDING_QWI_REVIEW" ? "PENDING_QWI_REVIEW" : "PUBLISHED";
+}
+
+function filterWorkflowVisibleReports(records) {
+  const rows = Array.isArray(records) ? records : [];
+  if (SHOW_PENDING_QWI_REVIEW) return rows;
+  return rows.filter((record) => normalizeWorkflowStatus(record?.workflowStatus || record?.mission?.meta?.workflowStatus) !== "PENDING_QWI_REVIEW");
 }
 
 function normalizeHashtagValue(v) {
@@ -181,7 +192,7 @@ async function yieldToUiEvery(step, batchSize = 6) {
 }
 
 function sortReports(records) {
-  return [...(Array.isArray(records) ? records : [])]
+  return [...filterWorkflowVisibleReports(records)]
     .sort((a, b) => String(b?.date || "").localeCompare(String(a?.date || "")) || String(b?.updatedAt || "").localeCompare(String(a?.updatedAt || "")));
 }
 
@@ -254,6 +265,10 @@ function normalizeAar(input) {
       classification: normalizeClassif(meta.classification || ""),
       // Extended fields from AAR PWA form
       reportKind: normalizeReportKind(meta.reportKind),
+      workflowStatus: normalizeWorkflowStatus(meta.workflowStatus),
+      sentToQwiAt: meta.sentToQwiAt || "",
+      publishedAt: meta.publishedAt || "",
+      qwiReviewedAt: meta.qwiReviewedAt || "",
       missionType: meta.missionType || "",
       flotte: meta.flotte || "",
       flotteAutre: meta.flotteAutre || "",
@@ -362,6 +377,7 @@ function deriveMeta(a) {
 
   // Extended computed fields
   const reportKind = normalizeReportKind(meta.reportKind);
+  const workflowStatus = normalizeWorkflowStatus(meta.workflowStatus);
   const fleet = meta.flotte === "AUTRE" ? (meta.flotteAutre || "") : (meta.flotte || "");
   const missionType = meta.missionType || "";
   const country = meta.logCountry === "AUTRE" ? (meta.logCountryAutre || "") : (meta.logCountry || "");
@@ -397,7 +413,7 @@ function deriveMeta(a) {
     facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative,
     a.analysis?.content,
     recos.doctrine, recos.organisation, recos.rh, recos.equipements, recos.soutien, recos.entrainement,
-    a.qwi?.advice, reportKind, fleet, country, airfield, hashtags.join(" "), tacDetail
+    a.qwi?.advice, reportKind, workflowStatus, fleet, country, airfield, hashtags.join(" "), tacDetail
   ].map(cleanText).join(" ");
   const wordCount = allText ? allText.split(/\s+/).filter(Boolean).length : 0;
 
@@ -410,6 +426,7 @@ function deriveMeta(a) {
     unit: unit || "N/A",
     classification: normalizeClassif(meta.classification),
     reportKind,
+    workflowStatus,
     missionType,
     fleet,
     country,
@@ -691,7 +708,7 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
       if (!silent) toast("Sync en échec : cache conservé.");
       return;
     }
-    const sorted = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    const sorted = sortReports(records);
     if (preserveCacheOnShrink && state.reports.length && sorted.length < state.reports.length) {
       setSubtitle(`${state.reports.length} AAR - cache local conserve`);
       if (!silent) toast(`Source statique plus petite (${sorted.length}) : cache local conserve.`);
@@ -702,10 +719,10 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
     await yieldToUi();
     renderAll();
     saveLastSync();
-    setSubtitle(`${records.length} AAR · source statique`);
+    setSubtitle(`${sorted.length} AAR · source statique`);
     if (!silent) {
-      if (errors.length) toast(`Sync OK : ${records.length} AAR, ${errors.length} erreur(s).`);
-      else toast(`Sync OK : ${records.length} AAR.`);
+      if (errors.length) toast(`Sync OK : ${sorted.length} AAR, ${errors.length} erreur(s).`);
+      else toast(`Sync OK : ${sorted.length} AAR.`);
     }
   } finally { setSyncing(false); }
 }
@@ -797,15 +814,16 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       if (!silent) toast("Sync Drive en échec : cache conservé.");
       return;
     }
-    try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
-    state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    const sorted = sortReports(records);
+    try { await dbReplaceAll(sorted); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
+    state.reports = sorted;
     await yieldToUi();
     renderAll();
     saveLastSync();
-    setSubtitle(blockedByGoogle ? `${records.length} AAR · Drive (blocage détecté)` : `${records.length} AAR · Google Drive`);
+    setSubtitle(blockedByGoogle ? `${sorted.length} AAR · Drive (blocage détecté)` : `${sorted.length} AAR · Google Drive`);
     if (!silent) {
-      if (errors.length) toast(`Sync OK : ${records.length} AAR, ${errors.length} erreur(s).`);
-      else toast(`Sync OK : ${records.length} AAR.`);
+      if (errors.length) toast(`Sync OK : ${sorted.length} AAR, ${errors.length} erreur(s).`);
+      else toast(`Sync OK : ${sorted.length} AAR.`);
     }
   } catch (e) {
     if (isDriveAccessError(e?.message || "")) registerDriveCooldown(e?.message || "");
@@ -833,7 +851,10 @@ async function syncFromAppsScript({ silent = false } = {}) {
 
     const payload = await fetchJsonOrThrow(url.toString());
     const files = Array.isArray(payload?.files) ? payload.files : [];
-    if (!files.length) {
+    const visibleFiles = SHOW_PENDING_QWI_REVIEW
+      ? files
+      : files.filter((file) => normalizeWorkflowStatus(file?.aar?.meta?.workflowStatus) !== "PENDING_QWI_REVIEW");
+    if (!visibleFiles.length) {
       if (state.reports.length) {
         setSubtitle(`${state.reports.length} AAR - cache local conserve (Apps Script vide)`);
         if (!silent) toast("Apps Script vide : cache local conserve.");
@@ -849,7 +870,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
 
     const currentDriveRecords = state.reports.filter((r) => r.source === "drive_file" && r.driveFileId);
     const currentByDriveId = new Map(currentDriveRecords.map((r) => [String(r.driveFileId || "").trim(), r]));
-    const sameRemoteState = currentDriveRecords.length === files.length && files.every((f) => {
+    const sameRemoteState = currentDriveRecords.length === visibleFiles.length && visibleFiles.every((f) => {
       const driveId = String(f?.id || "").trim();
       if (!driveId) return false;
       const existing = currentByDriveId.get(driveId);
@@ -864,8 +885,8 @@ async function syncFromAppsScript({ silent = false } = {}) {
 
     const records = [];
     const errors = [];
-    for (let idx = 0; idx < files.length; idx += 1) {
-      const f = files[idx];
+    for (let idx = 0; idx < visibleFiles.length; idx += 1) {
+      const f = visibleFiles[idx];
       try {
         const rec = buildRecord(parseAarObject(f?.aar || {}), "drive_file", f?.name || "");
         const driveId = String(f?.id || "").trim();
@@ -887,8 +908,9 @@ async function syncFromAppsScript({ silent = false } = {}) {
       return;
     }
 
-    try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
-    state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    const sorted = sortReports(records);
+    try { await dbReplaceAll(sorted); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
+    state.reports = sorted;
     await yieldToUi();
     renderAll();
     saveLastSync();
@@ -1111,7 +1133,13 @@ function classifTag(c) {
 function reportKindTag(kind) {
   const norm = normalizeReportKind(kind);
   if (norm === "FLASH") return `<span class="tag tag-report tag-report-flash">FLASH</span>`;
-  return `<span class="tag tag-report tag-report-consolide">CONSOLIDÉ</span>`;
+  return `<span class="tag tag-report tag-report-consolide">WEAPONS SCHOOL</span>`;
+}
+
+function workflowStatusTag(status) {
+  return normalizeWorkflowStatus(status) === "PENDING_QWI_REVIEW"
+    ? `<span class="tag tag-dr">EN ATTENTE QWI</span>`
+    : "";
 }
 
 function renderList() {
@@ -1137,6 +1165,8 @@ function renderList() {
   el.aarGrid.innerHTML = rows.map((r) => {
     const excerpt = cleanText(r.mission?.facts?.narrative || r.mission?.analysis?.content || r.mission?.facts?.what || "");
     const tags = [classifTag(r.classification)];
+    const workflowTag = workflowStatusTag(r.workflowStatus);
+    if (workflowTag) tags.push(workflowTag);
     if (r.missionType) tags.push(`<span class="tag tag-${r.missionType.toLowerCase()}">${esc(r.missionType)}</span>`);
     if (r.fleet) tags.push(`<span class="tag tag-fleet">${esc(r.fleet)}</span>`);
     if (r.hashtags?.length) tags.push(...r.hashtags.slice(0, 3).map((tag) => `<span class="tag tag-dorese">${esc(tag)}</span>`));
@@ -1181,7 +1211,10 @@ function openDetail(id) {
   const m = r.mission || {};
 
   el.detailTitle.textContent = "Apercu PDF";
-  el.detailMetaLine.textContent = `${formatDateFr(r.date)} | ${reportKindLabel(r.reportKind)} | ${r.classification}`;
+  const detailMetaParts = [formatDateFr(r.date), reportKindLabel(r.reportKind)];
+  if (normalizeWorkflowStatus(r.workflowStatus) === "PENDING_QWI_REVIEW") detailMetaParts.push("EN ATTENTE QWI");
+  detailMetaParts.push(r.classification);
+  el.detailMetaLine.textContent = detailMetaParts.join(" | ");
 
   const factBlocks = [
     { key: "what", label: "WHAT happened?", wide: true },
@@ -1217,6 +1250,7 @@ function openDetail(id) {
 
   const missionParts = [];
   if (r.reportKind) missionParts.push(`Type AAR: ${reportKindLabel(r.reportKind)}`);
+  if (normalizeWorkflowStatus(r.workflowStatus) === "PENDING_QWI_REVIEW") missionParts.push("Statut: En attente QWI");
   if (r.missionType) missionParts.push(`Type: ${r.missionType}`);
   if (r.country) missionParts.push(`Pays: ${r.country}`);
   if (r.airfield) missionParts.push(`Terrain OACI: ${r.airfield}`);
