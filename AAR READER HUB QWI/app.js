@@ -1132,7 +1132,7 @@ function renderList() {
 
   el.aarGrid.innerHTML = rows.map((r) => {
     const excerpt = cleanText(r.mission?.facts?.narrative || r.mission?.analysis?.content || r.mission?.facts?.what || "");
-    const tags = [reportKindTag(r.reportKind), classifTag(r.classification)];
+    const tags = [classifTag(r.classification)];
     if (r.missionType) tags.push(`<span class="tag tag-${r.missionType.toLowerCase()}">${esc(r.missionType)}</span>`);
     if (r.fleet) tags.push(`<span class="tag tag-fleet">${esc(r.fleet)}</span>`);
     if (r.hashtags?.length) tags.push(...r.hashtags.slice(0, 3).map((tag) => `<span class="tag tag-dorese">${esc(tag)}</span>`));
