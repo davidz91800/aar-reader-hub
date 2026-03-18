@@ -17,6 +17,25 @@
     exercises: { label: "Exercices", singular: "exercice", normalize: (value) => normalizeTextValue(value), selectKey: "tacExercise", otherKey: "tacExerciseAutre", contextKey: "tacContext", contextValue: "EXERCICE" }
   };
   const CATALOG_KEYS = Object.keys(CATALOG_DEFS);
+  const FRENCH_OACI_SCOPE_CODES = new Set([
+    "LFBA", "LFBC", "LFBD", "LFBG", "LFBM",
+    "LFBO", "LFKS", "LFMI", "LFMO", "LFMY",
+    "LFOA", "LFOE", "LFOJ", "LFPV", "LFSI",
+    "LFSO", "LFSX", "LFTH", "LFVP",
+    "SOCA", "TFFF", "TFFR", "FMCZ", "FMEE",
+    "FMEP", "NWWW", "NTAA"
+  ]);
+  const FRENCH_COUNTRY_SCOPE_FALLBACK = [
+    "France",
+    "Guadeloupe",
+    "Martinique",
+    "Guyane francaise",
+    "La Reunion",
+    "Mayotte",
+    "Nouvelle-Caledonie",
+    "Polynesie francaise",
+    "Saint-Pierre-et-Miquelon"
+  ];
 
   let tokenClient = null;
   let accessToken = "";
@@ -26,6 +45,7 @@
   let adminBusy = false;
   let currentCatalog = createEmptyCatalog();
   let baseCatalog = createEmptyCatalog();
+  let catalogCountryScopeUpper = null;
   let effectiveCatalogCache = null;
   const effectiveCategorySetCache = new Map();
   let adminActiveCategory = CATALOG_KEYS[0];
@@ -245,6 +265,48 @@
     return String(value || "").replace(/\s+/g, " ").trim();
   }
 
+  function extractOaciCode(value) {
+    const upper = normalizeTextValue(value).toUpperCase();
+    if (!upper) return "";
+    const match = upper.match(/\b([A-Z]{4})\b/);
+    return match ? String(match[1] || "") : "";
+  }
+
+  function isScopedOaciValue(value) {
+    const code = extractOaciCode(value);
+    if (!code) return false;
+    return FRENCH_OACI_SCOPE_CODES.has(code);
+  }
+
+  function setCatalogCountryScope(values) {
+    const normalized = (Array.isArray(values) ? values : [])
+      .map((value) => normalizeTextValue(value).toUpperCase())
+      .filter(Boolean);
+    catalogCountryScopeUpper = new Set(normalized);
+  }
+
+  function isScopedCountryValue(value) {
+    const normalized = normalizeTextValue(value).toUpperCase();
+    if (!normalized) return false;
+    if (!catalogCountryScopeUpper || !catalogCountryScopeUpper.size) return true;
+    return catalogCountryScopeUpper.has(normalized);
+  }
+
+  function buildScopedCountriesFromConfig(cfg) {
+    const out = [];
+    const byCountry = cfg && typeof cfg.logAirfieldsByCountry === "object" && cfg.logAirfieldsByCountry
+      ? cfg.logAirfieldsByCountry
+      : {};
+
+    Object.keys(byCountry).forEach((country) => {
+      const airfields = Array.isArray(byCountry[country]) ? byCountry[country] : [];
+      if (airfields.some((entry) => isScopedOaciValue(entry))) out.push(country);
+    });
+
+    if (!out.length) out.push(...FRENCH_COUNTRY_SCOPE_FALLBACK);
+    return out;
+  }
+
   function normalizeHashtag(value) {
     let tag = String(value || "").trim();
     if (!tag) return "";
@@ -332,6 +394,8 @@
     (Array.isArray(values) ? values : []).forEach((value) => {
       const normalized = String(def.normalize(value) || "").trim();
       if (!normalized) return;
+      if (key === "oaci" && !isScopedOaciValue(normalized)) return;
+      if (key === "countries" && !isScopedCountryValue(normalized)) return;
       const dedupKey = normalized.toUpperCase();
       if (seen.has(dedupKey)) return;
       seen.add(dedupKey);
@@ -351,12 +415,18 @@
 
   function buildBaseCatalogFromEditorConfig() {
     const cfg = getBundledMissionConfig();
+    const scopedCountries = normalizeCatalogValues("countries", buildScopedCountriesFromConfig(cfg));
+    setCatalogCountryScope(scopedCountries);
+
+    const allAirfields = (Array.isArray(cfg.allAirfields) && cfg.allAirfields.length)
+      ? cfg.allAirfields
+      : Object.values(cfg.logAirfieldsByCountry || {}).flat();
+    const scopedOaci = normalizeCatalogValues("oaci", allAirfields);
+
     return normalizeCatalogObject({
       hashtags: cfg.hashtags || [],
-      countries: cfg.allCountries || [],
-      oaci: (Array.isArray(cfg.allAirfields) && cfg.allAirfields.length)
-        ? cfg.allAirfields
-        : Object.values(cfg.logAirfieldsByCountry || {}).flat(),
+      countries: scopedCountries,
+      oaci: scopedOaci,
       operations: cfg.tacOperations || [],
       exercises: cfg.tacExercises || []
     });
@@ -1695,26 +1765,39 @@
               ${renderAdminHelp(`pending:${category}`, getAdminHelpContent("pending", category, model))}
             </div>
             <div class="admin-list admin-list-pending">
-              ${candidates.length ? candidates.map((row, idx) => `
-                <div class="admin-item admin-item-pending">
-                  <div class="admin-item-top">
-                    <div>
-                      <div class="admin-item-value">${esc(row.value)}</div>
-                      <div class="admin-item-meta">${esc(getCandidateReasonLabel(row))}</div>
+              ${candidates.length ? candidates.map((row, idx) => {
+                const mapOptions = getMappingOptionsForCandidate(category, row.value);
+                const mapListId = `admin-map-list-${category}-${idx}`;
+                return `
+                  <div class="admin-item admin-item-pending">
+                    <div class="admin-item-top">
+                      <div>
+                        <div class="admin-item-value">${esc(row.value)}</div>
+                        <div class="admin-item-meta">${esc(getCandidateReasonLabel(row))}</div>
+                      </div>
+                      <div class="admin-item-count">${row.count} AAR</div>
                     </div>
-                    <div class="admin-item-count">${row.count} AAR</div>
+                    ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<button class="admin-example-chip" data-admin-open-record="${esc(example.id || "")}" type="button">${esc(example.label || "")}</button>`).join("")}</div>` : ""}
+                    <div class="admin-action-grid">
+                      <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Creer</button>
+                      <input
+                        class="admin-input admin-input-map"
+                        data-admin-map-input="${esc(category)}"
+                        data-admin-source="${esc(row.value)}"
+                        data-admin-idx="${idx}"
+                        list="${esc(mapListId)}"
+                        placeholder="Rattacher a... (filtre en live)"
+                        autocomplete="off"
+                        spellcheck="false"
+                      >
+                      <datalist id="${esc(mapListId)}">
+                        ${mapOptions.map((value) => `<option value="${esc(value)}"></option>`).join("")}
+                      </datalist>
+                      <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Rattacher</button>
+                    </div>
                   </div>
-                  ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<button class="admin-example-chip" data-admin-open-record="${esc(example.id || "")}" type="button">${esc(example.label || "")}</button>`).join("")}</div>` : ""}
-                  <div class="admin-action-grid">
-                    <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Creer</button>
-                    <select class="admin-select" data-admin-map-select="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}">
-                      <option value="">Rattacher a...</option>
-                      ${getMappingOptionsForCandidate(category, row.value).map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}
-                    </select>
-                    <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Rattacher</button>
-                  </div>
-                </div>
-              `).join("") : `<div class="admin-empty">Aucune valeur en attente.</div>`}
+                `;
+              }).join("") : `<div class="admin-empty">Aucune valeur en attente.</div>`}
             </div>
           </section>
 
@@ -1877,19 +1960,42 @@
       });
     });
 
+    container.querySelectorAll("[data-admin-map-input]").forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        const category = input.getAttribute("data-admin-map-input");
+        const idx = input.getAttribute("data-admin-idx") || "";
+        const btn = container.querySelector(`[data-admin-map-btn="${category}"][data-admin-idx="${idx}"]`);
+        if (btn) btn.click();
+      });
+    });
+
     container.querySelectorAll("[data-admin-map-btn]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const category = btn.getAttribute("data-admin-map-btn");
         const source = btn.getAttribute("data-admin-source") || "";
         const idx = btn.getAttribute("data-admin-idx") || "";
-        const select = container.querySelector(`[data-admin-map-select="${category}"][data-admin-idx="${idx}"]`);
-        const selected = select ? String(select.value || "") : "";
-        if (!selected) {
+        const input = container.querySelector(`[data-admin-map-input="${category}"][data-admin-idx="${idx}"]`);
+        const selectedRaw = input ? String(input.value || "") : "";
+        if (!selectedRaw) {
           toast("Selectionne une cible.");
           return;
         }
-        const target = selected === "__NEW__" ? source : selected;
+        const def = CATALOG_DEFS[category];
+        if (!def) {
+          toast("Categorie invalide.");
+          return;
+        }
+        const options = getMappingOptionsForCandidate(category, source);
+        const normalizedSelected = String(def.normalize(selectedRaw) || "").toUpperCase();
+        const target = options.find((value) => String(def.normalize(value) || "").toUpperCase() === normalizedSelected) || "";
+        if (!target) {
+          toast("Cible invalide. Tape puis choisis une valeur proposee.");
+          return;
+        }
         await mapOtherCandidate(category, source, target);
+        if (input) input.value = "";
       });
     });
 
