@@ -5,12 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>After Action Review V1.0</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=20260318f">
+    <link rel="manifest" href="./manifest.webmanifest?v=20260318g">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="AAR PWA">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=20260318f">
-    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png?v=20260318f">
-    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260318f">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=20260318g">
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png?v=20260318g">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260318g">
     <style>
         /* --- THEME & VARIABLES --- */
         :root {
@@ -4088,6 +4088,11 @@
                     : 'PUBLISHED';
             },
 
+            getWorkflowStatusForCurrentReportKind: () => {
+                const reportKind = String(App.data.meta.reportKind || 'CONSOLIDE').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDE';
+                return reportKind === 'FLASH' ? 'PUBLISHED' : 'PENDING_QWI_REVIEW';
+            },
+
             setSendQwiBusy: (busy) => {
                 const btn = document.getElementById('send-qwi-btn');
                 if (!btn) return;
@@ -4156,9 +4161,7 @@
                 }
             },
 
-            pushToHubBeforeMail: async () => {
-                const reportKind = String(App.data.meta.reportKind || 'CONSOLIDE').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDE';
-                const workflowStatus = reportKind === 'FLASH' ? 'PUBLISHED' : 'PENDING_QWI_REVIEW';
+            stampWorkflowBeforeSend: (workflowStatus) => {
                 const now = new Date().toISOString();
                 App.data.meta.workflowStatus = workflowStatus;
                 App.data.meta.sentToQwiAt = now;
@@ -4168,7 +4171,9 @@
                     App.data.meta.publishedAt = '';
                 }
                 App.save();
+            },
 
+            pushToHubBeforeMail: async () => {
                 const response = await App.callAppsScript({
                     action: 'upsert',
                     driveFileId: String(App.data.meta.driveFileId || '').trim(),
@@ -4180,7 +4185,7 @@
                     App.data.meta.driveFileId = String(file.id || '').trim();
                     App.save();
                 }
-                return workflowStatus;
+                return true;
             },
 
             updateReportKind: (kind) => {
@@ -4457,8 +4462,15 @@
             sendQwiEmail: async () => {
                 if (!App.validateRequiredFields('envoi QWI')) return;
                 App.setSendQwiBusy(true);
+                const workflowStatus = App.getWorkflowStatusForCurrentReportKind();
+                App.stampWorkflowBeforeSend(workflowStatus);
+
+                // Fire-and-forget: launch Drive sync in background, without blocking mail opening.
+                App.pushToHubBeforeMail().catch((error) => {
+                    console.warn('HUB QWI sync failed in background:', error);
+                });
+
                 try {
-                    const workflowStatus = await App.pushToHubBeforeMail();
                     const title = App.data.meta.title || "AAR";
                     const date = App.data.meta.date || "Unknown Date";
                     const reportKind = String(App.data.meta.reportKind || 'CONSOLIDE').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDE';
@@ -4481,7 +4493,8 @@
                         message: `Impossible d'envoyer l'AAR au HUB QWI avant ouverture du mail.\n\n${error?.message || error}`
                     });
                 } finally {
-                    App.setSendQwiBusy(false);
+                    // Keep a short lock to avoid accidental double tap.
+                    setTimeout(() => App.setSendQwiBusy(false), 1200);
                 }
             },
             printReport: () => {
@@ -4848,6 +4861,7 @@
 </body>
 
 </html>
+
 
 
 
