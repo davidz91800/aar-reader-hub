@@ -537,6 +537,20 @@ body {
   padding: 1rem 1.4rem 2rem;
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .detail-overlay.pdf-open {
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+  .detail-sheet.pdf-open {
+    height: 100%;
+  }
+  .detail-sheet.pdf-open .detail-body.detail-body-pdf {
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+  }
+}
+
 .pdf-preview-wrap {
   width: 100%;
   display: flex;
