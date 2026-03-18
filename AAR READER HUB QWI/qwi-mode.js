@@ -1611,14 +1611,20 @@
     return `
       <div class="admin-help ${className} ${isOpen ? "is-open" : ""}">
         <button class="admin-help-btn" type="button" data-admin-help-toggle="${esc(helpKey)}" aria-label="${esc(payload.title || "Aide")}">?</button>
-        ${isOpen ? `
-          <div class="admin-help-pop" role="note">
-            <div class="admin-help-pop-title">${esc(payload.title || "Aide")}</div>
-            <div class="admin-help-pop-body">
-              ${(payload.body || []).map((line) => `<p>${esc(line)}</p>`).join("")}
-            </div>
-          </div>
-        ` : ""}
+      </div>
+    `;
+  }
+
+  function renderAdminHelpModal(payload) {
+    if (!payload) return "";
+    return `
+      <div class="admin-help-modal-backdrop" data-admin-help-close="1"></div>
+      <div class="admin-help-modal" role="dialog" aria-modal="true" aria-labelledby="admin-help-modal-title">
+        <button class="admin-help-modal-close" type="button" data-admin-help-close="1" aria-label="Fermer l'aide">×</button>
+        <div id="admin-help-modal-title" class="admin-help-modal-title">${esc(payload.title || "Aide")}</div>
+        <div class="admin-help-modal-body">
+          ${(payload.body || []).map((line) => `<p>${esc(line)}</p>`).join("")}
+        </div>
       </div>
     `;
   }
@@ -1794,6 +1800,15 @@
       });
     });
 
+    container.querySelectorAll("[data-admin-help-close]").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        adminOpenHelpKey = "";
+        renderAdmin(container);
+      });
+    });
+
     container.querySelectorAll("[data-admin-add-input]").forEach((input) => {
       input.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
@@ -1918,6 +1933,14 @@
       };
     });
     const activeModel = categoryModels[adminActiveCategory];
+    const helpRegistry = {
+      overview: getAdminHelpContent("overview", adminActiveCategory, activeModel),
+      [`category:${adminActiveCategory}`]: getAdminHelpContent("category", adminActiveCategory, activeModel),
+      [`pending:${adminActiveCategory}`]: getAdminHelpContent("pending", adminActiveCategory, activeModel),
+      [`add:${adminActiveCategory}`]: getAdminHelpContent("add", adminActiveCategory, activeModel),
+      [`catalog:${adminActiveCategory}`]: getAdminHelpContent("catalog", adminActiveCategory, activeModel)
+    };
+    const activeHelpPayload = adminOpenHelpKey ? helpRegistry[adminOpenHelpKey] || null : null;
 
     targetEl.innerHTML = `
       <div class="admin-wrap">
@@ -1950,6 +1973,7 @@
         <div class="admin-grid">
           ${renderAdminCard(adminActiveCategory, activeModel)}
         </div>
+        ${renderAdminHelpModal(activeHelpPayload)}
       </div>
     `;
 

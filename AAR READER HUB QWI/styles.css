@@ -1291,35 +1291,60 @@ body {
   background: rgba(29, 78, 216, 0.18);
   color: #ffffff;
 }
-.admin-help-pop {
-  position: absolute;
-  top: calc(100% + 0.45rem);
-  right: 0;
-  width: min(360px, calc(100vw - 36px));
-  border-radius: 16px;
-  border: 1px solid rgba(96, 165, 250, 0.24);
-  background: rgba(9, 16, 29, 0.98);
-  box-shadow: 0 22px 48px rgba(2, 6, 23, 0.42);
-  padding: 0.85rem 0.9rem;
-  z-index: 8;
+.admin-help-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.6);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 11;
 }
-.admin-help-pop-title {
+.admin-help-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 560px);
+  max-height: min(72vh, 700px);
+  overflow-y: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(96, 165, 250, 0.7);
+  background: #0f172a;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+  padding: 2.2rem 0.95rem 0.95rem;
+  z-index: 12;
+}
+.admin-help-modal-title {
   font-size: 0.8rem;
   font-weight: 900;
-  color: #eff6ff;
-  margin-bottom: 0.38rem;
+  color: var(--accent-2);
+  margin-bottom: 0.45rem;
 }
-.admin-help-pop-body {
+.admin-help-modal-body {
   display: grid;
   gap: 0.42rem;
 }
-.admin-help-pop-body p {
-  font-size: 0.74rem;
-  line-height: 1.48;
-  color: var(--text-2);
+.admin-help-modal-body p {
+  font-size: 0.88rem;
+  line-height: 1.42;
+  color: var(--text);
 }
-.admin-help-header .admin-help-pop {
-  width: min(380px, calc(100vw - 36px));
+.admin-help-modal-close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 1.1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 .admin-row {
   display: flex;
