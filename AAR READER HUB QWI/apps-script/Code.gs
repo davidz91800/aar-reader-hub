@@ -5,7 +5,7 @@
  * Ce projet regroupe 2 automations dans UN seul Apps Script:
  *
  * AUTOMATION 1 - WEB APP API (HUB NON QWI + HUB QWI + AAR PWA)
- *   - GET  action=status|listAars|getCatalog|getHashtags|ingestStatus|runIngest
+ *   - GET  action=status|listAars|getCatalog|getHashtags|ingestStatus|runIngest|debugLatestMessage|resetIngestState|retryIngest
  *   - POST action=upsert|delete|setCatalog|setHashtags
  *
  * AUTOMATION 2 - INGEST EMAIL -> DRIVE (trigger horaire)
@@ -76,9 +76,27 @@ function doGet(e) {
       return jsonOutput_({ ok: true, action: "runIngest", summary: result });
     }
 
+    if (action === "debuglatestmessage") {
+      assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
+      return handleDebugLatestMessage_(cfg);
+    }
+
+    if (action === "resetingeststate") {
+      assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
+      resetIngestState();
+      return jsonOutput_({ ok: true, action: "resetIngestState" });
+    }
+
+    if (action === "retryingest") {
+      assertAccess_(e && e.parameter ? e.parameter.accessKey : "", cfg);
+      resetIngestState();
+      var retryResult = runIngestCore_(cfg, { manual: true, afterReset: true });
+      return jsonOutput_({ ok: true, action: "retryIngest", summary: retryResult });
+    }
+
     return jsonOutput_({
       ok: true,
-      message: "Use GET action=status|listAars|getCatalog|getHashtags|ingestStatus|runIngest"
+      message: "Use GET action=status|listAars|getCatalog|getHashtags|ingestStatus|runIngest|debugLatestMessage|resetIngestState|retryIngest"
     });
   } catch (error) {
     return errorOutput_(error);
@@ -295,6 +313,58 @@ function testLatestMessageExtraction() {
   if (payloads.length) {
     Logger.log(JSON.stringify(normalizeAar_(payloads[0]), null, 2));
   }
+}
+
+function handleDebugLatestMessage_(cfg) {
+  validateIngestConfig_(cfg);
+
+  var threads = GmailApp.search(cfg.ingestMailQuery, 0, 1);
+  if (!threads.length) {
+    return jsonOutput_({
+      ok: true,
+      action: "debugLatestMessage",
+      found: false,
+      reason: "No matching Gmail thread for current query.",
+      query: cfg.ingestMailQuery
+    });
+  }
+
+  var messages = threads[0].getMessages();
+  if (!messages.length) {
+    return jsonOutput_({
+      ok: true,
+      action: "debugLatestMessage",
+      found: false,
+      reason: "Matching thread exists but contains no message.",
+      query: cfg.ingestMailQuery
+    });
+  }
+
+  var latest = messages[messages.length - 1];
+  var plainBody = String(latest.getPlainBody() || "");
+  var rawContent = String(latest.getRawContent() || "");
+  var payloads = extractAarsFromMessage_(latest);
+
+  return jsonOutput_({
+    ok: true,
+    action: "debugLatestMessage",
+    found: true,
+    query: cfg.ingestMailQuery,
+    message: {
+      id: latest.getId(),
+      subject: latest.getSubject(),
+      from: latest.getFrom(),
+      date: latest.getDate() ? latest.getDate().toISOString() : null
+    },
+    markers: {
+      plainBegin: plainBody.indexOf("---BEGIN-AAR-JSON---") >= 0,
+      plainEnd: plainBody.indexOf("---END-AAR-JSON---") >= 0,
+      rawBegin: rawContent.indexOf("---BEGIN-AAR-JSON---") >= 0,
+      rawEnd: rawContent.indexOf("---END-AAR-JSON---") >= 0
+    },
+    payloadCount: payloads.length,
+    firstPayload: payloads.length ? normalizeAar_(payloads[0]) : null
+  });
 }
 
 function handleIngestStatus_() {
