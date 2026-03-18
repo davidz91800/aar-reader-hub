@@ -1808,9 +1808,9 @@
                     <div class="form-group">
                         <label>Pays</label>
                         <div class="combo-box" id="country-search-combo">
-                            <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
-                                autocomplete="off" onfocus="App.openLogCountryMenu()"
-                                oninput="App.filterLogCountries(this.value)">
+                                <input type="search" id="meta-log-country-search" placeholder="Rechercher un pays..."
+                                    autocomplete="off" onfocus="App.openLogCountryMenu()" onclick="App.openLogCountryMenu()"
+                                    oninput="App.filterLogCountries(this.value)">
                             <div id="meta-log-country-menu" class="combo-menu" role="listbox" aria-label="Suggestions pays"></div>
                         </div>
                         <select id="meta-log-country" style="display:none;" onchange="App.updateLogCountrySelection(this.value)">
@@ -1822,9 +1822,9 @@
                     <div class="form-group">
                         <label>Terrain OACI</label>
                         <div class="combo-box" id="airfield-search-combo">
-                            <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
-                                autocomplete="off" onfocus="App.openLogAirfieldMenu()"
-                                oninput="App.filterLogAirfields(this.value)">
+                                <input type="search" id="meta-log-airfield-search" placeholder="Rechercher un terrain OACI..."
+                                    autocomplete="off" onfocus="App.openLogAirfieldMenu()" onclick="App.openLogAirfieldMenu()"
+                                    oninput="App.filterLogAirfields(this.value)">
                             <div id="meta-log-airfield-menu" class="combo-menu" role="listbox" aria-label="Suggestions terrain OACI"></div>
                         </div>
                         <select id="meta-log-airfield" style="display:none;" onchange="App.updateLogAirfieldSelection(this.value)">
@@ -2985,6 +2985,33 @@
                 return [...startsWith, ...includes];
             },
 
+            bindComboOptionSelection: (element, handler) => {
+                if (!element || typeof handler !== 'function') return;
+                let pointerHandled = false;
+                const run = (event) => {
+                    if (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    handler();
+                };
+                const onPointer = (event) => {
+                    pointerHandled = true;
+                    run(event);
+                };
+                const onClick = (event) => {
+                    if (pointerHandled) {
+                        pointerHandled = false;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return;
+                    }
+                    run(event);
+                };
+                element.addEventListener('pointerdown', onPointer);
+                element.addEventListener('click', onClick);
+            },
+
             normalizeHashtag: (value) => {
                 let tag = String(value || '').trim();
                 if (!tag) return '';
@@ -3262,7 +3289,7 @@
                 const filtered = App.ui.logCountrySearch
                     ? App.filterValues(baseCountries, App.ui.logCountrySearch)
                     : baseCountries;
-                const countries = filtered.slice(0, 60);
+                const countries = filtered;
 
                 menu.innerHTML = '';
                 if (!App.ui.showCountryMenu) {
@@ -3274,7 +3301,7 @@
                 autre.type = 'button';
                 autre.className = 'combo-option';
                 autre.textContent = 'AUTRE';
-                autre.addEventListener('click', () => App.selectLogCountryFromMenu('AUTRE'));
+                App.bindComboOptionSelection(autre, () => App.selectLogCountryFromMenu('AUTRE'));
                 menu.appendChild(autre);
 
                 countries.forEach((country) => {
@@ -3282,7 +3309,7 @@
                     btn.type = 'button';
                     btn.className = 'combo-option';
                     btn.textContent = country;
-                    btn.addEventListener('click', () => App.selectLogCountryFromMenu(country));
+                    App.bindComboOptionSelection(btn, () => App.selectLogCountryFromMenu(country));
                     menu.appendChild(btn);
                 });
 
@@ -3299,7 +3326,10 @@
             openLogCountryMenu: () => {
                 App.ui.showCountryMenu = true;
                 const input = document.getElementById('meta-log-country-search');
-                if (input) App.ui.logCountrySearch = input.value || '';
+                App.ui.logCountrySearch = '';
+                if (input && input.value) {
+                    try { input.setSelectionRange(0, input.value.length); } catch (_) { /* noop */ }
+                }
                 App.renderLogCountryMenu();
             },
 
@@ -3343,7 +3373,7 @@
                 const filtered = App.ui.logAirfieldSearch
                     ? App.filterValues(baseAirfields, App.ui.logAirfieldSearch)
                     : baseAirfields;
-                const airfields = filtered.slice(0, 60);
+                const airfields = filtered;
 
                 menu.innerHTML = '';
                 if (!App.ui.showAirfieldMenu) {
@@ -3355,7 +3385,7 @@
                 autre.type = 'button';
                 autre.className = 'combo-option';
                 autre.textContent = 'AUTRE';
-                autre.addEventListener('click', () => App.selectLogAirfieldFromMenu('AUTRE'));
+                App.bindComboOptionSelection(autre, () => App.selectLogAirfieldFromMenu('AUTRE'));
                 menu.appendChild(autre);
 
                 airfields.forEach((airfield) => {
@@ -3363,7 +3393,7 @@
                     btn.type = 'button';
                     btn.className = 'combo-option';
                     btn.textContent = airfield;
-                    btn.addEventListener('click', () => App.selectLogAirfieldFromMenu(airfield));
+                    App.bindComboOptionSelection(btn, () => App.selectLogAirfieldFromMenu(airfield));
                     menu.appendChild(btn);
                 });
 
@@ -3380,7 +3410,10 @@
             openLogAirfieldMenu: () => {
                 App.ui.showAirfieldMenu = true;
                 const input = document.getElementById('meta-log-airfield-search');
-                if (input) App.ui.logAirfieldSearch = input.value || '';
+                App.ui.logAirfieldSearch = '';
+                if (input && input.value) {
+                    try { input.setSelectionRange(0, input.value.length); } catch (_) { /* noop */ }
+                }
                 App.renderLogAirfieldMenu();
             },
 
@@ -3398,13 +3431,13 @@
             filterLogCountries: (query) => {
                 App.ui.logCountrySearch = query || '';
                 App.ui.showCountryMenu = true;
-                App.renderLogCountrySelect();
+                App.renderLogCountryMenu();
             },
 
             filterLogAirfields: (query) => {
                 App.ui.logAirfieldSearch = query || '';
                 App.ui.showAirfieldMenu = true;
-                App.renderLogAirfieldSelect();
+                App.renderLogAirfieldMenu();
             },
 
             renderHashtagSelect: () => {
