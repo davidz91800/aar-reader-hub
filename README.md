@@ -18,47 +18,35 @@ Si `index.html` est ouvert en `file://`, l'app affiche maintenant une aide a l'e
 - `AAR Reader Data/` : donnees JSON lues par l'application.
 - `index.html`, `app.js`, `styles.css`, `config.js` : coeur de la PWA.
 
-## Mode Google Drive (gratuit)
+## Mode recommande (Apps Script + Drive)
 
-Cette app lit des fichiers JSON AAR publics depuis Google Drive.
+Cette app lit les JSON AAR via un backend Apps Script unique (partage avec HUB QWI et AAR PWA).
 
 ### Setup minimal (admin)
 
-1. Creer un dossier Google Drive pour les AAR JSON.
-2. Partager les fichiers/dossier en lecture.
-3. Activer Google Drive API dans Google Cloud Console.
-4. Creer une API key.
-5. Renseigner `config.js`:
+1. Deployer le backend Apps Script (`apps-script/Code.gs` cote QWI).
+2. Recuperer l'URL `/exec` et la cle `AAR_ACCESS_KEY`.
+3. Renseigner `config.js`:
 
 ```js
 window.AAR_READER_CONFIG = {
   autoSyncOnStartup: true,
-  googleDrive: {
-    apiKey: "TON_API_KEY",
-    folderId: "ID_DU_DOSSIER_DRIVE",
-    indexFileId: ""
+  appsScript: {
+    enabled: true,
+    webAppUrl: "https://script.google.com/macros/s/.../exec",
+    accessKey: "AAR-READER-HUB-QWI"
   }
 };
 ```
 
-Option: `indexFileId` peut pointer vers un `index.json` public contenant la liste des fichiers.
-
-Mode recommande iPad:
-- `indexFileId` renseigne
-- `folderId` vide
-- `apiKey` possible vide si `index.json` et les AAR sont publics
-- tous les fichiers AAR partages en lecture ("Toute personne ayant le lien")
-
-Le Reader telecharge les JSON via `drive.usercontent.google.com`.
-En mode hybride, l'app peut basculer automatiquement sur `AAR Reader Data/index.json` si Drive est indisponible.
-
 ## Architecture recommandee (QWI + non QWI)
 
-Objectif: ne plus dependre d'un push GitHub pour voir les nouveaux AAR.
+Objectif: ne plus dependre d'un push GitHub de donnees pour voir les nouveaux AAR.
 
-1. QWI ecrit dans Drive (OAuth).
-2. Non QWI lit Drive directement (apiKey + folderId, ou indexFileId public).
-3. Les donnees statiques locales restent en secours (fallback).
+1. Email AAR -> automation Apps Script ingest -> Drive.
+2. HUB QWI edite via Apps Script (`upsert/delete`).
+3. HUB NON QWI lit via Apps Script (`listAars`).
+4. Le push GitHub reste utile pour le code front, pas pour les JSON metier.
 
 Pour iPad/PWA:
 - Si tu utilises une API key, ajoute le domaine reel de publication dans les referers autorises (pas seulement `localhost`).

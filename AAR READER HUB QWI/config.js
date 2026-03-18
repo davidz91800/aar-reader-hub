@@ -4,14 +4,17 @@
  * ============================================================
  * Ce fichier est la config de la variante QWI (ajout/modif/suppression).
  *
- * Principe:
- * - "local" = valeurs forcees pour le HUB QWI.
- * - "shared" = valeurs existantes si une config globale a deja ete chargee.
- * - priorite appliquee ici: local > shared > valeur vide.
+ * Architecture cible (2026-03):
+ * - un backend Apps Script UNIQUE pour les 3 PWA.
+ * - AUTOMATION 1 (Web App API): doGet/doPost.
+ * - AUTOMATION 2 (Email -> Drive): runIngestEmailsToDrive trigger.
+ * - ce hub QWI lit/edite via action=listAars/upsert/delete/setCatalog.
+ * - le push GitHub des JSON n'est plus requis en nominal.
  *
- * Pourquoi ce merge:
- * - garder une compatibilite si le hub QWI est embarque ailleurs,
- * - tout en imposant ses parametres critiques (Apps Script et dossier Drive).
+ * Principe technique:
+ * - "local" = valeurs forcees pour le HUB QWI.
+ * - "shared" = valeurs detectees si une config globale existe deja.
+ * - priorite: local > shared > vide.
  * ============================================================
  */
 (function mergeQwiConfig(global) {
@@ -19,7 +22,7 @@
   const sharedDrive = shared.googleDrive || {};
   const sharedStatic = shared.staticRepo || {};
 
-  // Parametres specifiques QWI (source de verite de ce hub).
+    // Parametres specifiques QWI (source de verite de ce hub).
   const local = {
     // En QWI, on laisse l'utilisateur declencher la sync (moins d'effets de bord).
     autoSyncOnStartup: false,
@@ -37,15 +40,15 @@
     appsScript: {
       // true = backend prioritaire (recommande iPad/PWA).
       enabled: true,
-      // Endpoint /exec du backend QWI (listAars/upsert/delete/getCatalog/setCatalog).
-      webAppUrl: "https://script.google.com/macros/s/AKfycbzAB36XlBoE5vo1fSfxeMkn05r6FrUlFkEw8iAxiEaTsj1maU82c4d9GgB7W6p72rOPSg/exec",
+      // Endpoint /exec UNIQUE partage par les 3 PWA.
+      webAppUrl: "https://script.google.com/macros/s/AKfycbyR4B_bo7J7mHPE-oEvjVay3xx8-5tmiOex3TfTWr4V3a1xlCmZpQer8dy6dKJn3c9P/exec",
       // Doit matcher la Script Property AAR_ACCESS_KEY.
       accessKey: "AAR-READER-HUB-QWI",
       timeoutMs: 25000
     },
 
     staticRepo: {
-      // Fallback statique desactive en QWI (on veut privilegier Drive/backend).
+      // Fallback statique desactive en QWI (secours possible si besoin).
       enabled: false,
       indexUrl: "./AAR Reader Data/index.json"
     }

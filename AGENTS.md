@@ -26,9 +26,9 @@ Quand tu modifies ce hub, verifie toujours l'impact sur:
 ## Contexte d'exploitation (a conserver)
 - Flux operationnel actuel:
   - Un e-mail AAR arrive sur `david.zemmour3@gmail.com`.
-  - Une automatisation extrait le JSON et l'ecrit dans le dossier Google Drive des JSON.
-  - Un push GitHub met a jour les donnees statiques consommees par le hub.
-- Toute modification de sync/stockage doit garder ce pipeline e-mail -> Drive -> GitHub fonctionnel.
+  - Une automatisation Apps Script extrait le JSON et l'ecrit dans le dossier Google Drive des JSON.
+  - Le hub lit ensuite via Apps Script (`action=listAars`), sans push GitHub de donnees en nominal.
+- Toute modification de sync/stockage doit garder ce pipeline e-mail -> Apps Script -> Drive -> hubs fonctionnel.
 - Variante QWI:
   - Peut utiliser un backend Apps Script (config `appsScript` dans `AAR READER HUB QWI/config.js`) pour ecriture/suppression sans popup OAuth.
   - Le hub non QWI peut aussi lire via Apps Script (`action=listAars`) pour eviter les blocages de cle API Drive cote navigateur.
@@ -37,3 +37,7 @@ Quand tu modifies ce hub, verifie toujours l'impact sur:
   - Projet Google Cloud recommande: `RETEX`.
   - Cle API du hub frontend separee de la cle API d'automatisation.
   - Si la cle frontend est exposee dans `config.js`, la restreindre (HTTP referrers + Drive API uniquement).
+  - Le `AAR_ACCESS_KEY` du backend Apps Script doit etre identique entre:
+    - `E - AAR READER HUB/config.js`
+    - `E - AAR READER HUB/AAR READER HUB QWI/config.js`
+    - `C - AAR PWA/mission-config.js`

@@ -4,14 +4,17 @@
  * ============================================================
  * Ce fichier configure uniquement le HUB LECTEUR (non QWI).
  *
- * Sources possibles de donnees, dans l'ordre de priorite:
- * 1) appsScript (recommande): lecture listAars/getCatalog via Web App.
- * 2) googleDrive (API front): lecture directe Drive depuis le navigateur.
- * 3) staticRepo: fallback local GitHub (AAR Reader Data/index.json).
+ * Architecture cible (2026-03):
+ * - 1 backend Apps Script UNIQUE pour les 3 PWA.
+ * - AUTOMATION 1 (Web App API): doGet/doPost.
+ * - AUTOMATION 2 (Email -> Drive): runIngestEmailsToDrive trigger.
+ * - Le hub NON QWI lit les AAR via action=listAars.
+ * - Le push GitHub des JSON n'est plus requis en nominal.
  *
- * Note architecture:
- * - L'automation email -> Drive -> GitHub est un script distinct.
- * - Le backend QWI (upsert/delete/catalog) est un autre script distinct.
+ * Ordre de lecture:
+ * 1) appsScript (recommande)
+ * 2) googleDrive API front (secours)
+ * 3) staticRepo (secours ultime, desactive par defaut)
  * ============================================================
  */
 window.AAR_READER_CONFIG = {
@@ -30,18 +33,18 @@ window.AAR_READER_CONFIG = {
   },
 
   appsScript: {
-    // true = priorite a la lecture via Web App Apps Script (plus fiable en PWA).
+    // true = source prioritaire pour lecture (Web App Apps Script unique).
     enabled: true,
-    // Endpoint /exec du backend Apps Script actif.
-    webAppUrl: "https://script.google.com/macros/s/AKfycbzAB36XlBoE5vo1fSfxeMkn05r6FrUlFkEw8iAxiEaTsj1maU82c4d9GgB7W6p72rOPSg/exec",
-    // Cle partagee validee cote Apps Script (AAR_ACCESS_KEY).
+    // Endpoint /exec partage par HUB NON QWI, HUB QWI et AAR PWA.
+    webAppUrl: "https://script.google.com/macros/s/AKfycbyR4B_bo7J7mHPE-oEvjVay3xx8-5tmiOex3TfTWr4V3a1xlCmZpQer8dy6dKJn3c9P/exec",
+    // Cle partagee (Script Property AAR_ACCESS_KEY).
     accessKey: "AAR-READER-HUB-QWI",
     // Timeout reseau des appels backend (ms).
     timeoutMs: 25000
   },
 
   staticRepo: {
-    // true = autorise le fallback sur donnees statiques du repo.
+    // true = autorise le fallback sur donnees statiques du repo (secours uniquement).
     enabled: false,
     // Index local GitHub Pages (fallback uniquement).
     indexUrl: "./AAR Reader Data/index.json"

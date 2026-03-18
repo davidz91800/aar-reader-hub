@@ -1,196 +1,223 @@
-# Tutoriel complet - Backend Google Apps Script pour AAR READER HUB QWI
+# Tutoriel complet (debutant) - Backend Apps Script unique pour 3 PWA
 
-Objectif: supprimer la friction OAuth dans la PWA QWI (iPad), en passant par un backend Apps Script qui ecrit/supprime les JSON dans Drive.
+Ce tutoriel met en place UNE seule base backend pour:
+1. `AAR READER HUB` (non QWI, lecture)
+2. `AAR READER HUB QWI` (lecture + edition)
+3. `AAR PWA` (formulaire)
 
----
-
-## 0) Prerequis
-
-1. Compte Google proprietaire du dossier Drive JSON.
-2. ID du dossier Drive des JSON:
-   - ici: `18RTzOZzYWEIFWS5NXyYA_Ts3Xyf2X5kX`
-3. Le code Apps Script pret est dans:
-   - `apps-script/Code.gs`
-4. La PWA QWI est deja preparee pour utiliser ce backend via `config.js`.
+Objectif:
+- tout centraliser dans Google Apps Script + Google Drive,
+- supprimer la dependance fonctionnelle au push GitHub pour les donnees AAR.
 
 ---
 
-## 1) Creer le projet Apps Script
+## 1) Ce que fait chaque automation (noms exacts)
+
+Dans le meme projet Apps Script (`Code.gs`), tu as 2 automations:
+
+1. `AUTOMATION 1 - WEB APP API`
+   - Fonctions: `doGet`, `doPost`
+   - Sert aux 3 PWA pour:
+     - lire les AAR (`action=listAars`)
+     - lire/ecrire le catalogue (`getCatalog`, `setCatalog`)
+     - creer/modifier/supprimer un AAR (`upsert`, `delete` via HUB QWI)
+
+2. `AUTOMATION 2 - INGEST EMAIL -> DRIVE`
+   - Fonction principale: `runIngestEmailsToDrive`
+   - Lit les mails AAR, extrait le JSON, cree le fichier `.json` dans Drive
+   - Alimente automatiquement le catalogue (hashtags/pays/OACI/operations/exercices)
+   - Se lance via trigger horaire
+
+---
+
+## 2) Prerequis
+
+1. Compte Google proprietaire du dossier Drive des AAR.
+2. ID du dossier Drive des JSON (ex: `18RTzOZzYWEIFWS5NXyYA_Ts3Xyf2X5kX`).
+3. Fichier source a copier:
+   - `E - AAR READER HUB/AAR READER HUB QWI/apps-script/Code.gs`
+
+---
+
+## 3) Creation du projet Apps Script
 
 1. Ouvre [script.google.com](https://script.google.com).
 2. Clique `Nouveau projet`.
-3. Renomme le projet: `RETEX - AAR HUB QWI API`.
-4. Dans l'editeur, supprime le contenu de `Code.gs`.
-5. Copie-colle le contenu du fichier local `apps-script/Code.gs`.
-6. Clique `Enregistrer` (icone disquette).
+3. Renomme le projet:
+   - `RETEX - BACKEND UNIFIE (3 PWA)`
+4. Ouvre `Code.gs`, supprime tout, colle le nouveau `Code.gs`.
+5. Enregistre.
 
 ---
 
-## 2) Definir les proprietes de script (secret + folder par defaut)
+## 4) Proprietes de script a configurer
 
-1. Dans Apps Script, clique `Parametres du projet` (roue dentee, barre gauche).
-2. Section `Proprietes du script` -> `Ajouter une propriete`.
-3. Ajoute:
-   - Cle: `AAR_ACCESS_KEY`
-   - Valeur: un secret long (exemple: `QWI-2026-<chaine-longue>`).
-4. Ajoute:
-   - Cle: `AAR_FOLDER_ID`
-   - Valeur: `18RTzOZzYWEIFWS5NXyYA_Ts3Xyf2X5kX`
-5. (Optionnel, recommande) ajoute aussi:
-   - Cle: `AAR_CATALOG_JSON`
-   - Valeur:
-     `{"hashtags":["#RETEX"],"countries":[],"oaci":[],"operations":[],"exercises":[]}`
-6. (Legacy, optionnel) tu peux garder:
-   - Cle: `AAR_HASHTAGS_JSON`
-   - Valeur: `["#RETEX"]`
-6. Enregistre.
+Ouvre `Parametres du projet` -> `Proprietes du script` -> `Ajouter une propriete`.
 
-Important:
-- `AAR_ACCESS_KEY` doit etre reporte dans `config.js` de la PWA QWI.
-- Sans cette cle, n'importe qui connaissant l'URL du Web App peut appeler l'API.
+### Proprietes obligatoires
 
----
+1. `AAR_ACCESS_KEY`
+   - Exemple: `AAR-READER-HUB-QWI`
+   - Cette cle doit etre la meme dans les `config.js` / `mission-config.js`.
 
-## 3) Deployer en application web
+2. `AAR_FOLDER_ID`
+   - Valeur: ID du dossier Drive qui contient les JSON AAR.
 
-1. Clique `Deployer` (en haut droite).
-2. Clique `Nouveau deploiement`.
-3. Clique l'icone engrenage -> choisis `Application web`.
-4. Renseigne:
-   - `Description`: `AAR HUB QWI API v1`
-   - `Executer en tant que`: `Moi`
-   - `Qui a acces`: `Toute personne disposant du lien`
-5. Clique `Deployer`.
-6. Autorise les permissions:
-   - selection du compte,
-   - `Parametres avances` si necessaire,
-   - `Autoriser`.
-7. Copie l'`URL de l'application web` (elle finit par `/exec`).
+### Proprietes recommandees (ingest email)
 
----
+3. `AAR_INGEST_ENABLED`
+   - `true`
 
-## 4) Configurer la PWA QWI (config.js)
+4. `AAR_INGEST_MAIL_QUERY`
+   - Exemple:
+   - `to:david.zemmour3@gmail.com newer_than:30d`
 
-Fichier a modifier:
-- `E - AAR READER HUB/AAR READER HUB QWI/config.js`
+5. `AAR_INGEST_MAX_THREADS_PER_RUN`
+   - Exemple: `20`
 
-Dans l'objet `appsScript`, mets:
+6. `AAR_INGEST_ERROR_LABEL`
+   - Exemple: `AAR_READER_ERROR`
 
-```js
-appsScript: {
-  enabled: true,
-  webAppUrl: "https://script.google.com/macros/s/XXXXXXXXXXXX/exec",
-  accessKey: "TA_CLE_AAR_ACCESS_KEY",
-  timeoutMs: 25000
-},
-```
+7. `AAR_INGEST_TRIGGER_MINUTES`
+   - Exemple: `5`
 
-Notes:
-1. `enabled: true` active le mode backend Apps Script.
-2. Le bouton nuage OAuth est masque automatiquement.
-3. Les actions `Modifier/Supprimer/Ajouter` passent par Apps Script.
+### Proprietes catalogue (optionnelles)
+
+8. `AAR_CATALOG_JSON`
+   - Exemple minimal:
+   - `{"hashtags":["#RETEX"],"countries":[],"oaci":[],"operations":[],"exercises":[]}`
+
+9. `AAR_HASHTAGS_JSON`
+   - Legacy (compatibilite), peut rester.
 
 ---
 
-## 5) Push GitHub
+## 5) Deploiement Web App (Automation 1)
 
-Depuis le repo `E - AAR READER HUB`:
-1. Commit/push vers `aar-reader-hub`.
-2. Push du dossier `AAR READER HUB QWI` vers `aar-reader-hub-qwi`.
+1. Clique `Deployer` -> `Nouveau deploiement`.
+2. Type: `Application web`.
+3. Description:
+   - `AUTOMATION 1 - WEB APP API - RETEX`
+4. `Executer en tant que`: `Moi`
+5. `Qui a acces`:
+   - `Tout utilisateur possedant un compte Google` (ou `Tout le monde` selon ta politique)
+6. Clique `Deployer`.
+7. Copie l'URL `/exec`.
 
-Si tu utilises deja le process habituel de push, garde ce process.
+Cette URL sera utilisee par les 3 PWA.
 
 ---
 
-## 6) Test fonctionnel (important)
+## 6) Activer le trigger (Automation 2)
 
-### Test 1 - API status
-1. Ouvre l'URL:
-   - `https://script.google.com/macros/s/.../exec?action=status`
-2. Tu dois voir du JSON:
+Option simple (recommandee):
+1. Dans l'editeur Apps Script, selectionne la fonction:
+   - `setupIngestTriggerEvery5Minutes`
+2. Clique `Executer`.
+3. Autorise les permissions.
+
+Ce que fait cette fonction:
+- supprime les anciens triggers ingest,
+- cree 1 trigger toutes les 5 minutes sur `runIngestEmailsToDrive`.
+
+---
+
+## 7) Tester rapidement
+
+### Test API
+
+1. Ouvre:
+   - `https://script.google.com/macros/s/TON_DEPLOYMENT_ID/exec?action=status`
+2. Tu dois voir:
    - `"ok": true`
-3. Test lecture complete:
-   - `https://script.google.com/macros/s/.../exec?action=listAars&accessKey=TA_CLE_AAR_ACCESS_KEY`
-   - tu dois voir `action: "listAars"` et `count` > 0.
-4. Test catalogue mission:
-   - `https://script.google.com/macros/s/.../exec?action=getCatalog&accessKey=TA_CLE_AAR_ACCESS_KEY`
-   - tu dois voir `catalog.hashtags/countries/oaci/operations/exercises`.
+   - `"service": "retex-aar-backend-unified"`
 
-### Test 2 - PWA QWI
-1. Ouvre la PWA QWI sur iPad.
-2. Verifie:
-   - plus de bouton nuage.
-3. Ouvre un AAR -> `Modifier`.
-4. Change un champ.
-5. Clique `Enregistrer vers HUB QWI`.
-6. Recharge la liste:
-   - la modif doit etre presente.
-7. Verifie dans Drive:
-   - le JSON du dossier cible est mis a jour.
-8. Test administration referentiels (nouvel onglet HUB QWI):
-   - ouvre l'onglet `Administration` dans le HUB QWI,
-   - ajoute un element dans `Pays` (ou `OACI`, `Operations`, `Exercices`, `Hashtags`),
-   - verifie qu'il apparait dans `getCatalog`,
-   - ouvre ensuite l'appli AAR: l'element doit apparaitre comme choix possible.
+3. Ouvre:
+   - `.../exec?action=listAars&accessKey=TA_CLE`
+4. Tu dois voir:
+   - `count` > 0 (si fichiers presents)
 
-### Test 3 - Suppression
-1. Supprime un AAR depuis le HUB QWI.
-2. Verifie dans Drive:
-   - le fichier est place en corbeille.
+5. Ouvre:
+   - `.../exec?action=getCatalog&accessKey=TA_CLE`
+6. Tu dois voir:
+   - `catalog.hashtags/countries/oaci/operations/exercises`
+
+### Test ingest manuel
+
+1. Ouvre:
+   - `.../exec?action=runIngest&accessKey=TA_CLE`
+2. Tu dois voir:
+   - `summary.messagesProcessed`
+   - `summary.driveFilesCreated`
+
+3. Ouvre:
+   - `.../exec?action=ingestStatus&accessKey=TA_CLE`
+4. Tu dois voir l'etat d'execution memorise.
 
 ---
 
-## 7) Mise a jour Apps Script (versions)
+## 8) Liaison avec les 3 PWA (important)
 
-A chaque changement du code Apps Script:
-1. Modifie `Code.gs`.
-2. `Deployer` -> `Gerer les deploiements`.
-3. Edite le deploiement web existant.
-4. Choisis `Nouvelle version`.
-5. `Deployer`.
+### A) HUB NON QWI - `config.js`
 
-L'URL `/exec` reste la meme.
+- `appsScript.enabled = true`
+- `appsScript.webAppUrl = URL /exec`
+- `appsScript.accessKey = AAR_ACCESS_KEY`
+- `staticRepo.enabled = false` (si tu veux 100% Drive/API)
 
----
+### B) HUB QWI - `config.js`
 
-## 8) Depannage
+Meme valeurs Apps Script que le non QWI.
 
-### Erreur "Apps Script HTTP 401/403/500"
-1. Ouvre Apps Script -> `Executions` (barre gauche).
-2. Regarde le message detaille.
-3. Verifie:
-   - `AAR_ACCESS_KEY` identique entre Script Properties et `config.js`,
-   - `AAR_FOLDER_ID` correct,
-   - deploiement web toujours actif.
+### C) AAR PWA - `mission-config.js`
 
-### Rien ne se passe dans la PWA
-1. Force refresh (iPad Safari):
-   - vider donnees du site,
-   - reouvrir la PWA.
-2. Verifie que `index.html` charge bien la derniere version JS.
-
-### Fichier cree au lieu de mis a jour
-1. Verifie que `driveFileId` est bien present dans le record edite.
-2. Si le fichier d'origine a ete supprime/deplace, l'API recree un nouveau fichier (comportement normal).
+- `appsScript.webAppUrl = URL /exec`
+- `appsScript.accessKey = AAR_ACCESS_KEY`
 
 ---
 
-## 9) Securite recommandee (niveau pratique)
+## 9) Faut-il encore push GitHub des JSON ?
 
-1. Utiliser une cle `AAR_ACCESS_KEY` longue et non evidente.
-2. Ne pas diffuser `config.js` en dehors du repo/app cible.
-3. Tourner la cle si fuite:
-   - changer `AAR_ACCESS_KEY` dans Apps Script,
-   - mettre a jour `config.js`,
-   - redeployer.
+En architecture unifiee Apps Script + Drive:
+- Non, ce n'est plus obligatoire pour alimenter les hubs.
+- Les hubs lisent le Drive via `action=listAars`.
+
+Le push GitHub peut rester uniquement:
+- pour versionner le code applicatif (HTML/JS/CSS),
+- pas pour transporter les donnees metier AAR.
 
 ---
 
-## 10) Ce que ce mode change pour le QWI sur iPad
+## 10) Depannage rapide
 
-1. Plus de popup OAuth Google Drive.
-2. Plus de clic sur le nuage pour connecter.
-3. Experience quasi sans friction:
-   - ouvrir,
-   - modifier,
-   - enregistrer.
+1. Erreur `Unauthorized: invalid access key`
+   - verifier `AAR_ACCESS_KEY` cote Apps Script
+   - verifier `accessKey` dans `config.js` / `mission-config.js`
+
+2. `count = 0` sur `listAars`
+   - verifier `AAR_FOLDER_ID`
+   - verifier que les fichiers du dossier sont bien des JSON valides
+
+3. Ingest ne cree rien
+   - tester `runIngest` manuellement
+   - verifier la requete Gmail (`AAR_INGEST_MAIL_QUERY`)
+   - verifier que le mail contient bien `---BEGIN-AAR-JSON--- ... ---END-AAR-JSON---`
+
+4. Plusieurs deploiements Apps Script visibles
+   - garde un seul deploiement Web App actif (nom explicite)
+   - mets son URL dans les 3 apps
+   - en cas de doute: redeploie puis remplace l'URL dans les configs
+
+---
+
+## 11) Convention de nommage recommandee
+
+- Projet Apps Script:
+  - `RETEX - BACKEND UNIFIE (3 PWA)`
+- Deploiement Web App:
+  - `AUTOMATION 1 - WEB APP API - RETEX`
+- Trigger:
+  - `AUTOMATION 2 - INGEST EMAIL -> DRIVE (5min)`
+
+Ces noms permettent de comprendre instantanement qui fait quoi.
+

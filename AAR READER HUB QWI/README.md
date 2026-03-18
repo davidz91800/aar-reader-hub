@@ -26,30 +26,25 @@ Si `index.html` est ouvert en `file://`, l'app affiche maintenant une aide a l'e
 - `Supprimer` retire l'AAR localement et sur Drive (si configure).
 - Le retour d'edition se fait automatiquement vers le hub QWI.
 
-## Mode Google Drive (lecture + ecriture)
+## Mode recommande (Apps Script + Drive)
 
 ### Setup minimal (admin)
 
-1. Creer un dossier Google Drive pour les AAR JSON.
-2. Partager le dossier avec les utilisateurs editeurs.
-3. Activer Google Drive API dans Google Cloud Console.
-4. Creer une API key.
-5. Creer un OAuth Client ID (application web) autorise sur ton domaine/localhost.
-6. Renseigner `config.js`:
+1. Deployer le backend Apps Script unique (`apps-script/Code.gs`).
+2. Recuperer l'URL `/exec` + `AAR_ACCESS_KEY`.
+3. Garder le dossier Drive des JSON comme source metier.
+4. Renseigner `config.js`:
 
 ```js
 window.AAR_READER_CONFIG = {
   autoSyncOnStartup: false,
-  googleDrive: {
-    oauthClientId: "TON_OAUTH_CLIENT_ID",
-    apiKey: "TON_API_KEY",
-    folderId: "ID_DU_DOSSIER_DRIVE",
-    indexFileId: ""
+  appsScript: {
+    enabled: true,
+    webAppUrl: "https://script.google.com/macros/s/.../exec",
+    accessKey: "AAR-READER-HUB-QWI"
   }
 };
 ```
-
-Option: `indexFileId` peut pointer vers un `index.json` public contenant la liste des fichiers.
 
 ## Fonctionnement
 
@@ -57,18 +52,16 @@ Option: `indexFileId` peut pointer vers un `index.json` public contenant la list
   - avec reseau: synchro Drive (si config ok) ou source statique
   - sans reseau: lecture du cache local (IndexedDB)
 - Bouton `Synchroniser Drive` pour forcer la synchro.
-- Bouton nuage: connexion Google Drive (OAuth) pour autoriser les ecritures.
-- Important: la premiere ecriture de la session exige de cliquer sur le nuage avant de sauver une edition.
-- Modif/ajout/suppression poussent vers Drive si OAuth + folderId sont configures.
-- Si push Drive echoue, la modif reste locale (message explicite).
+- Modif/ajout/suppression passent par Apps Script vers Drive.
+- Si Drive est indisponible, le cache local est conserve.
 
 ## Architecture recommandee avec le hub non QWI
 
-Pour que les utilisateurs non QWI voient les nouveaux AAR sans push GitHub:
+Pour que les utilisateurs non QWI voient les nouveaux AAR sans push GitHub de donnees:
 
-1. Ce hub QWI ecrit dans Drive (OAuth + folderId).
-2. Le hub non QWI lit Drive directement.
-3. La source statique locale reste seulement en fallback.
+1. L'automation ingest Apps Script ecrit les nouveaux JSON en Drive.
+2. Ce hub QWI edite les JSON via Apps Script.
+3. Le hub non QWI lit via Apps Script (`listAars`).
 
 Conseil iPad/PWA:
 - Verifier les referers autorises de la cle API du hub non QWI (domaine reel, pas uniquement localhost).

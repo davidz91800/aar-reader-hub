@@ -34,9 +34,9 @@ Toute evolution de schema/champ AAR ou de rendu detail doit etre synchronisee av
 ## Contexte d'exploitation (a conserver)
 - Flux operationnel actuel:
   - Un e-mail AAR arrive sur `david.zemmour3@gmail.com`.
-  - Une automatisation extrait le JSON et l'ecrit dans le dossier Google Drive des JSON.
-  - Un push GitHub met a jour les donnees des hubs.
-- Ce hub QWI ajoute un flux direct de creation/edition/suppression sur Google Drive et doit rester compatible avec le pipeline ci-dessus.
+  - Une automatisation Apps Script extrait le JSON et l'ecrit dans le dossier Google Drive des JSON.
+  - Les hubs lisent via Apps Script (`action=listAars`) sans push GitHub de donnees en nominal.
+- Ce hub QWI ajoute un flux direct de creation/edition/suppression sur Google Drive et doit rester compatible avec le pipeline e-mail -> Apps Script -> Drive.
 - Mode backend sans OAuth (prioritaire pour iPad):
   - Le hub peut passer par `appsScript` dans `config.js` (`enabled=true`) pour ecriture/suppression.
   - Dans ce mode, `qwi-mode.js` appelle un Web App Apps Script et le bouton nuage OAuth est masque.
@@ -49,3 +49,4 @@ Toute evolution de schema/champ AAR ou de rendu detail doit etre synchronisee av
   - Projet Google Cloud recommande: `RETEX`.
   - Cle API frontend (lecture hub) separee de la cle automatisation.
   - Ecriture QWI: OAuth Client ID Web obligatoire (`googleDrive.oauthClientId`) + consentement utilisateur.
+  - `AAR_ACCESS_KEY` doit matcher dans les 3 apps (non QWI, QWI, AAR PWA).
