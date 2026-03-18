@@ -1491,6 +1491,19 @@
                 border-width: 1px;
             }
 
+            /* Pays + OACI: garder la liste sous le champ (et non en panneau bas écran) */
+            #country-search-combo .combo-menu,
+            #airfield-search-combo .combo-menu {
+                position: absolute;
+                left: 0;
+                right: 0;
+                top: calc(100% + 4px);
+                bottom: auto;
+                max-height: min(40vh, 280px);
+                z-index: 1200;
+                border-radius: var(--radius);
+            }
+
             #view-preview.active {
                 padding: 0.75rem 0.5rem;
             }
@@ -4838,6 +4851,13 @@
                         const keyboardOpen = !!vv && (window.innerHeight - vv.height > 120);
                         root.style.setProperty('--app-height', `${height}px`);
                         root.style.setProperty('--viewport-offset-top', `${(editing || keyboardOpen) ? 0 : offsetTop}px`);
+
+                        const activeId = (document.activeElement && document.activeElement.id) ? String(document.activeElement.id) : '';
+                        if (activeId === 'meta-log-country-search' && App.ui && App.ui.showCountryMenu && typeof App.renderLogCountryMenu === 'function') {
+                            App.renderLogCountryMenu();
+                        } else if (activeId === 'meta-log-airfield-search' && App.ui && App.ui.showAirfieldMenu && typeof App.renderLogAirfieldMenu === 'function') {
+                            App.renderLogAirfieldMenu();
+                        }
 
                         if (editing) scheduleEnsureVisible(keyboardOpen ? 40 : 100);
                         else if (!keyboardOpen) window.scrollTo(0, 0);
