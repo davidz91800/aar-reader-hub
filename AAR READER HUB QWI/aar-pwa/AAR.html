@@ -256,16 +256,26 @@
             user-select: none;
         }
 
+        .report-kind-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+        }
+
         .report-kind-item .level {
             font-size: 0.92rem;
             font-weight: 900;
             letter-spacing: 0.4px;
         }
 
-        .report-kind-item .detail {
-            font-size: 0.76rem;
-            color: var(--text-muted);
-            line-height: 1.4;
+        .report-kind-item .info-trigger {
+            min-width: 1.45rem;
+            min-height: 1.45rem;
+            font-size: 0.82rem;
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.28);
+            color: #93c5fd;
         }
 
         .report-kind-item[data-kind="FLASH"]:hover,
@@ -1614,13 +1624,17 @@
                 <div class="form-group">
                     <label>Type d'AAR <span class="required-star">*</span></label>
                     <div class="report-kind-selector">
-                        <div class="report-kind-item" data-kind="FLASH" onclick="App.updateReportKind('FLASH')">
-                            <span class="level">AAR FLASH</span>
-                            <span class="detail">Diffusion rapide. "Send to QWI" envoie a l'adresse QWI + david.zemmour3@gmail.com.</span>
+                        <div class="report-kind-item" data-kind="FLASH" onclick="App.handleReportKindClick(event, 'FLASH')">
+                            <div class="report-kind-head">
+                                <span class="level">AAR FLASH</span>
+                                <button type="button" class="info-trigger" data-tooltip-key="REPORT_KIND_FLASH" aria-label="Info AAR Flash">ⓘ</button>
+                            </div>
                         </div>
-                        <div class="report-kind-item" data-kind="CONSOLIDE" onclick="App.updateReportKind('CONSOLIDE')">
-                            <span class="level">AAR CONSOLIDÉ</span>
-                            <span class="detail">Version consolidée. "Send to QWI" envoie uniquement à l'adresse QWI actuelle.</span>
+                        <div class="report-kind-item" data-kind="CONSOLIDE" onclick="App.handleReportKindClick(event, 'CONSOLIDE')">
+                            <div class="report-kind-head">
+                                <span class="level">AAR CONSOLIDÉ</span>
+                                <button type="button" class="info-trigger" data-tooltip-key="REPORT_KIND_CONSOLIDE" aria-label="Info AAR Consolidé">ⓘ</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2396,6 +2410,14 @@
         const HASHTAG_CATALOG_KEY = 'aar_hashtag_catalog_v1';
         const MISSION_CATALOG_KEY = 'aar_mission_catalog_v1';
         const DORESE_DEFINITIONS = {
+            REPORT_KIND_FLASH: {
+                title: "AAR FLASH",
+                text: "Diffusion rapide, à utiliser pour des RETEX rapides et à chaud, ne nécessitant pas d'analyse particulière. Envoie directement l'AAR sur le AAR Reader sans relecture QWI."
+            },
+            REPORT_KIND_CONSOLIDE: {
+                title: "AAR CONSOLIDÉ",
+                text: "Version consolidée, à utiliser pour des AAR complets, nécessitant plus d'analyse. Envoie d'abord l'AAR pour relecture QWI avant diffusion sur l'AAR Reader."
+            },
             DORESE_D: {
                 title: "D - Doctrine",
                 text: "Tout ce qui relève des règles d'emploi, des procédures, des consignes, des TTP, ou de la documentation de référence.\nQuestion à se poser : faut-il créer, modifier, clarifier ou compléter une règle, une procédure ou un document ?"
@@ -3831,6 +3853,11 @@
                 App.data.meta.classification = level;
                 App.save();
                 App.renderForm();
+            },
+
+            handleReportKindClick: (event, kind) => {
+                if (event && event.target && event.target.closest('.info-trigger')) return;
+                App.updateReportKind(kind);
             },
 
             getReportKindLabel: (kind) => {
