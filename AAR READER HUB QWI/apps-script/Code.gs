@@ -720,6 +720,7 @@ function normalizeAar_(input) {
       uniteAutre: str_(a.meta && a.meta.uniteAutre),
       flotte: str_(a.meta && a.meta.flotte),
       flotteAutre: str_(a.meta && a.meta.flotteAutre),
+      reportKind: normalizeReportKind_(a.meta && a.meta.reportKind),
       classification: normalizeClassification_(a.meta && a.meta.classification),
       missionType: str_(a.meta && a.meta.missionType),
       logCountry: str_(a.meta && a.meta.logCountry),
@@ -772,6 +773,10 @@ function normalizeClassification_(v) {
   if (raw.indexOf("DIFFUSION RESTREINTE") >= 0) return "DIFFUSION RESTREINTE";
   if (raw.indexOf("SECRET SPECIAL FRANCE") >= 0) return "SECRET SPECIAL FRANCE";
   return raw;
+}
+
+function normalizeReportKind_(v) {
+  return String(v || "").trim().toUpperCase() === "FLASH" ? "FLASH" : "CONSOLIDE";
 }
 
 function normalizeHashtag_(value) {

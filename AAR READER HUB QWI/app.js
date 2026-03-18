@@ -74,6 +74,10 @@ function normalizeClassif(v) {
   return raw;
 }
 
+function normalizeReportKind(v) {
+  return String(v || "").trim().toUpperCase() === "FLASH" ? "FLASH" : "CONSOLIDE";
+}
+
 function normalizeHashtagValue(v) {
   let tag = String(v || "").trim();
   if (!tag) return "";
@@ -245,6 +249,7 @@ function normalizeAar(input) {
       uniteAutre: meta.uniteAutre || "",
       classification: normalizeClassif(meta.classification || ""),
       // Extended fields from AAR PWA form
+      reportKind: normalizeReportKind(meta.reportKind),
       missionType: meta.missionType || "",
       flotte: meta.flotte || "",
       flotteAutre: meta.flotteAutre || "",
@@ -352,6 +357,7 @@ function deriveMeta(a) {
   const redacteur = [rank, name].filter(Boolean).join(" ").trim() || "N/A";
 
   // Extended computed fields
+  const reportKind = normalizeReportKind(meta.reportKind);
   const fleet = meta.flotte === "AUTRE" ? (meta.flotteAutre || "") : (meta.flotte || "");
   const missionType = meta.missionType || "";
   const country = meta.logCountry === "AUTRE" ? (meta.logCountryAutre || "") : (meta.logCountry || "");
@@ -387,7 +393,7 @@ function deriveMeta(a) {
     facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative,
     a.analysis?.content,
     recos.doctrine, recos.organisation, recos.rh, recos.equipements, recos.soutien, recos.entrainement,
-    a.qwi?.advice, fleet, country, airfield, hashtags.join(" "), tacDetail
+    a.qwi?.advice, reportKind, fleet, country, airfield, hashtags.join(" "), tacDetail
   ].map(cleanText).join(" ");
   const wordCount = allText ? allText.split(/\s+/).filter(Boolean).length : 0;
 
@@ -399,6 +405,7 @@ function deriveMeta(a) {
     prenom: meta.prenom || "",
     unit: unit || "N/A",
     classification: normalizeClassif(meta.classification),
+    reportKind,
     missionType,
     fleet,
     country,
@@ -1048,6 +1055,7 @@ function filtered() {
   const q = (el.searchInput?.value || "").trim().toLowerCase();
   const classif = el.filterClassif?.value || "ALL";
   const mType = el.filterMissionType?.value || "ALL";
+  const reportKind = el.filterReportKind?.value || "ALL";
   const fleet = el.filterFleet?.value || "ALL";
   const unit = el.filterUnit?.value || "ALL";
   const country = el.filterCountry?.value || "ALL";
@@ -1059,6 +1067,7 @@ function filtered() {
 
   if (classif !== "ALL") rows = rows.filter((r) => r.classification === classif);
   if (mType !== "ALL") rows = rows.filter((r) => r.missionType === mType);
+  if (reportKind !== "ALL") rows = rows.filter((r) => r.reportKind === reportKind);
   if (fleet !== "ALL") rows = rows.filter((r) => r.fleet === fleet);
   if (unit !== "ALL") rows = rows.filter((r) => r.unit === unit);
   if (country !== "ALL") rows = rows.filter((r) => r.country === country);
@@ -1068,6 +1077,7 @@ function filtered() {
   if (q) {
     rows = rows.filter((r) => [
       r.title, r.redacteur, r.nom, r.prenom, r.unit,
+      r.reportKind,
       r.classification, r.fleet, r.country, r.airfield, ...(r.hashtags || []),
       r.missionType, r.tacDetail,
       r.mission?.analysis?.content,
@@ -1094,6 +1104,12 @@ function classifTag(c) {
   return `<span class="tag tag-dorese">${esc(norm)}</span>`;
 }
 
+function reportKindTag(kind) {
+  const norm = normalizeReportKind(kind);
+  if (norm === "FLASH") return `<span class="tag tag-report tag-report-flash">FLASH</span>`;
+  return `<span class="tag tag-report tag-report-consolide">CONSOLIDE</span>`;
+}
+
 function renderList() {
   const rows = filtered();
 
@@ -1116,16 +1132,19 @@ function renderList() {
 
   el.aarGrid.innerHTML = rows.map((r) => {
     const excerpt = cleanText(r.mission?.facts?.narrative || r.mission?.analysis?.content || r.mission?.facts?.what || "");
-    const tags = [classifTag(r.classification)];
+    const tags = [reportKindTag(r.reportKind), classifTag(r.classification)];
     if (r.missionType) tags.push(`<span class="tag tag-${r.missionType.toLowerCase()}">${esc(r.missionType)}</span>`);
     if (r.fleet) tags.push(`<span class="tag tag-fleet">${esc(r.fleet)}</span>`);
     if (r.hashtags?.length) tags.push(...r.hashtags.slice(0, 3).map((tag) => `<span class="tag tag-dorese">${esc(tag)}</span>`));
     if (r.recoCats?.length) tags.push(...r.recoCats.slice(0, 3).map((c) => `<span class="tag tag-dorese">${esc(c)}</span>`));
 
     return `
-      <article class="aar-card" data-id="${r.id}" role="button" tabindex="0">
+      <article class="aar-card card-report-${r.reportKind.toLowerCase()}" data-id="${r.id}" role="button" tabindex="0">
         <div class="card-top">
-          <div class="card-title">${esc(r.title)}</div>
+          <div class="card-title-wrap">
+            <div class="card-title">${esc(r.title)}</div>
+            <div class="card-kind-badge card-kind-badge-${r.reportKind.toLowerCase()}">${esc(r.reportKind)}</div>
+          </div>
           <div class="card-date">${formatDateFr(r.date)}</div>
         </div>
         <div class="card-meta">${esc(r.redacteur)} · ${esc(r.unit)}${r.country ? " · " + esc(r.country) : ""}${r.airfield ? " · " + esc(r.airfield) : ""}</div>
@@ -1158,7 +1177,7 @@ function openDetail(id) {
   const m = r.mission || {};
 
   el.detailTitle.textContent = "Apercu PDF";
-  el.detailMetaLine.textContent = `${formatDateFr(r.date)} | ${r.classification}`;
+  el.detailMetaLine.textContent = `${formatDateFr(r.date)} | ${r.reportKind} | ${r.classification}`;
 
   const factBlocks = [
     { key: "what", label: "WHAT happened?", wide: true },
@@ -1193,6 +1212,7 @@ function openDetail(id) {
     .join("") || '<p class="doc-na">Aucune recommandation.</p>';
 
   const missionParts = [];
+  if (r.reportKind) missionParts.push(`Type AAR: ${r.reportKind}`);
   if (r.missionType) missionParts.push(`Type: ${r.missionType}`);
   if (r.country) missionParts.push(`Pays: ${r.country}`);
   if (r.airfield) missionParts.push(`Terrain OACI: ${r.airfield}`);
@@ -1429,6 +1449,7 @@ async function init() {
 
     searchInput: document.getElementById("search-input"),
     filterMissionType: document.getElementById("filter-mission-type"),
+    filterReportKind: document.getElementById("filter-report-kind"),
     filterClassif: document.getElementById("filter-classif"),
   filterFleet: document.getElementById("filter-fleet"),
   filterUnit: document.getElementById("filter-unit"),
@@ -1481,7 +1502,7 @@ async function init() {
   });
 
   // Filter events
-  const allFilters = [el.searchInput, el.filterMissionType, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterOperation, el.filterHashtag, el.filterSort];
+  const allFilters = [el.searchInput, el.filterMissionType, el.filterReportKind, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterOperation, el.filterHashtag, el.filterSort];
   allFilters.forEach((n) => {
     if (!n) return;
     n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); });
