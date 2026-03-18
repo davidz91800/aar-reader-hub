@@ -6,6 +6,7 @@ const DB_NAME = "aar_reader_hub_qwi_v1";
 const STORE = "reports";
 const LAST_SYNC_KEY = "aar_reader_last_sync_qwi_v1";
 const REPORTS_SNAPSHOT_KEY = "aar_reader_reports_snapshot_qwi_v1";
+const FILTERS_STATE_KEY = "aar_reader_filters_state_qwi_v1";
 const AUTO_RESYNC_MIN_INTERVAL_MS = 300000;
 const AUTO_RESYNC_TICK_MS = 300000;
 const DRIVE_ERROR_COOLDOWN_MS = 10 * 60 * 1000;
@@ -960,6 +961,67 @@ function saveLastSync() {
   localStorage.setItem(LAST_SYNC_KEY, now);
 }
 
+function readFiltersState() {
+  try {
+    const raw = localStorage.getItem(FILTERS_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch (e) {
+    console.warn("Filter state read failed:", e?.message || e);
+    return null;
+  }
+}
+
+function saveFiltersState() {
+  try {
+    const payload = {
+      search: String(el.searchInput?.value || ""),
+      missionType: String(el.filterMissionType?.value || "ALL"),
+      reportKind: String(el.filterReportKind?.value || "ALL"),
+      classif: String(el.filterClassif?.value || "ALL"),
+      fleet: String(el.filterFleet?.value || "ALL"),
+      unit: String(el.filterUnit?.value || "ALL"),
+      country: String(el.filterCountry?.value || "ALL"),
+      operation: String(el.filterOperation?.value || "ALL"),
+      hashtag: String(el.filterHashtag?.value || "ALL"),
+      sort: String(el.filterSort?.value || "DATE_DESC")
+    };
+    localStorage.setItem(FILTERS_STATE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("Filter state write failed:", e?.message || e);
+  }
+}
+
+function restoreSelectValue(selectEl, value) {
+  if (!selectEl) return;
+  const target = String(value || "").trim() || "ALL";
+  const hasOption = Array.from(selectEl.options || []).some((o) => o.value === target);
+  if (hasOption) {
+    selectEl.value = target;
+  } else {
+    selectEl.value = "ALL";
+    if (target !== "ALL") selectEl.dataset.savedValue = target;
+  }
+  updateChipState(selectEl);
+}
+
+function restoreFiltersState(savedState) {
+  const saved = savedState && typeof savedState === "object" ? savedState : null;
+  if (!saved) return;
+  if (el.searchInput) el.searchInput.value = String(saved.search || "");
+  restoreSelectValue(el.filterMissionType, saved.missionType);
+  restoreSelectValue(el.filterReportKind, saved.reportKind);
+  restoreSelectValue(el.filterClassif, saved.classif);
+  restoreSelectValue(el.filterFleet, saved.fleet);
+  restoreSelectValue(el.filterUnit, saved.unit);
+  restoreSelectValue(el.filterCountry, saved.country);
+  restoreSelectValue(el.filterOperation, saved.operation);
+  restoreSelectValue(el.filterHashtag, saved.hashtag);
+  restoreSelectValue(el.filterSort, saved.sort || "DATE_DESC");
+}
+
 function setSyncing(on) {
   if (el.syncBtn) {
     el.syncBtn.disabled = on;
@@ -1064,10 +1126,13 @@ function populateDynamicFilters() {
 function fillSelectOptions(selectEl, allLabel, values) {
   if (!selectEl) return;
   const current = selectEl.value;
+  const savedValue = String(selectEl.dataset.savedValue || "").trim();
   selectEl.innerHTML = `<option value="ALL">${esc(allLabel)}</option>` +
     values.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
   if (values.includes(current)) selectEl.value = current;
+  else if (savedValue && values.includes(savedValue)) selectEl.value = savedValue;
   else selectEl.value = "ALL";
+  delete selectEl.dataset.savedValue;
   updateChipState(selectEl);
 }
 
@@ -1389,6 +1454,7 @@ function drilldownFromAnalyze(type, value) {
 
   setView("list");
   if (el.viewList) el.viewList.scrollTop = 0;
+  saveFiltersState();
   toast(`Filtre appliqué : ${value}`);
 }
 
@@ -1510,6 +1576,8 @@ async function init() {
     toast: document.getElementById("toast")
   });
 
+  restoreFiltersState(readFiltersState());
+
   // Sync button
   if (el.syncBtn) {
     el.syncBtn.onclick = () => {
@@ -1543,8 +1611,8 @@ async function init() {
   const allFilters = [el.searchInput, el.filterMissionType, el.filterReportKind, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterOperation, el.filterHashtag, el.filterSort];
   allFilters.forEach((n) => {
     if (!n) return;
-    n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); });
-    n.addEventListener("change", () => { updateChipState(n); renderCurrentView(); });
+    n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); saveFiltersState(); });
+    n.addEventListener("change", () => { updateChipState(n); renderCurrentView(); saveFiltersState(); });
   });
 
   // Source status
@@ -1557,6 +1625,7 @@ async function init() {
 
   state.reports = readReportsSnapshot();
   renderAll();
+  saveFiltersState();
   hydrateReportsFromIndexedDb();
 
   // Detect file:// protocol — fetch won't work
