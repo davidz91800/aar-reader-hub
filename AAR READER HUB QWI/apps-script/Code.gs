@@ -35,7 +35,7 @@ var DEFAULTS = Object.freeze({
   ingestMailQuery: "to:david.zemmour3@gmail.com newer_than:30d",
   ingestMaxThreadsPerRun: 20,
   ingestErrorLabel: "AAR_READER_ERROR",
-  ingestTriggerMinutes: 5
+  ingestTriggerMinutes: 1
 });
 
 /* =========================
@@ -236,6 +236,10 @@ function runIngestCore_(cfg, options) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function setupIngestTriggerEvery1Minute() {
+  setupIngestTriggerByMinutes_(1);
 }
 
 function setupIngestTriggerEvery5Minutes() {

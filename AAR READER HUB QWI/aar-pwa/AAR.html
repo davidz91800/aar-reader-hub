@@ -2312,6 +2312,9 @@
             },
             missionConfig: { ...FALLBACK_MISSION_CONFIG },
             countryNameLookup: {},
+            catalogRefreshInFlight: false,
+            lastCatalogRefreshAt: 0,
+            catalogRefreshMinIntervalMs: 15000,
             ui: {
                 currentTab: 0,
                 currentCategory: 'DOCTRINE',
@@ -2811,13 +2814,18 @@
                 };
             },
 
-            loadRemoteMissionCatalog: async () => {
+            loadRemoteMissionCatalog: async (force = false) => {
                 const remote = App.missionConfig.appsScript || {};
                 if (!remote.webAppUrl) return;
+                if (App.catalogRefreshInFlight) return;
+                const now = Date.now();
+                if (!force && (now - App.lastCatalogRefreshAt) < App.catalogRefreshMinIntervalMs) return;
                 try {
+                    App.catalogRefreshInFlight = true;
                     const url = new URL(remote.webAppUrl);
                     url.searchParams.set('action', 'getCatalog');
                     if (remote.accessKey) url.searchParams.set('accessKey', remote.accessKey);
+                    url.searchParams.set('_ts', String(now));
 
                     const response = await fetch(url.toString(), { cache: 'no-store' });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -2829,8 +2837,11 @@
                     App.renderMissionSelectors();
                     App.renderHashtagSelect();
                     App.refreshHashtagHint();
+                    App.lastCatalogRefreshAt = Date.now();
                 } catch (error) {
                     console.warn('Remote mission catalog unavailable:', error);
+                } finally {
+                    App.catalogRefreshInFlight = false;
                 }
             },
 
@@ -3555,7 +3566,16 @@
                 App.renderForm();
                 if (repairedOnLoad) App.save();
                 App.nav(0);
-                App.loadRemoteMissionCatalog();
+                App.loadRemoteMissionCatalog(true);
+
+                window.addEventListener('online', () => { App.loadRemoteMissionCatalog(); });
+                window.addEventListener('focus', () => { App.loadRemoteMissionCatalog(); });
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) App.loadRemoteMissionCatalog();
+                });
+                window.setInterval(() => {
+                    if (!document.hidden && navigator.onLine) App.loadRemoteMissionCatalog();
+                }, App.catalogRefreshMinIntervalMs);
             },
 
             save: () => {

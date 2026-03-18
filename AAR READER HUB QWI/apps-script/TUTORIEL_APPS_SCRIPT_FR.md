@@ -79,7 +79,7 @@ Ouvre `Parametres du projet` -> `Proprietes du script` -> `Ajouter une propriete
    - Exemple: `AAR_READER_ERROR`
 
 7. `AAR_INGEST_TRIGGER_MINUTES`
-   - Exemple: `5`
+   - Exemple: `1`
 
 ### Proprietes catalogue (optionnelles)
 
@@ -112,13 +112,13 @@ Cette URL sera utilisee par les 3 PWA.
 
 Option simple (recommandee):
 1. Dans l'editeur Apps Script, selectionne la fonction:
-   - `setupIngestTriggerEvery5Minutes`
+   - `setupIngestTriggerEvery1Minute`
 2. Clique `Executer`.
 3. Autorise les permissions.
 
 Ce que fait cette fonction:
 - supprime les anciens triggers ingest,
-- cree 1 trigger toutes les 5 minutes sur `runIngestEmailsToDrive`.
+ - cree 1 trigger toutes les 1 minute sur `runIngestEmailsToDrive`.
 
 ---
 
@@ -217,7 +217,7 @@ Le push GitHub peut rester uniquement:
 - Deploiement Web App:
   - `AUTOMATION 1 - WEB APP API - RETEX`
 - Trigger:
-  - `AUTOMATION 2 - INGEST EMAIL -> DRIVE (5min)`
+  - `AUTOMATION 2 - INGEST EMAIL -> DRIVE (1min)`
 
 Ces noms permettent de comprendre instantanement qui fait quoi.
 

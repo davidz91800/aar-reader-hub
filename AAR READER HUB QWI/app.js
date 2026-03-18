@@ -5,7 +5,8 @@
 const DB_NAME = "aar_reader_hub_qwi_v1";
 const STORE = "reports";
 const LAST_SYNC_KEY = "aar_reader_last_sync_qwi_v1";
-const AUTO_RESYNC_MIN_INTERVAL_MS = 45000;
+const AUTO_RESYNC_MIN_INTERVAL_MS = 15000;
+const AUTO_RESYNC_TICK_MS = 15000;
 const DRIVE_ERROR_COOLDOWN_MS = 10 * 60 * 1000;
 const DRIVE_COOLDOWN_KEY = "aar_reader_drive_cooldown_until_qwi_v1";
 
@@ -707,6 +708,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
     url.searchParams.set("action", "listAars");
     if (cfg.appsScriptAccessKey) url.searchParams.set("accessKey", cfg.appsScriptAccessKey);
     if (cfg.folderId) url.searchParams.set("folderId", cfg.folderId);
+    url.searchParams.set("_ts", String(Date.now()));
 
     const payload = await fetchJsonOrThrow(url.toString());
     const files = Array.isArray(payload?.files) ? payload.files : [];
@@ -1365,6 +1367,7 @@ async function init() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) tryAutoResync("visibility");
   });
+  window.setInterval(() => { tryAutoResync("interval"); }, AUTO_RESYNC_TICK_MS);
 }
 
 init();

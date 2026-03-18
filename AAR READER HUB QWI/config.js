@@ -24,8 +24,8 @@
 
     // Parametres specifiques QWI (source de verite de ce hub).
   const local = {
-    // En QWI, on laisse l'utilisateur declencher la sync (moins d'effets de bord).
-    autoSyncOnStartup: false,
+    // En QWI, on synchronise aussi au demarrage pour reduire la latence visible.
+    autoSyncOnStartup: true,
 
     googleDrive: {
       // OAuth + API Drive pour compatibilite (lecture/API front si necessaire).
