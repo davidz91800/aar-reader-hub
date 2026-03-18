@@ -1,7 +1,7 @@
-/* ═══════════════════════════════════════════════════════════
-   AAR Reader Hub — Design System
-   Modern, clean, dark theme — Mobile-first
-   ═══════════════════════════════════════════════════════════ */
+﻿/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   AAR Reader Hub â€” Design System
+   Modern, clean, dark theme â€” Mobile-first
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /* --- VARIABLES --- */
 :root {
@@ -60,7 +60,7 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(100,140,200,0.25); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(100,140,200,0.45); }
 
-/* ═══ HEADER ═══ */
+/* â•â•â• HEADER â•â•â• */
 #app-header {
   position: sticky; top: 0; z-index: 50;
   display: flex;
@@ -189,7 +189,7 @@ body {
 }
 .toggle-btn:hover:not(.active) { color: var(--text-2); }
 
-/* ═══ FILTERS BAR ═══ */
+/* â•â•â• FILTERS BAR â•â•â• */
 .filters-bar {
   padding: 0.75rem 1.25rem;
   display: flex;
@@ -267,7 +267,7 @@ body {
   color: var(--accent-2);
 }
 
-/* ═══ MAIN CONTENT ═══ */
+/* â•â•â• MAIN CONTENT â•â•â• */
 #main-content {
   flex: 1;
   overflow: visible;
@@ -298,7 +298,7 @@ body {
   margin-bottom: 0.7rem;
 }
 
-/* ═══ AAR GRID ═══ */
+/* â•â•â• AAR GRID â•â•â• */
 .aar-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -514,7 +514,7 @@ body {
 }
 .empty-state p { font-size: 0.85rem; line-height: 1.5; }
 
-/* ═══ DETAIL MODAL ═══ */
+/* â•â•â• DETAIL MODAL â•â•â• */
 .detail-overlay {
   position: fixed; inset: 0;
   z-index: 100;
@@ -710,7 +710,7 @@ body {
   font-size: 1.25rem;
   line-height: 1.25;
   color: #0f172a;
-  text-transform: uppercase;
+  text-transform: none;
   font-weight: 900;
 }
 
@@ -943,7 +943,7 @@ body {
   color: var(--text-2);
 }
 
-/* ═══ ANALYZE VIEW ═══ */
+/* â•â•â• ANALYZE VIEW â•â•â• */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1292,7 +1292,7 @@ body {
   color: var(--text-muted);
 }
 
-/* ═══ TOAST ═══ */
+/* â•â•â• TOAST â•â•â• */
 .toast {
   position: fixed;
   left: 50%; bottom: 24px;
@@ -1318,7 +1318,7 @@ body {
   transform: translateX(-50%) translateY(0);
 }
 
-/* ═══ RESPONSIVE — Tablet / iPad (768px+) ═══ */
+/* â•â•â• RESPONSIVE â€” Tablet / iPad (768px+) â•â•â• */
 @media (min-width: 768px) {
   #app-header {
     padding: 0 1.75rem;
@@ -1411,7 +1411,7 @@ body {
   }
 }
 
-/* ═══ RESPONSIVE — iPad Landscape / Small Desktop (1024px+) ═══ */
+/* â•â•â• RESPONSIVE â€” iPad Landscape / Small Desktop (1024px+) â•â•â• */
 @media (min-width: 1024px) {
   .aar-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -1420,7 +1420,7 @@ body {
   .detail-sheet { max-width: 980px; }
 }
 
-/* ═══ RESPONSIVE — Desktop (1200px+) ═══ */
+/* â•â•â• RESPONSIVE â€” Desktop (1200px+) â•â•â• */
 @media (min-width: 1200px) {
   #app-header { padding: 0 2rem; }
   .filters-bar { padding: 0.8rem 2rem; }
@@ -1428,7 +1428,7 @@ body {
   .search-wrap { max-width: 380px; }
 }
 
-/* ═══ Touch device improvements ═══ */
+/* â•â•â• Touch device improvements â•â•â• */
 @media (hover: none) and (pointer: coarse) {
   .btn-icon, .toggle-btn { min-height: 44px; min-width: 44px; }
   #search-input { min-height: 48px; font-size: 16px; }
@@ -1444,3 +1444,5 @@ body {
   .w6-item .w6-content { font-size: 0.9rem; }
   .bar-row { min-height: 32px; }
 }
+
+
