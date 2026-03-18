@@ -1519,7 +1519,8 @@ body {
 .qwi-busy-hud {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 14px);
-  right: calc(env(safe-area-inset-right, 0px) + 14px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px) scale(0.98);
   z-index: 1200;
   min-width: 250px;
   max-width: min(440px, calc(100vw - 28px));
@@ -1536,12 +1537,11 @@ body {
   -webkit-backdrop-filter: blur(7px);
   pointer-events: none;
   opacity: 0;
-  transform: translateY(-8px) scale(0.98);
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .qwi-busy-hud.is-visible {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateX(-50%) translateY(0) scale(1);
 }
 .qwi-busy-orb {
   width: 30px;
