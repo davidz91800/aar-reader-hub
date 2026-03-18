@@ -25,6 +25,8 @@
   let adminBusy = false;
   let currentCatalog = createEmptyCatalog();
   let baseCatalog = createEmptyCatalog();
+  let effectiveCatalogCache = null;
+  const effectiveCategorySetCache = new Map();
   const adminCatalogSearch = {};
 
   function hasValidDriveToken() {
@@ -63,6 +65,22 @@
 
   function createEmptyCatalog() {
     return { hashtags: [], countries: [], oaci: [], operations: [], exercises: [] };
+  }
+
+  function cloneCatalog(catalog) {
+    const src = catalog && typeof catalog === "object" ? catalog : createEmptyCatalog();
+    return {
+      hashtags: [...(src.hashtags || [])],
+      countries: [...(src.countries || [])],
+      oaci: [...(src.oaci || [])],
+      operations: [...(src.operations || [])],
+      exercises: [...(src.exercises || [])]
+    };
+  }
+
+  function invalidateCatalogCaches() {
+    effectiveCatalogCache = null;
+    effectiveCategorySetCache.clear();
   }
 
   function getBundledMissionConfig() {
@@ -111,7 +129,7 @@
 
   function compactCatalogAgainstBase(catalog) {
     const normalized = normalizeCatalogObject(catalog);
-    const base = normalizeCatalogObject(baseCatalog || {});
+    const base = baseCatalog || createEmptyCatalog();
     const out = createEmptyCatalog();
 
     CATALOG_KEYS.forEach((key) => {
@@ -195,25 +213,33 @@
   }
 
   function getCurrentCatalog() {
-    return compactCatalogAgainstBase(currentCatalog || {});
+    return cloneCatalog(currentCatalog || createEmptyCatalog());
   }
 
   function getBaseCatalog() {
-    return normalizeCatalogObject(baseCatalog || {});
+    return baseCatalog || createEmptyCatalog();
   }
 
   function getEffectiveCatalog() {
-    return mergeCatalogs(getBaseCatalog(), getCurrentCatalog());
+    if (!effectiveCatalogCache) {
+      effectiveCatalogCache = mergeCatalogs(getBaseCatalog(), getCurrentCatalog());
+    }
+    return effectiveCatalogCache;
   }
 
   function setCurrentCatalog(catalog, persist = true) {
     currentCatalog = compactCatalogAgainstBase(catalog);
+    invalidateCatalogCaches();
     if (persist) writeCatalogToStorage(currentCatalog);
   }
 
   function getEffectiveCategorySet(key) {
-    const list = (getEffectiveCatalog() && Array.isArray(getEffectiveCatalog()[key])) ? getEffectiveCatalog()[key] : [];
-    return new Set(list.map((value) => String(value || "").toUpperCase()));
+    if (!effectiveCategorySetCache.has(key)) {
+      const effective = getEffectiveCatalog();
+      const list = (effective && Array.isArray(effective[key])) ? effective[key] : [];
+      effectiveCategorySetCache.set(key, new Set(list.map((value) => String(value || "").toUpperCase())));
+    }
+    return effectiveCategorySetCache.get(key);
   }
 
   function isOfficialCatalogValue(category, value) {
@@ -1357,6 +1383,7 @@
 
   async function initMissionCatalog() {
     baseCatalog = buildBaseCatalogFromEditorConfig();
+    invalidateCatalogCaches();
     const localCatalog = readCatalogFromStorage();
     let merged = localCatalog;
 

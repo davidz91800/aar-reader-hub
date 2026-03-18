@@ -125,6 +125,14 @@ function formatDateFr(iso) {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+function yieldToUi() {
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
+}
+
+async function yieldToUiEvery(step, batchSize = 6) {
+  if (step > 0 && step % batchSize === 0) await yieldToUi();
+}
+
 function sortReports(records) {
   return [...(Array.isArray(records) ? records : [])]
     .sort((a, b) => String(b?.date || "").localeCompare(String(a?.date || "")) || String(b?.updatedAt || "").localeCompare(String(a?.updatedAt || "")));
@@ -610,7 +618,8 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
     );
     const records = [];
     const errors = [];
-    for (const f of files) {
+    for (let idx = 0; idx < files.length; idx += 1) {
+      const f = files[idx];
       const existing = existingByPath.get(f.path);
       const sameVersion = existing && existing.staticModifiedTime && f.modifiedTime && existing.staticModifiedTime === f.modifiedTime;
       if (sameVersion) { records.push(existing); continue; }
@@ -626,6 +635,7 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
         errors.push(`${f.name || f.path}: ${e.message}`);
         if (existing) records.push(existing);
       }
+      await yieldToUiEvery(idx + 1);
     }
     if (!records.length && state.reports.length) {
       setSubtitle(`${state.reports.length} AAR · echec sync`);
@@ -640,6 +650,7 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
     }
     try { await dbReplaceAll(sorted); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
     state.reports = sorted;
+    await yieldToUi();
     renderAll();
     saveLastSync();
     setSubtitle(`${records.length} AAR · source statique`);
@@ -706,7 +717,8 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
     const records = [];
     const errors = [];
     let blockedByGoogle = false;
-    for (const f of files) {
+    for (let idx = 0; idx < files.length; idx += 1) {
+      const f = files[idx];
       const existing = existingDriveById.get(f.id);
       const sameVersion = existing && existing.driveModifiedTime && f.modifiedTime && existing.driveModifiedTime === f.modifiedTime;
       if (sameVersion) { records.push(existing); continue; }
@@ -729,6 +741,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
         if (existing) records.push(existing);
         if (isGoogleAntiBotMessage(e.message)) blockedByGoogle = true;
       }
+      await yieldToUiEvery(idx + 1);
     }
     if (!records.length && state.reports.length) {
       setSubtitle(`${state.reports.length} AAR · échec sync Drive`);
@@ -737,6 +750,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
     }
     try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
     state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    await yieldToUi();
     renderAll();
     saveLastSync();
     setSubtitle(blockedByGoogle ? `${records.length} AAR · Drive (blocage détecté)` : `${records.length} AAR · Google Drive`);
@@ -801,7 +815,8 @@ async function syncFromAppsScript({ silent = false } = {}) {
 
     const records = [];
     const errors = [];
-    for (const f of files) {
+    for (let idx = 0; idx < files.length; idx += 1) {
+      const f = files[idx];
       try {
         const rec = buildRecord(parseAarObject(f?.aar || {}), "drive_file", f?.name || "");
         const driveId = String(f?.id || "").trim();
@@ -814,6 +829,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
       } catch (e) {
         errors.push(`${String(f?.name || f?.id || "fichier")}: ${e.message}`);
       }
+      await yieldToUiEvery(idx + 1);
     }
 
     if (!records.length && state.reports.length) {
@@ -824,6 +840,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
 
     try { await dbReplaceAll(records); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
     state.reports = records.sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
+    await yieldToUi();
     renderAll();
     saveLastSync();
     setSubtitle(`${state.reports.length} AAR · Apps Script`);

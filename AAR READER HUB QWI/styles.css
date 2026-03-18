@@ -905,6 +905,8 @@ body {
   border-radius: 8px;
   padding: 0.2rem 0.35rem;
   transition: background 0.16s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .bar-row.is-clickable:hover,
 .bar-row.is-clickable:focus-visible {
