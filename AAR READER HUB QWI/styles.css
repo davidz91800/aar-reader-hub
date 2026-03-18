@@ -349,7 +349,6 @@ body {
   inset: 0;
   background: linear-gradient(120deg, transparent 0%, rgba(56, 189, 248, 0.1) 25%, transparent 50%);
   transform: translateX(-120%);
-  animation: flashSweep 3.2s ease-in-out infinite;
   pointer-events: none;
 }
 .aar-card:hover {
@@ -410,7 +409,6 @@ body {
   border-color: rgba(56, 189, 248, 0.28);
   background: rgba(56, 189, 248, 0.08);
   box-shadow: 0 0 18px rgba(14, 165, 233, 0.16);
-  animation: flashPulse 1.8s ease-in-out infinite;
 }
 .card-date {
   font-size: 0.72rem;
