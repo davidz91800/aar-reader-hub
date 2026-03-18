@@ -179,6 +179,8 @@
             flex: 1;
             overflow-y: auto;
             padding: 2rem;
+            scroll-padding-top: calc(84px + var(--safe-top));
+            scroll-padding-bottom: calc(180px + var(--safe-bottom));
             max-width: 1200px;
             margin: 0 auto;
             width: 100%;
@@ -1743,8 +1745,8 @@
 
         </div>
 
-        <div id="view-facts" class="content-pane"
-            style="overflow-y: auto; max-height: calc(100vh - 120px); padding-bottom: 100px; padding-top: 0;">
+                <div id="view-facts" class="content-pane"
+                    style="overflow-y: auto; max-height: calc(var(--app-height) - 120px); padding-bottom: 100px; padding-top: 0;">
             <div
                 style="position: sticky; top: 0; background: var(--bg-main); z-index: 10; padding-bottom: 1rem; padding-top: 2rem;">
                 <h2 style="margin-bottom: 0.5rem;">2. FAITS</h2>
@@ -1964,8 +1966,8 @@
             </div>
         </div>
 
-        <div id="view-reco" class="content-pane"
-            style="overflow-y: auto; max-height: calc(100vh - 120px); padding-bottom: 100px; padding-top: 0;">
+                <div id="view-reco" class="content-pane"
+                    style="overflow-y: auto; max-height: calc(var(--app-height) - 120px); padding-bottom: 100px; padding-top: 0;">
             <div
                 style="position: sticky; top: 0; background: var(--bg-main); z-index: 10; padding-bottom: 1rem; padding-top: 2rem;">
                 <h2 style="margin-bottom: 0.5rem;">4. RECOMMANDATIONS</h2>
@@ -3793,7 +3795,11 @@
             },
 
             placeCaretAtEnd: (el) => {
-                el.focus();
+                try {
+                    el.focus({ preventScroll: true });
+                } catch (_) {
+                    el.focus();
+                }
                 if (typeof window.getSelection != "undefined" && typeof document.createRange != "undefined") {
                     const range = document.createRange();
                     range.selectNodeContents(el);
@@ -4249,6 +4255,61 @@
         (function installViewportRecovery() {
             const root = document.documentElement;
             let rafId = 0;
+            let ensureTimer = 0;
+
+            const isEditingElement = (node) => {
+                if (!node) return false;
+                const tag = node.tagName ? node.tagName.toUpperCase() : '';
+                return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!node.isContentEditable;
+            };
+
+            const getScrollableParent = (node) => {
+                let current = node && node.parentElement;
+                while (current && current !== document.body) {
+                    const style = window.getComputedStyle(current);
+                    const overflowY = String(style.overflowY || '');
+                    const canScroll = /(auto|scroll|overlay)/i.test(overflowY) && current.scrollHeight > current.clientHeight + 4;
+                    if (canScroll) return current;
+                    current = current.parentElement;
+                }
+                return null;
+            };
+
+            const ensureActiveFieldVisible = () => {
+                const active = document.activeElement;
+                if (!isEditingElement(active)) return;
+
+                const vv = window.visualViewport;
+                const viewportHeight = Math.round(vv ? vv.height : window.innerHeight);
+                const viewportTop = Math.max(0, Math.round(vv ? vv.offsetTop : 0));
+                const rect = active.getBoundingClientRect();
+                const topSafe = viewportTop + 84;
+                const bottomSafe = viewportHeight - 24;
+                if (rect.top >= topSafe && rect.bottom <= bottomSafe) return;
+
+                const scroller = getScrollableParent(active);
+                if (scroller) {
+                    try {
+                        active.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+                    } catch (_) {
+                        active.scrollIntoView(false);
+                    }
+                    return;
+                }
+
+                try {
+                    active.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+                } catch (_) {
+                    active.scrollIntoView();
+                }
+            };
+
+            const scheduleEnsureVisible = (delay = 80) => {
+                window.clearTimeout(ensureTimer);
+                ensureTimer = window.setTimeout(() => {
+                    window.requestAnimationFrame(() => ensureActiveFieldVisible());
+                }, delay);
+            };
 
             const scheduleUpdate = (delay = 0) => {
                 const run = () => {
@@ -4257,13 +4318,13 @@
                         const vv = window.visualViewport;
                         const height = Math.round(vv ? vv.height : window.innerHeight);
                         const offsetTop = Math.max(0, Math.round(vv ? vv.offsetTop : 0));
+                        const editing = isEditingElement(document.activeElement);
+                        const keyboardOpen = !!vv && (window.innerHeight - vv.height > 120);
                         root.style.setProperty('--app-height', `${height}px`);
-                        root.style.setProperty('--viewport-offset-top', `${offsetTop}px`);
+                        root.style.setProperty('--viewport-offset-top', `${(editing || keyboardOpen) ? 0 : offsetTop}px`);
 
-                        const active = document.activeElement;
-                        const tag = active && active.tagName ? active.tagName.toUpperCase() : '';
-                        const editing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (active && active.isContentEditable);
-                        if (!editing) window.scrollTo(0, 0);
+                        if (editing) scheduleEnsureVisible(keyboardOpen ? 40 : 100);
+                        else if (!keyboardOpen) window.scrollTo(0, 0);
                     });
                 };
 
@@ -4271,6 +4332,7 @@
                 else run();
             };
 
+            document.addEventListener('focusin', () => scheduleUpdate(30), true);
             window.addEventListener('resize', () => scheduleUpdate(), { passive: true });
             window.addEventListener('orientationchange', () => scheduleUpdate(80), { passive: true });
             window.addEventListener('pageshow', () => scheduleUpdate(80), { passive: true });
