@@ -877,6 +877,7 @@ function populateDynamicFilters() {
   fillSelectOptions(el.filterFleet, "Flotte: Toutes", getUniqueValues("fleet"));
   fillSelectOptions(el.filterUnit, "Unité: Toutes", getUniqueValues("unit"));
   fillSelectOptions(el.filterCountry, "Pays: Tous", getUniqueValues("country"));
+  fillSelectOptions(el.filterOperation, "Operation / exercice: Tous", getUniqueValues("tacDetail"));
   fillSelectOptions(el.filterHashtag, "Hashtag: Tous", getUniqueValues("hashtag"));
 }
 
@@ -903,6 +904,7 @@ function filtered() {
   const fleet = el.filterFleet?.value || "ALL";
   const unit = el.filterUnit?.value || "ALL";
   const country = el.filterCountry?.value || "ALL";
+  const operation = el.filterOperation?.value || "ALL";
   const hashtag = el.filterHashtag?.value || "ALL";
   const sort = el.filterSort?.value || "DATE_DESC";
 
@@ -913,6 +915,7 @@ function filtered() {
   if (fleet !== "ALL") rows = rows.filter((r) => r.fleet === fleet);
   if (unit !== "ALL") rows = rows.filter((r) => r.unit === unit);
   if (country !== "ALL") rows = rows.filter((r) => r.country === country);
+  if (operation !== "ALL") rows = rows.filter((r) => r.tacDetail === operation);
   if (hashtag !== "ALL") rows = rows.filter((r) => r.hashtag === hashtag);
 
   if (q) {
@@ -1174,7 +1177,8 @@ function drilldownFromAnalyze(type, value) {
   else if (type === "classification") setSelectFilter(el.filterClassif, value);
   else if (type === "country") setSelectFilter(el.filterCountry, value);
   else if (type === "unit") setSelectFilter(el.filterUnit, value);
-  else if (type === "operation" || type === "reco") {
+  else if (type === "operation") setSelectFilter(el.filterOperation, value);
+  else if (type === "reco") {
     if (el.searchInput) el.searchInput.value = value;
   }
 
@@ -1279,11 +1283,12 @@ async function init() {
     searchInput: document.getElementById("search-input"),
     filterMissionType: document.getElementById("filter-mission-type"),
     filterClassif: document.getElementById("filter-classif"),
-    filterFleet: document.getElementById("filter-fleet"),
-    filterUnit: document.getElementById("filter-unit"),
-    filterCountry: document.getElementById("filter-country"),
-    filterHashtag: document.getElementById("filter-hashtag"),
-    filterSort: document.getElementById("filter-sort"),
+  filterFleet: document.getElementById("filter-fleet"),
+  filterUnit: document.getElementById("filter-unit"),
+  filterCountry: document.getElementById("filter-country"),
+  filterOperation: document.getElementById("filter-operation"),
+  filterHashtag: document.getElementById("filter-hashtag"),
+  filterSort: document.getElementById("filter-sort"),
     aarGrid: document.getElementById("aar-grid"),
     aarCount: document.getElementById("aar-count"),
     viewList: document.getElementById("view-list"),
@@ -1320,7 +1325,7 @@ async function init() {
   });
 
   // Filter events
-  const allFilters = [el.searchInput, el.filterMissionType, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterHashtag, el.filterSort];
+  const allFilters = [el.searchInput, el.filterMissionType, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterOperation, el.filterHashtag, el.filterSort];
   allFilters.forEach((n) => {
     if (!n) return;
     n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); });
