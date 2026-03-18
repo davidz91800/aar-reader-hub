@@ -74,6 +74,45 @@ function normalizeClassif(v) {
   return raw;
 }
 
+function normalizeHashtagValue(v) {
+  let tag = String(v || "").trim();
+  if (!tag) return "";
+  tag = tag.replace(/\s+/g, "-");
+  if (!tag.startsWith("#")) tag = `#${tag}`;
+  return tag;
+}
+
+function normalizeHashtagList(values) {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const normalized = normalizeHashtagValue(value);
+    if (!normalized) return;
+    const key = normalized.toUpperCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(normalized);
+  });
+  return out.sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+function extractHashtags(meta) {
+  const src = meta && typeof meta === "object" ? meta : {};
+  const out = [];
+  if (Array.isArray(src.hashtags)) out.push(...src.hashtags);
+
+  const selectedRaw = String(src.hashtag || "").trim();
+  const selected = normalizeHashtagValue(selectedRaw);
+  const other = normalizeHashtagValue(src.hashtagAutre);
+  if (selectedRaw.toUpperCase() === "AUTRE") {
+    if (other) out.push(other);
+  } else {
+    if (selected) out.push(selected);
+    if (other && other.toUpperCase() !== selected.toUpperCase()) out.push(other);
+  }
+  return normalizeHashtagList(out);
+}
+
 function htmlToText(html) {
   const src = String(html || "");
   if (!src) return "";
@@ -213,6 +252,7 @@ function normalizeAar(input) {
       logCountryAutre: meta.logCountryAutre || "",
       logAirfield: meta.logAirfield || "",
       logAirfieldAutre: meta.logAirfieldAutre || "",
+      hashtags: extractHashtags(meta),
       hashtag: meta.hashtag || "",
       hashtagAutre: meta.hashtagAutre || "",
       tacContext: meta.tacContext || "",
@@ -316,11 +356,8 @@ function deriveMeta(a) {
   const missionType = meta.missionType || "";
   const country = meta.logCountry === "AUTRE" ? (meta.logCountryAutre || "") : (meta.logCountry || "");
   const airfield = meta.logAirfield === "AUTRE" ? (meta.logAirfieldAutre || "") : (meta.logAirfield || "");
-  const hashtagSelected = String(meta.hashtag || "").trim();
-  const hashtagOther = String(meta.hashtagAutre || "").trim();
-  const hashtag = hashtagSelected.toUpperCase() === "AUTRE"
-    ? hashtagOther
-    : (hashtagSelected || hashtagOther);
+  const hashtags = extractHashtags(meta);
+  const hashtag = hashtags[0] || "";
   const tacContext = meta.tacContext || "";
   const tacDetail = tacContext === "OPERATIONS"
     ? (meta.tacOperation === "AUTRE" ? meta.tacOperationAutre : meta.tacOperation) || ""
@@ -350,7 +387,7 @@ function deriveMeta(a) {
     facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative,
     a.analysis?.content,
     recos.doctrine, recos.organisation, recos.rh, recos.equipements, recos.soutien, recos.entrainement,
-    a.qwi?.advice, fleet, country, airfield, hashtag, tacDetail
+    a.qwi?.advice, fleet, country, airfield, hashtags.join(" "), tacDetail
   ].map(cleanText).join(" ");
   const wordCount = allText ? allText.split(/\s+/).filter(Boolean).length : 0;
 
@@ -366,6 +403,7 @@ function deriveMeta(a) {
     fleet,
     country,
     airfield,
+    hashtags,
     hashtag,
     tacContext,
     tacDetail,
@@ -970,12 +1008,24 @@ function getUniqueValues(key) {
   return [...vals].sort();
 }
 
+function getUniqueArrayValues(key) {
+  const vals = new Set();
+  for (const r of state.reports) {
+    const list = Array.isArray(r[key]) ? r[key] : [];
+    list.forEach((value) => {
+      const v = String(value || "").trim();
+      if (v && v !== "N/A") vals.add(v);
+    });
+  }
+  return [...vals].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
 function populateDynamicFilters() {
   fillSelectOptions(el.filterFleet, "Flotte: Toutes", getUniqueValues("fleet"));
   fillSelectOptions(el.filterUnit, "Unité: Toutes", getUniqueValues("unit"));
   fillSelectOptions(el.filterCountry, "Pays: Tous", getUniqueValues("country"));
   fillSelectOptions(el.filterOperation, "Operation / exercice: Tous", getUniqueValues("tacDetail"));
-  fillSelectOptions(el.filterHashtag, "Hashtag: Tous", getUniqueValues("hashtag"));
+  fillSelectOptions(el.filterHashtag, "Hashtag: Tous", getUniqueArrayValues("hashtags"));
 }
 
 function fillSelectOptions(selectEl, allLabel, values) {
@@ -1013,12 +1063,12 @@ function filtered() {
   if (unit !== "ALL") rows = rows.filter((r) => r.unit === unit);
   if (country !== "ALL") rows = rows.filter((r) => r.country === country);
   if (operation !== "ALL") rows = rows.filter((r) => r.tacDetail === operation);
-  if (hashtag !== "ALL") rows = rows.filter((r) => r.hashtag === hashtag);
+  if (hashtag !== "ALL") rows = rows.filter((r) => (Array.isArray(r.hashtags) ? r.hashtags : []).includes(hashtag));
 
   if (q) {
     rows = rows.filter((r) => [
       r.title, r.redacteur, r.nom, r.prenom, r.unit,
-      r.classification, r.fleet, r.country, r.airfield, r.hashtag,
+      r.classification, r.fleet, r.country, r.airfield, ...(r.hashtags || []),
       r.missionType, r.tacDetail,
       r.mission?.analysis?.content,
       r.mission?.facts?.narrative,
@@ -1069,7 +1119,7 @@ function renderList() {
     const tags = [classifTag(r.classification)];
     if (r.missionType) tags.push(`<span class="tag tag-${r.missionType.toLowerCase()}">${esc(r.missionType)}</span>`);
     if (r.fleet) tags.push(`<span class="tag tag-fleet">${esc(r.fleet)}</span>`);
-    if (r.hashtag) tags.push(`<span class="tag tag-dorese">${esc(r.hashtag)}</span>`);
+    if (r.hashtags?.length) tags.push(...r.hashtags.slice(0, 3).map((tag) => `<span class="tag tag-dorese">${esc(tag)}</span>`));
     if (r.recoCats?.length) tags.push(...r.recoCats.slice(0, 3).map((c) => `<span class="tag tag-dorese">${esc(c)}</span>`));
 
     return `
@@ -1146,7 +1196,7 @@ function openDetail(id) {
   if (r.missionType) missionParts.push(`Type: ${r.missionType}`);
   if (r.country) missionParts.push(`Pays: ${r.country}`);
   if (r.airfield) missionParts.push(`Terrain OACI: ${r.airfield}`);
-  if (r.hashtag) missionParts.push(`Hashtag: ${r.hashtag}`);
+  if (r.hashtags?.length) missionParts.push(`Hashtags: ${r.hashtags.join(", ")}`);
   if (r.tacContext) missionParts.push(`Contexte TAC: ${r.tacContext}`);
   if (r.tacDetail) missionParts.push(`Detail: ${r.tacDetail}`);
   const missionContextHtml = missionParts.length ? esc(missionParts.join(" | ")) : '<span class="doc-na">N/A</span>';

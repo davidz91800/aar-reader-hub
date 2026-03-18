@@ -409,6 +409,46 @@
             font-size: 0.85rem;
         }
 
+        .combo-option-create {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .multi-chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .multi-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.45rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.14);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            color: var(--text-main);
+            font-size: 0.82rem;
+            line-height: 1;
+        }
+
+        .multi-chip-remove {
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .multi-chip-remove:hover {
+            color: #fff;
+        }
+
         /* --- BUTTONS --- */
         .btn {
             background: var(--bg-card);
@@ -1673,18 +1713,15 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 1rem;">
-                    <label>Hashtag</label>
+                    <label>Hashtags</label>
                     <div class="combo-box" id="hashtag-search-combo">
-                        <input type="search" id="meta-hashtag-search" placeholder="Rechercher un hashtag..."
+                        <input type="search" id="meta-hashtag-search" placeholder="Rechercher ou ajouter un hashtag..."
                             autocomplete="off" onfocus="App.openHashtagMenu()"
-                            oninput="App.filterHashtags(this.value)">
+                            oninput="App.filterHashtags(this.value)"
+                            onkeydown="App.handleHashtagSearchKeydown(event)">
                         <div id="meta-hashtag-menu" class="combo-menu" role="listbox" aria-label="Suggestions hashtag"></div>
                     </div>
-                    <select id="meta-hashtag" style="display:none;" onchange="App.updateHashtagSelection(this.value)">
-                        <option value="">-- Sélectionner --</option>
-                    </select>
-                    <input type="text" id="meta-hashtag-autre" placeholder="Précisez le hashtag..."
-                        style="display:none; margin-top: 8px;" oninput="App.updateHashtagAutre(this.value)">
+                    <div id="meta-hashtag-selected" class="multi-chip-list" aria-live="polite"></div>
                     <div id="meta-hashtag-hint"
                         style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;"></div>
                 </div>
@@ -2240,6 +2277,7 @@
             logAirfieldAutre: "",
             hashtag: "",
             hashtagAutre: "",
+            hashtags: [],
             tacContext: "",
             tacOperation: "",
             tacOperationAutre: "",
@@ -2559,16 +2597,12 @@
                     App.data.meta.logAirfield = 'AUTRE';
                 }
 
-                const knownHashtags = new Set((App.missionConfig.hashtags || []).map((tag) => App.normalizeKey(tag)));
-                if (App.data.meta.hashtag === 'AUTRE') {
-                    App.data.meta.hashtagAutre = App.normalizeHashtag(App.data.meta.hashtagAutre);
-                } else {
-                    App.data.meta.hashtag = App.normalizeHashtag(App.data.meta.hashtag);
-                    if (App.data.meta.hashtag && !knownHashtags.has(App.normalizeKey(App.data.meta.hashtag))) {
-                        if (!App.data.meta.hashtagAutre) App.data.meta.hashtagAutre = App.data.meta.hashtag;
-                        App.data.meta.hashtag = 'AUTRE';
-                    }
-                }
+                App.data.meta.hashtags = App.normalizeHashtagArray(
+                    Array.isArray(App.data.meta.hashtags) && App.data.meta.hashtags.length
+                        ? App.data.meta.hashtags
+                        : App.collectLegacyHashtags(App.data.meta)
+                );
+                App.syncLegacyHashtagFields();
 
                 return repairedRichText;
             },
@@ -2629,11 +2663,7 @@
                 return m.tacExercise || '';
             },
 
-            getHashtagSearchDisplayValue: () => {
-                const m = App.data.meta || {};
-                if (m.hashtag === 'AUTRE') return 'AUTRE';
-                return m.hashtag || '';
-            },
+            getHashtagSearchDisplayValue: () => App.ui.hashtagSearch || '',
 
             filterValues: (values, query) => {
                 const normalized = App.normalizeKey(query || '');
@@ -2669,6 +2699,46 @@
                     out.push(normalized);
                 });
                 return out.sort((a, b) => a.localeCompare(b, 'fr'));
+            },
+
+            collectLegacyHashtags: (meta) => {
+                const src = (meta && typeof meta === 'object') ? meta : {};
+                const out = [];
+                if (Array.isArray(src.hashtags)) out.push(...src.hashtags);
+                const selected = String(src.hashtag || '').trim();
+                const other = String(src.hashtagAutre || '').trim();
+                if (selected && selected.toUpperCase() === 'AUTRE') {
+                    if (other) out.push(other);
+                } else {
+                    if (selected) out.push(selected);
+                    if (other && App.normalizeKey(other) !== App.normalizeKey(selected)) out.push(other);
+                }
+                return App.normalizeHashtagArray(out);
+            },
+
+            getCurrentHashtags: () => {
+                const meta = App.data && App.data.meta ? App.data.meta : {};
+                return App.normalizeHashtagArray(Array.isArray(meta.hashtags) ? meta.hashtags : App.collectLegacyHashtags(meta));
+            },
+
+            syncLegacyHashtagFields: () => {
+                const meta = App.data && App.data.meta ? App.data.meta : {};
+                const hashtags = App.getCurrentHashtags();
+                const official = new Set((App.missionConfig.hashtags || []).map((tag) => App.normalizeKey(tag)));
+                meta.hashtags = hashtags;
+                if (!hashtags.length) {
+                    meta.hashtag = '';
+                    meta.hashtagAutre = '';
+                    return;
+                }
+                const first = hashtags[0];
+                if (official.has(App.normalizeKey(first))) {
+                    meta.hashtag = first;
+                    meta.hashtagAutre = '';
+                } else {
+                    meta.hashtag = 'AUTRE';
+                    meta.hashtagAutre = first;
+                }
             },
 
             loadHashtagCatalogFromStorage: () => {
@@ -2723,6 +2793,7 @@
                 nextDynamic.hashtags = App.normalizeHashtagArray(values);
                 App.dynamicMissionCatalog = App.compactDynamicMissionCatalog(nextDynamic);
                 App.rebuildEffectiveMissionCatalog(persist);
+                App.syncLegacyHashtagFields();
                 App.renderHashtagSelect();
                 App.refreshHashtagHint();
             },
@@ -2849,9 +2920,11 @@
                 }
             },
 
+            getEffectiveHashtags: () => App.getCurrentHashtags(),
+
             getEffectiveHashtag: () => {
-                const m = App.data.meta;
-                return m.hashtag === 'AUTRE' ? (m.hashtagAutre || '') : (m.hashtag || '');
+                const tags = App.getCurrentHashtags();
+                return tags.length ? tags[0] : '';
             },
 
             renderLogCountrySelect: () => {
@@ -3029,35 +3102,40 @@
             },
 
             renderHashtagSelect: () => {
-                const select = document.getElementById('meta-hashtag');
-                const otherInput = document.getElementById('meta-hashtag-autre');
-                if (!select) return;
-
-                const current = App.data.meta.hashtag || '';
-                const base = App.missionConfig.hashtags || [];
-                select.innerHTML = '';
-                select.appendChild(App.createOption('', '-- Sélectionner --'));
-                select.appendChild(App.createOption('AUTRE', 'AUTRE'));
-                base.forEach((tag) => {
-                    if (tag !== 'AUTRE') select.appendChild(App.createOption(tag, tag));
-                });
-                select.value = current;
-
-                if (otherInput) {
-                    otherInput.style.display = current === 'AUTRE' ? 'block' : 'none';
-                    if (current !== 'AUTRE') otherInput.value = '';
+                const chipList = document.getElementById('meta-hashtag-selected');
+                const searchInput = document.getElementById('meta-hashtag-search');
+                const selected = App.getCurrentHashtags();
+                if (chipList) {
+                    chipList.innerHTML = selected.length
+                        ? selected.map((tag) => `
+                            <span class="multi-chip">
+                                <span>${tag}</span>
+                                <button type="button" class="multi-chip-remove" data-remove-hashtag="${tag}" aria-label="Retirer ${tag}">&times;</button>
+                            </span>
+                        `).join('')
+                        : '<div class="combo-empty">Aucun hashtag sélectionné.</div>';
+                    chipList.querySelectorAll('[data-remove-hashtag]').forEach((btn) => {
+                        btn.addEventListener('click', () => App.removeHashtagSelection(btn.getAttribute('data-remove-hashtag')));
+                    });
                 }
+                if (searchInput) searchInput.value = App.ui.hashtagSearch || '';
                 App.renderHashtagMenu();
             },
 
             renderHashtagMenu: () => {
                 const menu = document.getElementById('meta-hashtag-menu');
                 if (!menu) return;
-                const base = App.missionConfig.hashtags || [];
+                const selected = App.getCurrentHashtags();
+                const selectedSet = new Set(selected.map((tag) => App.normalizeKey(tag)));
+                const base = (App.missionConfig.hashtags || []).filter((tag) => !selectedSet.has(App.normalizeKey(tag)));
                 const filtered = App.ui.hashtagSearch
                     ? App.filterValues(base, App.ui.hashtagSearch)
                     : base;
                 const hashtags = filtered.slice(0, 80);
+                const typed = App.normalizeHashtag(App.ui.hashtagSearch);
+                const canCreate = typed
+                    && !selectedSet.has(App.normalizeKey(typed))
+                    && !base.some((tag) => App.normalizeKey(tag) === App.normalizeKey(typed));
 
                 menu.innerHTML = '';
                 if (!App.ui.showHashtagMenu) {
@@ -3065,12 +3143,14 @@
                     return;
                 }
 
-                const autre = document.createElement('button');
-                autre.type = 'button';
-                autre.className = 'combo-option';
-                autre.textContent = 'AUTRE';
-                autre.addEventListener('click', () => App.selectHashtagFromMenu('AUTRE'));
-                menu.appendChild(autre);
+                if (canCreate) {
+                    const create = document.createElement('button');
+                    create.type = 'button';
+                    create.className = 'combo-option combo-option-create';
+                    create.textContent = `Ajouter ${typed}`;
+                    create.addEventListener('click', () => App.selectHashtagFromMenu(typed));
+                    menu.appendChild(create);
+                }
 
                 hashtags.forEach((tag) => {
                     const btn = document.createElement('button');
@@ -3081,7 +3161,7 @@
                     menu.appendChild(btn);
                 });
 
-                if (!hashtags.length) {
+                if (!hashtags.length && !canCreate) {
                     const empty = document.createElement('div');
                     empty.className = 'combo-empty';
                     empty.textContent = 'Aucun hashtag correspondant.';
@@ -3104,41 +3184,79 @@
             },
 
             selectHashtagFromMenu: (tag) => {
-                App.updateHashtagSelection(tag);
+                App.addHashtagSelection(tag);
                 const input = document.getElementById('meta-hashtag-search');
                 if (input) input.blur();
+            },
+
+            handleHashtagSearchKeydown: (event) => {
+                if (!event) return;
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    App.commitHashtagSearch();
+                } else if (event.key === 'Escape') {
+                    App.closeHashtagMenu();
+                }
+            },
+
+            commitHashtagSearch: () => {
+                const input = document.getElementById('meta-hashtag-search');
+                const raw = input ? input.value : App.ui.hashtagSearch;
+                App.addHashtagSelection(raw);
+                if (input) input.value = '';
             },
 
             refreshHashtagHint: () => {
                 const hint = document.getElementById('meta-hashtag-hint');
                 if (!hint) return;
                 const count = (App.missionConfig.hashtags || []).length;
-                const current = App.getEffectiveHashtag();
-                if (!count) hint.textContent = 'Aucun hashtag enregistré. Utilisez AUTRE ou ajoutez-en un (QWI).';
-                else if (current) hint.textContent = `Hashtag actuel: ${current}`;
-                else hint.textContent = `${count} hashtag(s) disponible(s).`;
+                const selected = App.getCurrentHashtags();
+                if (!count && !selected.length) {
+                    hint.textContent = 'Aucun hashtag enregistré. Tapez pour en ajouter un manuellement.';
+                } else if (selected.length) {
+                    const preview = selected.slice(0, 4).join(', ');
+                    const suffix = selected.length > 4 ? ` +${selected.length - 4}` : '';
+                    hint.textContent = `${selected.length} hashtag(s) sélectionné(s): ${preview}${suffix}`;
+                } else {
+                    hint.textContent = `${count} hashtag(s) disponible(s). Tapez pour en ajouter plusieurs.`;
+                }
             },
 
             filterHashtags: (query) => {
                 App.ui.hashtagSearch = query || '';
                 App.ui.showHashtagMenu = true;
-                App.renderHashtagSelect();
+                App.renderHashtagMenu();
             },
 
-            updateHashtagSelection: (value) => {
-                App.data.meta.hashtag = value;
-                if (value !== 'AUTRE') App.data.meta.hashtagAutre = '';
+            addHashtagSelection: (value) => {
+                const normalized = App.normalizeHashtag(value);
                 App.ui.hashtagSearch = '';
                 App.ui.showHashtagMenu = false;
                 const search = document.getElementById('meta-hashtag-search');
-                if (search) search.value = value === 'AUTRE' ? 'AUTRE' : (value || '');
+                if (search) search.value = '';
+                if (!normalized) {
+                    App.renderHashtagSelect();
+                    App.refreshHashtagHint();
+                    return false;
+                }
+                const current = App.getCurrentHashtags();
+                const exists = current.some((tag) => App.normalizeKey(tag) === App.normalizeKey(normalized));
+                if (!exists) {
+                    App.data.meta.hashtags = App.normalizeHashtagArray([...current, normalized]);
+                    App.syncLegacyHashtagFields();
+                }
                 App.renderHashtagSelect();
                 App.refreshHashtagHint();
                 App.save();
+                return !exists;
             },
 
-            updateHashtagAutre: (value) => {
-                App.data.meta.hashtagAutre = App.normalizeHashtag(value);
+            removeHashtagSelection: (value) => {
+                const target = App.normalizeHashtag(value);
+                if (!target) return;
+                App.data.meta.hashtags = App.getCurrentHashtags().filter((tag) => App.normalizeKey(tag) !== App.normalizeKey(target));
+                App.syncLegacyHashtagFields();
+                App.renderHashtagSelect();
                 App.refreshHashtagHint();
                 App.save();
             },
@@ -3166,8 +3284,9 @@
 
             renameSelectedHashtag: () => {
                 if (!App.ui.isExternalEditor) return;
-                const current = App.data.meta.hashtag;
-                if (!current || current === 'AUTRE') {
+                const officialSet = new Set((App.missionConfig.hashtags || []).map((tag) => App.normalizeKey(tag)));
+                const current = App.getCurrentHashtags().find((tag) => officialSet.has(App.normalizeKey(tag)));
+                if (!current) {
                     App.setHashtagAdminHint('Sélectionnez un hashtag existant à renommer.', true);
                     return;
                 }
@@ -3179,7 +3298,8 @@
                 }
                 const next = (App.missionConfig.hashtags || []).map((tag) => (tag === current ? renamed : tag));
                 App.setHashtagCatalog(next, true);
-                App.data.meta.hashtag = renamed;
+                App.data.meta.hashtags = App.getCurrentHashtags().map((tag) => App.normalizeKey(tag) === App.normalizeKey(current) ? renamed : tag);
+                App.syncLegacyHashtagFields();
                 if (input) input.value = '';
                 App.renderHashtagSelect();
                 App.refreshHashtagHint();
@@ -3189,16 +3309,17 @@
 
             deleteSelectedHashtag: () => {
                 if (!App.ui.isExternalEditor) return;
-                const current = App.data.meta.hashtag;
-                if (!current || current === 'AUTRE') {
+                const officialSet = new Set((App.missionConfig.hashtags || []).map((tag) => App.normalizeKey(tag)));
+                const current = App.getCurrentHashtags().find((tag) => officialSet.has(App.normalizeKey(tag)));
+                if (!current) {
                     App.setHashtagAdminHint('Sélectionnez un hashtag existant à supprimer.', true);
                     return;
                 }
                 if (!confirm(`Supprimer le hashtag ${current} ?`)) return;
                 const next = (App.missionConfig.hashtags || []).filter((tag) => tag !== current);
                 App.setHashtagCatalog(next, true);
-                App.data.meta.hashtag = '';
-                App.data.meta.hashtagAutre = '';
+                App.data.meta.hashtags = App.getCurrentHashtags().filter((tag) => App.normalizeKey(tag) !== App.normalizeKey(current));
+                App.syncLegacyHashtagFields();
                 App.renderHashtagSelect();
                 App.refreshHashtagHint();
                 App.save();
@@ -3411,7 +3532,6 @@
                 toggle('tac-exercises-block', isTacExercise);
                 toggle('meta-log-country-autre', m.logCountry === 'AUTRE');
                 toggle('meta-log-airfield-autre', m.logAirfield === 'AUTRE');
-                toggle('meta-hashtag-autre', m.hashtag === 'AUTRE');
                 toggle('hashtag-admin-block', false);
                 toggle('meta-tac-operation-autre', isTacOperations && m.tacOperation === 'AUTRE');
                 toggle('meta-tac-exercise-autre', isTacExercise && m.tacExercise === 'AUTRE');
@@ -3774,9 +3894,7 @@
                 document.getElementById('meta-log-country-autre').value = d.meta.logCountryAutre || '';
                 document.getElementById('meta-log-airfield').value = d.meta.logAirfield || '';
                 document.getElementById('meta-log-airfield-autre').value = d.meta.logAirfieldAutre || '';
-                document.getElementById('meta-hashtag-search').value = App.ui.hashtagSearch || App.getHashtagSearchDisplayValue() || '';
-                document.getElementById('meta-hashtag').value = d.meta.hashtag || '';
-                document.getElementById('meta-hashtag-autre').value = d.meta.hashtagAutre || '';
+                document.getElementById('meta-hashtag-search').value = App.ui.hashtagSearch || '';
                 document.getElementById('meta-tac-context').value = d.meta.tacContext || '';
                 document.getElementById('meta-tac-operation-search').value = App.ui.tacOperationSearch || App.getTacOperationSearchDisplayValue() || '';
                 document.getElementById('meta-tac-operation').value = d.meta.tacOperation || '';

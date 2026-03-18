@@ -726,6 +726,7 @@ function normalizeAar_(input) {
       logCountryAutre: str_(a.meta && a.meta.logCountryAutre),
       logAirfield: str_(a.meta && a.meta.logAirfield),
       logAirfieldAutre: str_(a.meta && a.meta.logAirfieldAutre),
+      hashtags: extractHashtagsFromMeta_(a.meta),
       hashtag: str_(a.meta && a.meta.hashtag),
       hashtagAutre: str_(a.meta && a.meta.hashtagAutre),
       tacContext: str_(a.meta && a.meta.tacContext),
@@ -771,6 +772,47 @@ function normalizeClassification_(v) {
   if (raw.indexOf("DIFFUSION RESTREINTE") >= 0) return "DIFFUSION RESTREINTE";
   if (raw.indexOf("SECRET SPECIAL FRANCE") >= 0) return "SECRET SPECIAL FRANCE";
   return raw;
+}
+
+function normalizeHashtag_(value) {
+  var text = String(value || "").trim();
+  if (!text) return "";
+  text = text.replace(/\s+/g, "-");
+  if (text.charAt(0) !== "#") text = "#" + text;
+  return text;
+}
+
+function normalizeHashtagArray_(values) {
+  var source = Array.isArray(values) ? values : [];
+  var out = [];
+  var seen = {};
+  for (var i = 0; i < source.length; i += 1) {
+    var tag = normalizeHashtag_(source[i]);
+    if (!tag) continue;
+    var key = tag.toUpperCase();
+    if (seen[key]) continue;
+    seen[key] = true;
+    out.push(tag);
+  }
+  out.sort(function(a, b) { return a.localeCompare(b); });
+  return out;
+}
+
+function extractHashtagsFromMeta_(meta) {
+  var src = meta && typeof meta === "object" ? meta : {};
+  var out = [];
+  if (Array.isArray(src.hashtags)) out = out.concat(src.hashtags);
+
+  var selectedRaw = String(src.hashtag || "").trim();
+  var selected = normalizeHashtag_(selectedRaw);
+  var other = normalizeHashtag_(src.hashtagAutre);
+  if (selectedRaw.toUpperCase() === "AUTRE") {
+    if (other) out.push(other);
+  } else {
+    if (selected) out.push(selected);
+    if (other && other.toUpperCase() !== selected.toUpperCase()) out.push(other);
+  }
+  return normalizeHashtagArray_(out);
 }
 
 /* =========================
@@ -852,8 +894,10 @@ function mergeCatalogFromAar_(catalog, aar) {
   var added = 0;
   var meta = aar && aar.meta ? aar.meta : {};
 
-  var hashtag = resolveOtherChoice_(meta.hashtag, meta.hashtagAutre);
-  if (addCatalogValue_(catalog.hashtags, hashtag, "hashtag")) added += 1;
+  var hashtags = extractHashtagsFromMeta_(meta);
+  for (var i = 0; i < hashtags.length; i += 1) {
+    if (addCatalogValue_(catalog.hashtags, hashtags[i], "hashtag")) added += 1;
+  }
 
   var country = resolveOtherChoice_(meta.logCountry, meta.logCountryAutre);
   if (addCatalogValue_(catalog.countries, country, "text")) added += 1;

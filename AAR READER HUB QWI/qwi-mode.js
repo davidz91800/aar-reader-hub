@@ -9,7 +9,7 @@
   const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
   const sessions = new Map();
   const CATALOG_DEFS = {
-    hashtags: { label: "Hashtags", singular: "hashtag", normalize: (value) => normalizeHashtag(value), selectKey: "hashtag", otherKey: "hashtagAutre" },
+    hashtags: { label: "Hashtags", singular: "hashtag", normalize: (value) => normalizeHashtag(value), selectKey: "hashtag", otherKey: "hashtagAutre", arrayKey: "hashtags" },
     countries: { label: "Pays", singular: "pays", normalize: (value) => normalizeTextValue(value), selectKey: "logCountry", otherKey: "logCountryAutre" },
     oaci: { label: "Codes OACI", singular: "code OACI", normalize: (value) => normalizeTextValue(value).toUpperCase(), selectKey: "logAirfield", otherKey: "logAirfieldAutre" },
     operations: { label: "Operations", singular: "operation", normalize: (value) => normalizeTextValue(value), selectKey: "tacOperation", otherKey: "tacOperationAutre", contextKey: "tacContext", contextValue: "OPERATIONS" },
@@ -168,16 +168,45 @@
     }
   }
 
-  function getMetaValueForCategory(meta, key) {
+  function getMetaValuesForCategory(meta, key) {
     const def = CATALOG_DEFS[key];
-    if (!def) return "";
+    if (!def) return [];
     if (def.contextKey && def.contextValue) {
       const ctx = String(meta?.[def.contextKey] || "").trim().toUpperCase();
-      if (ctx !== String(def.contextValue || "").trim().toUpperCase()) return "";
+      if (ctx !== String(def.contextValue || "").trim().toUpperCase()) return [];
+    }
+    if (def.arrayKey) {
+      const values = normalizeCatalogValues(key, meta?.[def.arrayKey]);
+      if (values.length) return values;
     }
     const selected = String(meta?.[def.selectKey] || "").trim();
     const other = String(meta?.[def.otherKey] || "").trim();
-    return selected === "AUTRE" ? def.normalize(other) : def.normalize(selected);
+    const resolved = selected === "AUTRE" ? def.normalize(other) : def.normalize(selected);
+    return resolved ? [resolved] : [];
+  }
+
+  function getMetaValueForCategory(meta, key) {
+    const values = getMetaValuesForCategory(meta, key);
+    return values.length ? values[0] : "";
+  }
+
+  function syncLegacyHashtagMeta(meta) {
+    if (!meta || typeof meta !== "object") return;
+    const hashtags = uniqueHashtags(meta.hashtags || []);
+    meta.hashtags = hashtags;
+    if (!hashtags.length) {
+      meta.hashtag = "";
+      meta.hashtagAutre = "";
+      return;
+    }
+    const first = hashtags[0];
+    if (getEffectiveCategorySet("hashtags").has(String(first).toUpperCase())) {
+      meta.hashtag = first;
+      meta.hashtagAutre = "";
+    } else {
+      meta.hashtag = "AUTRE";
+      meta.hashtagAutre = first;
+    }
   }
 
   function collectKnownCatalogFromReports() {
@@ -185,8 +214,8 @@
     (state.reports || []).forEach((record) => {
       const meta = record?.mission?.meta || {};
       CATALOG_KEYS.forEach((key) => {
-        const value = getMetaValueForCategory(meta, key);
-        if (value) out[key].push(value);
+        const values = getMetaValuesForCategory(meta, key);
+        if (values.length) out[key].push(...values);
       });
     });
     CATALOG_KEYS.forEach((key) => { out[key] = normalizeCatalogValues(key, out[key]); });
@@ -897,27 +926,7 @@
     const known = getEffectiveCategorySet(category);
     const counts = new Map();
 
-    (state.reports || []).forEach((record) => {
-      const meta = record?.mission?.meta || {};
-      if (def.contextKey && def.contextValue) {
-        const ctx = String(meta?.[def.contextKey] || "").trim().toUpperCase();
-        if (ctx !== String(def.contextValue).trim().toUpperCase()) return;
-      }
-
-      const selectedRaw = String(meta?.[def.selectKey] || "").trim();
-      const otherRaw = String(meta?.[def.otherKey] || "").trim();
-      const selected = def.normalize(selectedRaw);
-      const other = def.normalize(otherRaw);
-
-      let candidate = "";
-      let sourceKind = "";
-      if (selectedRaw === "AUTRE" && other) {
-        candidate = other;
-        sourceKind = "other";
-      } else if (selected && !known.has(selected.toUpperCase())) {
-        candidate = selected;
-        sourceKind = "unknown";
-      }
+    const registerCandidate = (record, candidate, sourceKind) => {
       const normalizedCandidate = def.normalize(candidate);
       if (!normalizedCandidate) return;
       if (known.has(normalizedCandidate.toUpperCase())) return;
@@ -945,6 +954,37 @@
           label: buildAdminExampleLabel(record)
         });
       }
+    };
+
+    (state.reports || []).forEach((record) => {
+      const meta = record?.mission?.meta || {};
+      if (def.contextKey && def.contextValue) {
+        const ctx = String(meta?.[def.contextKey] || "").trim().toUpperCase();
+        if (ctx !== String(def.contextValue).trim().toUpperCase()) return;
+      }
+
+      if (def.arrayKey) {
+        getMetaValuesForCategory(meta, category).forEach((value) => {
+          if (!known.has(String(value).toUpperCase())) registerCandidate(record, value, "unknown");
+        });
+        return;
+      }
+
+      const selectedRaw = String(meta?.[def.selectKey] || "").trim();
+      const otherRaw = String(meta?.[def.otherKey] || "").trim();
+      const selected = def.normalize(selectedRaw);
+      const other = def.normalize(otherRaw);
+
+      let candidate = "";
+      let sourceKind = "";
+      if (selectedRaw === "AUTRE" && other) {
+        candidate = other;
+        sourceKind = "other";
+      } else if (selected && !known.has(selected.toUpperCase())) {
+        candidate = selected;
+        sourceKind = "unknown";
+      }
+      registerCandidate(record, candidate, sourceKind);
     });
 
     return [...counts.values()]
@@ -1008,6 +1048,14 @@
     }
     const normalizedTarget = def.normalize(targetValue);
     if (!normalizedTarget) return false;
+    if (def.arrayKey) {
+      const currentValues = getMetaValuesForCategory(meta, category);
+      if (!currentValues.length) return false;
+      if (!currentValues.some((value) => String(value).toUpperCase() === String(normalizedTarget).toUpperCase())) return false;
+      meta[def.arrayKey] = normalizeCatalogValues(category, currentValues);
+      syncLegacyHashtagMeta(meta);
+      return true;
+    }
     const current = getMetaValueForCategory(meta, category);
     if (!current) return false;
     if (String(current).toUpperCase() !== String(normalizedTarget).toUpperCase()) return false;
@@ -1030,6 +1078,20 @@
     }
     await applyRecordsMutation((record) => {
       const meta = record?.mission?.meta || {};
+      if (def.arrayKey) {
+        const currentValues = getMetaValuesForCategory(meta, category);
+        if (!currentValues.length) return false;
+        let changed = false;
+        const nextValues = currentValues.map((value) => {
+          if (String(value).toUpperCase() !== String(source).toUpperCase()) return value;
+          changed = true;
+          return target;
+        });
+        if (!changed) return false;
+        meta[def.arrayKey] = normalizeCatalogValues(category, nextValues);
+        syncLegacyHashtagMeta(meta);
+        return true;
+      }
       const current = getMetaValueForCategory(meta, category);
       if (!current) return false;
       if (String(current).toUpperCase() !== String(source).toUpperCase()) return false;
@@ -1085,6 +1147,20 @@
 
     await applyRecordsMutation((record) => {
       const meta = record?.mission?.meta || {};
+      if (def.arrayKey) {
+        const currentValues = getMetaValuesForCategory(meta, category);
+        if (!currentValues.length) return false;
+        let changed = false;
+        const nextValues = currentValues.map((value) => {
+          if (String(value).toUpperCase() !== String(oldNorm).toUpperCase()) return value;
+          changed = true;
+          return nextNorm;
+        });
+        if (!changed) return false;
+        meta[def.arrayKey] = normalizeCatalogValues(category, nextValues);
+        syncLegacyHashtagMeta(meta);
+        return true;
+      }
       const current = getMetaValueForCategory(meta, category);
       if (!current) return false;
       if (String(current).toUpperCase() !== String(oldNorm).toUpperCase()) return false;
