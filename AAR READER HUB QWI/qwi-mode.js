@@ -1345,34 +1345,18 @@
 
   function getAdminCatalogView(category, searchValue) {
     const effectiveCatalog = getEffectiveCatalog();
-    const officialCatalog = getCurrentCatalog();
     const values = effectiveCatalog[category] || [];
-    const officialValues = officialCatalog[category] || [];
     const query = normalizeTextValue(searchValue);
     const filteredValues = query
       ? values.filter((value) => normalizeTextValue(value).toUpperCase().includes(query.toUpperCase()))
       : values;
 
-    const hidesFullBaseByDefault = category === "oaci" || category === "countries";
-    const renderLimit = query ? filteredValues.length : Math.min(filteredValues.length, 120);
+    const renderLimit = filteredValues.length;
     let visibleValues = filteredValues.slice(0, renderLimit);
     let noteSuffix = `${values.length} valeur(s) disponibles au total${query ? `, ${filteredValues.length} correspondance(s)` : ""}`;
     let emptyText = values.length ? "Aucune valeur ne correspond au filtre." : "Aucun element disponible dans ce referentiel.";
 
-    if (hidesFullBaseByDefault && !query) {
-      visibleValues = [...officialValues];
-      if (category === "oaci") {
-        noteSuffix = `${values.length} code(s) disponibles dans la PWA AAR. Le socle OACI complet est masque ici par defaut; tape un code pour le rechercher.`;
-        emptyText = officialValues.length
-          ? "Aucune valeur ne correspond au filtre."
-          : "Aucun code OACI officiel QWI.";
-      } else if (category === "countries") {
-        noteSuffix = `${values.length} pays disponibles dans la PWA AAR. Le socle pays complet est masque ici par defaut; tape un pays pour le rechercher.`;
-        emptyText = officialValues.length
-          ? "Aucune valeur ne correspond au filtre."
-          : "Aucun pays officiel QWI.";
-      }
-    } else if (!query && filteredValues.length > renderLimit) {
+    if (!query && filteredValues.length > renderLimit) {
       noteSuffix += `, affichage des ${renderLimit} premieres.`;
     } else {
       noteSuffix += ".";
@@ -1385,8 +1369,8 @@
       noteText: noteSuffix,
       emptyText,
       query,
-      hidesFullBaseByDefault,
-      isCollapsedBase: hidesFullBaseByDefault && !query
+      hidesFullBaseByDefault: false,
+      isCollapsedBase: false
     };
   }
 
@@ -1696,9 +1680,7 @@
     const def = CATALOG_DEFS[category] || {};
     const label = String(def.label || "").trim();
     const lowerLabel = label ? label.toLowerCase() : "valeurs";
-    const extraBaseNote = model?.view?.isCollapsedBase
-      ? "Le socle embarque complet n'est pas affiche d'un bloc ici. Utilise le filtre pour aller chercher une valeur precise."
-      : "";
+    const extraBaseNote = "Le socle embarque complet est visible par defaut dans cette liste.";
 
     switch (kind) {
       case "overview":
@@ -1715,7 +1697,8 @@
           title: `Referentiel ${label}`,
           body: [
             `Ce sous-onglet pilote les valeurs ${lowerLabel} proposees aux redacteurs dans la PWA AAR.`,
-            extraBaseNote || "Les valeurs officielles QWI s'ajoutent au socle embarque du formulaire."
+            "Les valeurs officielles QWI s'ajoutent au socle embarque du formulaire.",
+            extraBaseNote
           ].filter(Boolean)
         };
       case "pending":
@@ -1906,7 +1889,6 @@
               <div class="admin-inline-metrics">
                 <span class="admin-mini-chip">${model.availableCount} total</span>
                 <span class="admin-mini-chip">${model.officialCount} officiel(s)</span>
-                ${view.isCollapsedBase ? `<span class="admin-mini-chip is-muted">Socle masque</span>` : ""}
               </div>
               <div class="admin-list">
                 ${visibleValues.length ? visibleValues.map((value) => `
