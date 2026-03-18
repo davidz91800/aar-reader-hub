@@ -930,18 +930,25 @@
       ? values.filter((value) => normalizeTextValue(value).toUpperCase().includes(query.toUpperCase()))
       : values;
 
-    const isOaci = category === "oaci";
+    const hidesFullBaseByDefault = category === "oaci" || category === "countries";
     const renderLimit = query ? filteredValues.length : Math.min(filteredValues.length, 120);
     let visibleValues = filteredValues.slice(0, renderLimit);
     let noteSuffix = `${values.length} valeur(s) disponibles au total${query ? `, ${filteredValues.length} correspondance(s)` : ""}`;
     let emptyText = values.length ? "Aucune valeur ne correspond au filtre." : "Aucun element disponible dans ce referentiel.";
 
-    if (isOaci && !query) {
+    if (hidesFullBaseByDefault && !query) {
       visibleValues = [...officialValues];
-      noteSuffix = `${values.length} code(s) disponibles dans la PWA AAR. Le socle OACI complet est masque ici par defaut; tape un code pour le rechercher.`;
-      emptyText = officialValues.length
-        ? "Aucune valeur ne correspond au filtre."
-        : "Aucun code OACI officiel QWI. Le socle complet n'est pas affiche ici; utilise le filtre pour rechercher un code precis.";
+      if (category === "oaci") {
+        noteSuffix = `${values.length} code(s) disponibles dans la PWA AAR. Le socle OACI complet est masque ici par defaut; tape un code pour le rechercher.`;
+        emptyText = officialValues.length
+          ? "Aucune valeur ne correspond au filtre."
+          : "Aucun code OACI officiel QWI. Le socle complet n'est pas affiche ici; utilise le filtre pour rechercher un code precis.";
+      } else if (category === "countries") {
+        noteSuffix = `${values.length} pays disponibles dans la PWA AAR. Le socle pays complet est masque ici par defaut; tape un pays pour le rechercher.`;
+        emptyText = officialValues.length
+          ? "Aucune valeur ne correspond au filtre."
+          : "Aucun pays officiel QWI. Le socle complet n'est pas affiche ici; utilise le filtre pour rechercher un pays precis.";
+      }
     } else if (!query && filteredValues.length > renderLimit) {
       noteSuffix += `, affichage des ${renderLimit} premieres.`;
     } else {
@@ -1296,7 +1303,7 @@
 
         <div class="admin-section">
           <div class="admin-section-title">3. Referentiel actuel</div>
-          <div class="admin-section-help">Cette liste correspond aux valeurs effectivement proposees dans la PWA AAR. Les valeurs marquees "Socle AAR" viennent du formulaire embarque; les valeurs "Officiel QWI" viennent du referentiel dynamique.${category === "oaci" ? " Le socle OACI complet n'est jamais affiche d'un bloc." : ""}</div>
+          <div class="admin-section-help">Cette liste correspond aux valeurs effectivement proposees dans la PWA AAR. Les valeurs marquees "Socle AAR" viennent du formulaire embarque; les valeurs "Officiel QWI" viennent du referentiel dynamique.${category === "oaci" ? " Le socle OACI complet n'est jamais affiche d'un bloc." : category === "countries" ? " Le socle pays complet n'est jamais affiche d'un bloc." : ""}</div>
           <div class="admin-row">
             <input class="admin-input" data-admin-search-input="${esc(category)}" value="${esc(searchValue)}" placeholder="Filtrer le referentiel ${singular}">
           </div>
