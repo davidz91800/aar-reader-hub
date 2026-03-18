@@ -33,6 +33,10 @@
             /* Amber 500 */
             --radius: 6px;
             --font-stack: 'Inter', system-ui, -apple-system, sans-serif;
+            --app-height: 100dvh;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --viewport-offset-top: 0px;
         }
 
         * {
@@ -45,10 +49,13 @@
             background-color: var(--bg-main);
             color: var(--text-main);
             font-family: var(--font-stack);
-            height: 100vh;
+            height: var(--app-height);
+            min-height: var(--app-height);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            padding-top: max(var(--safe-top), var(--viewport-offset-top));
+            padding-bottom: var(--safe-bottom);
         }
 
         /* --- LAYOUT --- */
@@ -1210,7 +1217,8 @@
 
         @media (max-width: 1280px) {
             body {
-                height: 100dvh;
+                height: var(--app-height);
+                min-height: var(--app-height);
             }
 
             header {
@@ -4118,6 +4126,45 @@
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => window.close());
             }
+        })();
+    </script>
+    <script>
+        (function installViewportRecovery() {
+            const root = document.documentElement;
+            let rafId = 0;
+
+            const scheduleUpdate = (delay = 0) => {
+                const run = () => {
+                    if (rafId) cancelAnimationFrame(rafId);
+                    rafId = requestAnimationFrame(() => {
+                        const vv = window.visualViewport;
+                        const height = Math.round(vv ? vv.height : window.innerHeight);
+                        const offsetTop = Math.max(0, Math.round(vv ? vv.offsetTop : 0));
+                        root.style.setProperty('--app-height', `${height}px`);
+                        root.style.setProperty('--viewport-offset-top', `${offsetTop}px`);
+
+                        const active = document.activeElement;
+                        const tag = active && active.tagName ? active.tagName.toUpperCase() : '';
+                        const editing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (active && active.isContentEditable);
+                        if (!editing) window.scrollTo(0, 0);
+                    });
+                };
+
+                if (delay > 0) window.setTimeout(run, delay);
+                else run();
+            };
+
+            window.addEventListener('resize', () => scheduleUpdate(), { passive: true });
+            window.addEventListener('orientationchange', () => scheduleUpdate(80), { passive: true });
+            window.addEventListener('pageshow', () => scheduleUpdate(80), { passive: true });
+            document.addEventListener('focusout', () => scheduleUpdate(120), true);
+
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => scheduleUpdate(), { passive: true });
+                window.visualViewport.addEventListener('scroll', () => scheduleUpdate(), { passive: true });
+            }
+
+            scheduleUpdate();
         })();
     </script>
     <script>
