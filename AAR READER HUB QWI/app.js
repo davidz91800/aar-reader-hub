@@ -5,8 +5,8 @@
 const DB_NAME = "aar_reader_hub_qwi_v1";
 const STORE = "reports";
 const LAST_SYNC_KEY = "aar_reader_last_sync_qwi_v1";
-const AUTO_RESYNC_MIN_INTERVAL_MS = 15000;
-const AUTO_RESYNC_TICK_MS = 15000;
+const AUTO_RESYNC_MIN_INTERVAL_MS = 300000;
+const AUTO_RESYNC_TICK_MS = 300000;
 const DRIVE_ERROR_COOLDOWN_MS = 10 * 60 * 1000;
 const DRIVE_COOLDOWN_KEY = "aar_reader_drive_cooldown_until_qwi_v1";
 

@@ -24,6 +24,8 @@
   let silentReconnectTried = false;
   let adminBusy = false;
   let currentCatalog = createEmptyCatalog();
+  let baseCatalog = createEmptyCatalog();
+  const adminCatalogSearch = {};
 
   function hasValidDriveToken() {
     return !!accessToken && Date.now() < tokenExpiryAt - 30000;
@@ -63,6 +65,12 @@
     return { hashtags: [], countries: [], oaci: [], operations: [], exercises: [] };
   }
 
+  function getBundledMissionConfig() {
+    return (window.AARMissionConfig && typeof window.AARMissionConfig === "object")
+      ? window.AARMissionConfig
+      : {};
+  }
+
   function normalizeCatalogValues(key, values) {
     const def = CATALOG_DEFS[key];
     if (!def) return [];
@@ -88,6 +96,32 @@
     return out;
   }
 
+  function buildBaseCatalogFromEditorConfig() {
+    const cfg = getBundledMissionConfig();
+    return normalizeCatalogObject({
+      hashtags: cfg.hashtags || [],
+      countries: cfg.allCountries || [],
+      oaci: (Array.isArray(cfg.allAirfields) && cfg.allAirfields.length)
+        ? cfg.allAirfields
+        : Object.values(cfg.logAirfieldsByCountry || {}).flat(),
+      operations: cfg.tacOperations || [],
+      exercises: cfg.tacExercises || []
+    });
+  }
+
+  function compactCatalogAgainstBase(catalog) {
+    const normalized = normalizeCatalogObject(catalog);
+    const base = normalizeCatalogObject(baseCatalog || {});
+    const out = createEmptyCatalog();
+
+    CATALOG_KEYS.forEach((key) => {
+      const baseSet = new Set((base[key] || []).map((value) => String(value || "").toUpperCase()));
+      out[key] = (normalized[key] || []).filter((value) => !baseSet.has(String(value || "").toUpperCase()));
+    });
+
+    return normalizeCatalogObject(out);
+  }
+
   function readCatalogFromStorage() {
     try {
       const raw = localStorage.getItem(MISSION_CATALOG_KEY);
@@ -107,7 +141,7 @@
   }
 
   function writeCatalogToStorage(catalog) {
-    const normalized = normalizeCatalogObject(catalog);
+    const normalized = compactCatalogAgainstBase(catalog);
     try {
       localStorage.setItem(MISSION_CATALOG_KEY, JSON.stringify(normalized));
       localStorage.setItem(HASHTAG_CATALOG_KEY, JSON.stringify(normalized.hashtags || []));
@@ -154,23 +188,40 @@
   }
 
   function collectKnownHashtags() {
-    return (currentCatalog && Array.isArray(currentCatalog.hashtags))
-      ? [...currentCatalog.hashtags]
+    const effective = getEffectiveCatalog();
+    return (effective && Array.isArray(effective.hashtags))
+      ? [...effective.hashtags]
       : [];
   }
 
   function getCurrentCatalog() {
-    return normalizeCatalogObject(currentCatalog || {});
+    return compactCatalogAgainstBase(currentCatalog || {});
+  }
+
+  function getBaseCatalog() {
+    return normalizeCatalogObject(baseCatalog || {});
+  }
+
+  function getEffectiveCatalog() {
+    return mergeCatalogs(getBaseCatalog(), getCurrentCatalog());
   }
 
   function setCurrentCatalog(catalog, persist = true) {
-    currentCatalog = normalizeCatalogObject(catalog);
+    currentCatalog = compactCatalogAgainstBase(catalog);
     if (persist) writeCatalogToStorage(currentCatalog);
   }
 
   function getEffectiveCategorySet(key) {
-    const list = (currentCatalog && Array.isArray(currentCatalog[key])) ? currentCatalog[key] : [];
+    const list = (getEffectiveCatalog() && Array.isArray(getEffectiveCatalog()[key])) ? getEffectiveCatalog()[key] : [];
     return new Set(list.map((value) => String(value || "").toUpperCase()));
+  }
+
+  function isOfficialCatalogValue(category, value) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return false;
+    const normalized = String(def.normalize(value) || "").trim().toUpperCase();
+    if (!normalized) return false;
+    return (getCurrentCatalog()[category] || []).some((item) => String(item || "").toUpperCase() === normalized);
   }
 
   function getDeletedIds() {
@@ -798,7 +849,7 @@
     const def = CATALOG_DEFS[category];
     if (!def) return [];
     const source = String(def.normalize(sourceValue) || "").trim().toUpperCase();
-    return (getCurrentCatalog()[category] || []).filter((value) => {
+    return (getEffectiveCatalog()[category] || []).filter((value) => {
       return String(def.normalize(value) || "").trim().toUpperCase() !== source;
     });
   }
@@ -863,7 +914,10 @@
       const exampleKey = String(record?.id || buildAdminExampleLabel(record));
       if (!entry.exampleKeys.has(exampleKey) && entry.examples.length < 3) {
         entry.exampleKeys.add(exampleKey);
-        entry.examples.push(buildAdminExampleLabel(record));
+        entry.examples.push({
+          id: String(record?.id || ""),
+          label: buildAdminExampleLabel(record)
+        });
       }
     });
 
@@ -945,7 +999,9 @@
       toast("Valeur source/cible invalide.");
       return;
     }
-    ensureCategoryValueInCatalog(category, target);
+    if (!getEffectiveCategorySet(category).has(String(target).toUpperCase())) {
+      ensureCategoryValueInCatalog(category, target);
+    }
     await applyRecordsMutation((record) => {
       const meta = record?.mission?.meta || {};
       const current = getMetaValueForCategory(meta, category);
@@ -1045,8 +1101,16 @@
 
   function renderAdminCard(category, candidates = []) {
     const def = CATALOG_DEFS[category];
-    const catalog = getCurrentCatalog();
-    const values = catalog[category] || [];
+    const officialCatalog = getCurrentCatalog();
+    const effectiveCatalog = getEffectiveCatalog();
+    const values = effectiveCatalog[category] || [];
+    const searchValue = String(adminCatalogSearch[category] || "");
+    const query = normalizeTextValue(searchValue);
+    const filteredValues = query
+      ? values.filter((value) => normalizeTextValue(value).toUpperCase().includes(query.toUpperCase()))
+      : values;
+    const renderLimit = query ? filteredValues.length : Math.min(filteredValues.length, 120);
+    const visibleValues = filteredValues.slice(0, renderLimit);
     const singular = esc(def.singular || def.label.toLowerCase());
 
     return `
@@ -1075,7 +1139,7 @@
                 </div>
                 <div class="admin-item-count">${row.count} AAR</div>
               </div>
-              ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<span class="admin-example-chip">${esc(example)}</span>`).join("")}</div>` : ""}
+              ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<button class="admin-example-chip" data-admin-open-record="${esc(example.id || "")}" type="button">${esc(example.label || "")}</button>`).join("")}</div>` : ""}
               <div class="admin-action-grid">
                 <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Creer ce ${singular}</button>
                 <select class="admin-select" data-admin-map-select="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}">
@@ -1099,20 +1163,26 @@
 
         <div class="admin-section">
           <div class="admin-section-title">3. Referentiel actuel</div>
-          <div class="admin-section-help">Renomme ou supprime les valeurs officielles existantes.</div>
+          <div class="admin-section-help">Cette liste correspond aux valeurs effectivement proposees dans la PWA AAR. Les valeurs marquees "Socle AAR" viennent du formulaire embarque; les valeurs "Officiel QWI" viennent du referentiel dynamique.</div>
+          <div class="admin-row">
+            <input class="admin-input" data-admin-search-input="${esc(category)}" value="${esc(searchValue)}" placeholder="Filtrer le referentiel ${singular}">
+          </div>
+          <div class="admin-note">${values.length} valeur(s) disponibles au total${query ? `, ${filteredValues.length} correspondance(s)` : ""}${(!query && filteredValues.length > renderLimit) ? `, affichage des ${renderLimit} premieres` : ""}.</div>
         </div>
         <div class="admin-list">
-          ${values.length ? values.map((value) => `
+          ${visibleValues.length ? visibleValues.map((value) => `
             <div class="admin-item">
               <div class="admin-item-top">
                 <div class="admin-item-value">${esc(value)}</div>
+                <div class="admin-item-meta">${isOfficialCatalogValue(category, value) ? "Officiel QWI" : "Socle AAR"}</div>
               </div>
+              ${isOfficialCatalogValue(category, value) ? `
               <div class="admin-row">
                 <button class="admin-btn" data-admin-rename-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Renommer</button>
                 <button class="admin-btn admin-btn-danger" data-admin-delete-btn="${esc(category)}" data-admin-value="${esc(value)}" type="button">Supprimer</button>
-              </div>
+              </div>` : ""}
             </div>
-          `).join("") : `<div class="admin-empty">Aucun element officiel dans ce referentiel.</div>`}
+          `).join("") : `<div class="admin-empty">${values.length ? "Aucune valeur ne correspond au filtre." : "Aucun element disponible dans ce referentiel."}</div>`}
         </div>
       </article>
     `;
@@ -1140,6 +1210,14 @@
         addCatalogItem(category, value).then(() => {
           if (input) input.value = "";
         });
+      });
+    });
+
+    container.querySelectorAll("[data-admin-search-input]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const category = input.getAttribute("data-admin-search-input");
+        adminCatalogSearch[category] = input.value || "";
+        renderAdmin(container);
       });
     });
 
@@ -1184,12 +1262,26 @@
         await mapOtherCandidate(category, source, target);
       });
     });
+
+    container.querySelectorAll("[data-admin-open-record]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const recordId = String(btn.getAttribute("data-admin-open-record") || "").trim();
+        if (!recordId) {
+          toast("AAR introuvable.");
+          return;
+        }
+        if (typeof setView === "function") setView("list");
+        openDetail(recordId);
+      });
+    });
   }
 
   function renderAdmin(targetEl = document.getElementById("view-admin")) {
     if (!targetEl) return;
-    const catalog = getCurrentCatalog();
-    const totalValues = CATALOG_KEYS.reduce((sum, key) => sum + ((catalog[key] || []).length), 0);
+    const officialCatalog = getCurrentCatalog();
+    const effectiveCatalog = getEffectiveCatalog();
+    const totalOfficialValues = CATALOG_KEYS.reduce((sum, key) => sum + ((officialCatalog[key] || []).length), 0);
+    const totalAvailableValues = CATALOG_KEYS.reduce((sum, key) => sum + ((effectiveCatalog[key] || []).length), 0);
     const pendingSummary = getAdminPendingSummary();
 
     targetEl.innerHTML = `
@@ -1201,13 +1293,15 @@
           </div>
           <div class="admin-kpis">
             <div class="admin-chip ${pendingSummary.total ? "admin-chip-alert" : "admin-chip-ok"}">${pendingSummary.total} valeur(s) a classer</div>
-            <div class="admin-chip">${totalValues} valeur(s) officielles</div>
+            <div class="admin-chip">${totalAvailableValues} valeur(s) visibles dans la PWA AAR</div>
+            <div class="admin-chip">${totalOfficialValues} valeur(s) officielles QWI</div>
           </div>
         </div>
         <div class="admin-guide">
           <div class="admin-step"><span>1</span> Va d'abord dans "Valeurs a classer".</div>
           <div class="admin-step"><span>2</span> Clique sur "Creer" si la valeur doit devenir officielle.</div>
           <div class="admin-step"><span>3</span> Utilise "Rattacher" si c'est juste une variante d'une valeur existante.</div>
+          <div class="admin-step"><span>4</span> Si tu supprimes une valeur officielle encore utilisee dans un AAR, elle redevient simplement "a classer".</div>
         </div>
         <div class="admin-grid">
           ${CATALOG_KEYS.map((key) => renderAdminCard(key, extractOtherCandidates(key))).join("")}
@@ -1262,9 +1356,9 @@
   }
 
   async function initMissionCatalog() {
+    baseCatalog = buildBaseCatalogFromEditorConfig();
     const localCatalog = readCatalogFromStorage();
-    const fromReports = collectKnownCatalogFromReports();
-    let merged = mergeCatalogs(localCatalog, fromReports);
+    let merged = localCatalog;
 
     if (usesAppsScriptBackend()) {
       try {
@@ -1342,9 +1436,6 @@
       await persistRecords(merged);
     }
 
-    const fromReports = collectKnownCatalogFromReports();
-    const mergedCatalog = mergeCatalogs(getCurrentCatalog(), fromReports);
-    setCurrentCatalog(mergedCatalog, true);
     if (state.mode === "admin") renderAdmin();
   };
 
@@ -1366,7 +1457,7 @@
       await upsertFromEditor(sessionId, msg.aar || msg.data || {});
 
       if (incomingCatalog) {
-        const mergedCatalog = mergeCatalogs(getCurrentCatalog(), incomingCatalog, collectKnownCatalogFromReports());
+        const mergedCatalog = mergeCatalogs(getCurrentCatalog(), incomingCatalog);
         setCurrentCatalog(mergedCatalog, true);
         if (state.mode === "admin") renderAdmin();
         try {

@@ -16,6 +16,8 @@
  * Important:
  * - Le push GitHub n'est plus requis pour le fonctionnement nominal.
  * - Les 3 PWA lisent/editent directement via cette API + Drive.
+ * - Le referentiel officiel n'est JAMAIS enrichi automatiquement par l'ingest email.
+ *   Il est pilote uniquement par le HUB QWI via l'action setCatalog.
  * ============================================================
  */
 
@@ -155,14 +157,12 @@ function runIngestCore_(cfg, options) {
       messagesProcessed: 0,
       messagesPermanentError: 0,
       driveFilesCreated: 0,
-      driveFilesSkippedExisting: 0,
-      catalogItemsAdded: 0
+      driveFilesSkippedExisting: 0
     };
 
     var folder = DriveApp.getFolderById(cfg.defaultFolderId);
     var errorLabel = getOrCreateLabel_(cfg.ingestErrorLabel);
     var state = loadIngestState_();
-    var catalog = readCatalog_();
 
     var threads = GmailApp.search(cfg.ingestMailQuery, 0, cfg.ingestMaxThreadsPerRun);
     summary.threadsScanned = threads.length;
@@ -200,8 +200,6 @@ function runIngestCore_(cfg, options) {
             var created = createDriveFileIfMissing_(folder, fileName, canonical);
             if (created) summary.driveFilesCreated += 1;
             else summary.driveFilesSkippedExisting += 1;
-
-            summary.catalogItemsAdded += mergeCatalogFromAar_(catalog, aar);
           }
 
           state.processedMessageIds.push(messageId);
@@ -221,10 +219,6 @@ function runIngestCore_(cfg, options) {
           throw error;
         }
       }
-    }
-
-    if (summary.catalogItemsAdded > 0) {
-      writeCatalog_(catalog);
     }
 
     trimIngestState_(state);
