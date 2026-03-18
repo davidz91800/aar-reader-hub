@@ -1619,8 +1619,8 @@
                             <span class="detail">Diffusion rapide. "Send to QWI" envoie a l'adresse QWI + david.zemmour3@gmail.com.</span>
                         </div>
                         <div class="report-kind-item" data-kind="CONSOLIDE" onclick="App.updateReportKind('CONSOLIDE')">
-                            <span class="level">AAR CONSOLIDE</span>
-                            <span class="detail">Version consolidee. "Send to QWI" envoie uniquement a l'adresse QWI actuelle.</span>
+                            <span class="level">AAR CONSOLIDÉ</span>
+                            <span class="detail">Version consolidée. "Send to QWI" envoie uniquement à l'adresse QWI actuelle.</span>
                         </div>
                     </div>
                 </div>
@@ -3833,6 +3833,10 @@
                 App.renderForm();
             },
 
+            getReportKindLabel: (kind) => {
+                return String(kind || '').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDÉ';
+            },
+
             updateReportKind: (kind) => {
                 App.data.meta.reportKind = kind || "CONSOLIDE";
                 App.save();
@@ -4054,7 +4058,7 @@
                 const dateEl = document.getElementById('prev-date');
                 if (dateEl) {
                     const reportKind = d.meta.reportKind || 'CONSOLIDE';
-                    dateEl.textContent = `${App.formatDate(d.meta.date)} • AAR ${reportKind}`;
+                    dateEl.textContent = `${App.formatDate(d.meta.date)} • AAR ${App.getReportKindLabel(reportKind)}`;
                 }
 
                 setHtml('prev-redacteur', redacteurText());
@@ -4109,6 +4113,7 @@
                 const title = App.data.meta.title || "AAR";
                 const date = App.data.meta.date || "Unknown Date";
                 const reportKind = String(App.data.meta.reportKind || 'CONSOLIDE').toUpperCase() === 'FLASH' ? 'FLASH' : 'CONSOLIDE';
+                const reportKindLabel = App.getReportKindLabel(reportKind);
                 const rank = App.data.meta.grade === 'AUTRE' ? (App.data.meta.gradeAutre || "") : (App.data.meta.grade || "");
                 const identity = [rank, App.data.meta.nom || "", App.data.meta.prenom || ""].filter(Boolean).join(" ").trim() || "Unknown";
                 const payload = JSON.stringify(App.data);
@@ -4117,8 +4122,8 @@
                 const recipients = reportKind === 'FLASH'
                     ? 'ciet-qwi.contact.fct@intradef.gouv.fr,david.zemmour3@gmail.com'
                     : 'ciet-qwi.contact.fct@intradef.gouv.fr';
-                const subject = `[AAR] [${reportKind}] ${date} - ${title}`;
-                const body = `Bonjour,\n\nAAR:\n\n- Type : ${reportKind}\n- Date : ${date}\n- Titre : ${title}\n- Redacteur : ${identity}\n\nCordialement.${payloadBlock}`;
+                const subject = `[AAR] [${reportKindLabel}] ${date} - ${title}`;
+                const body = `Bonjour,\n\nAAR:\n\n- Type : ${reportKindLabel}\n- Date : ${date}\n- Titre : ${title}\n- Redacteur : ${identity}\n\nCordialement.${payloadBlock}`;
                 const mailto = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
                 window.location.href = mailto;

@@ -78,6 +78,10 @@ function normalizeReportKind(v) {
   return String(v || "").trim().toUpperCase() === "FLASH" ? "FLASH" : "CONSOLIDE";
 }
 
+function reportKindLabel(v) {
+  return normalizeReportKind(v) === "FLASH" ? "FLASH" : "CONSOLIDÉ";
+}
+
 function normalizeHashtagValue(v) {
   let tag = String(v || "").trim();
   if (!tag) return "";
@@ -1107,7 +1111,7 @@ function classifTag(c) {
 function reportKindTag(kind) {
   const norm = normalizeReportKind(kind);
   if (norm === "FLASH") return `<span class="tag tag-report tag-report-flash">FLASH</span>`;
-  return `<span class="tag tag-report tag-report-consolide">CONSOLIDE</span>`;
+  return `<span class="tag tag-report tag-report-consolide">CONSOLIDÉ</span>`;
 }
 
 function renderList() {
@@ -1143,7 +1147,7 @@ function renderList() {
         <div class="card-top">
           <div class="card-title-wrap">
             <div class="card-title">${esc(r.title)}</div>
-            <div class="card-kind-badge card-kind-badge-${r.reportKind.toLowerCase()}">${esc(r.reportKind)}</div>
+            <div class="card-kind-badge card-kind-badge-${r.reportKind.toLowerCase()}">${esc(reportKindLabel(r.reportKind))}</div>
           </div>
           <div class="card-date">${formatDateFr(r.date)}</div>
         </div>
@@ -1177,7 +1181,7 @@ function openDetail(id) {
   const m = r.mission || {};
 
   el.detailTitle.textContent = "Apercu PDF";
-  el.detailMetaLine.textContent = `${formatDateFr(r.date)} | ${r.reportKind} | ${r.classification}`;
+  el.detailMetaLine.textContent = `${formatDateFr(r.date)} | ${reportKindLabel(r.reportKind)} | ${r.classification}`;
 
   const factBlocks = [
     { key: "what", label: "WHAT happened?", wide: true },
@@ -1212,7 +1216,7 @@ function openDetail(id) {
     .join("") || '<p class="doc-na">Aucune recommandation.</p>';
 
   const missionParts = [];
-  if (r.reportKind) missionParts.push(`Type AAR: ${r.reportKind}`);
+  if (r.reportKind) missionParts.push(`Type AAR: ${reportKindLabel(r.reportKind)}`);
   if (r.missionType) missionParts.push(`Type: ${r.missionType}`);
   if (r.country) missionParts.push(`Pays: ${r.country}`);
   if (r.airfield) missionParts.push(`Terrain OACI: ${r.airfield}`);
