@@ -818,6 +818,7 @@ function normalizeAar_(input) {
       tacExerciseAutre: str_(a.meta && a.meta.tacExerciseAutre)
     },
     facts: {
+      content: resolveFactsContent_(a.facts),
       what: str_(a.facts && a.facts.what),
       why: str_(a.facts && a.facts.why),
       when: str_(a.facts && a.facts.when),
@@ -837,6 +838,63 @@ function normalizeAar_(input) {
     },
     qwi: { advice: str_(a.qwi && a.qwi.advice) }
   };
+}
+
+function sanitizeRichHtml_(value) {
+  var html = String(value || "");
+  if (!html) return "";
+  html = html
+    .replace(/<\uFFFD+\//g, "</")
+    .replace(/<\uFFFD+/g, "<")
+    .replace(/<\/\uFFFD+/g, "</")
+    .replace(/\uFFFD/g, "");
+  html = html.replace(/<(script|style|iframe|object|embed|link|meta)[^>]*>[\s\S]*?<\/\1>/gi, "");
+  html = html.replace(/<(script|style|iframe|object|embed|link|meta)[^>]*\/?>/gi, "");
+  return html.trim();
+}
+
+function richHtmlHasText_(value) {
+  var text = String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, "").trim();
+  return !!text;
+}
+
+function escapeHtml_(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildFactsContentFromLegacy_(facts) {
+  var src = facts && typeof facts === "object" ? facts : {};
+  var items = [
+    { key: "what", label: "WHAT?" },
+    { key: "why", label: "WHY?" },
+    { key: "when", label: "WHEN?" },
+    { key: "where", label: "WHERE?" },
+    { key: "who", label: "WHO?" },
+    { key: "how", label: "HOW?" }
+  ];
+  var html = "";
+  for (var i = 0; i < items.length; i += 1) {
+    var block = sanitizeRichHtml_(src[items[i].key]);
+    if (!richHtmlHasText_(block)) continue;
+    html += "<h1>" + escapeHtml_(items[i].label) + "</h1>" + block;
+  }
+  var narrative = sanitizeRichHtml_(src.narrative);
+  if (richHtmlHasText_(narrative)) {
+    html += html ? ("<h1>NARRATIF</h1>" + narrative) : narrative;
+  }
+  return sanitizeRichHtml_(html);
+}
+
+function resolveFactsContent_(facts) {
+  var src = facts && typeof facts === "object" ? facts : {};
+  var content = sanitizeRichHtml_(src.content);
+  if (richHtmlHasText_(content)) return content;
+  return buildFactsContentFromLegacy_(src);
 }
 
 function str_(v) { return v == null ? "" : String(v); }
@@ -938,13 +996,25 @@ function writeCatalog_(catalog) {
 
 function normalizeCatalogObject_(input) {
   var src = input && typeof input === "object" ? input : {};
-  return {
+  var out = {
     hashtags: normalizeCatalogArray_(src.hashtags, "hashtag"),
     countries: normalizeCatalogArray_(src.countries, "text"),
     oaci: normalizeCatalogArray_(src.oaci, "oaci"),
     operations: normalizeCatalogArray_(src.operations, "text"),
-    exercises: normalizeCatalogArray_(src.exercises, "text")
+    exercises: normalizeCatalogArray_(src.exercises, "text"),
+    oaciCountryMap: normalizeCatalogMap_(src.oaciCountryMap)
   };
+
+  var mapKeys = Object.keys(out.oaciCountryMap || {});
+  if (mapKeys.length) {
+    out.oaci = normalizeCatalogArray_(out.oaci.concat(mapKeys), "oaci");
+    var mappedCountries = [];
+    for (var i = 0; i < mapKeys.length; i += 1) {
+      mappedCountries.push(out.oaciCountryMap[mapKeys[i]]);
+    }
+    out.countries = normalizeCatalogArray_(out.countries.concat(mappedCountries), "text");
+  }
+  return out;
 }
 
 function normalizeCatalogArray_(values, kind) {
@@ -962,6 +1032,19 @@ function normalizeCatalogArray_(values, kind) {
   }
 
   out.sort(function(a, b) { return a.localeCompare(b); });
+  return out;
+}
+
+function normalizeCatalogMap_(input) {
+  var src = input && typeof input === "object" ? input : {};
+  var out = {};
+  var keys = Object.keys(src).sort(function(a, b) { return String(a || "").localeCompare(String(b || "")); });
+  for (var i = 0; i < keys.length; i += 1) {
+    var normalizedOaci = normalizeCatalogValue_(keys[i], "oaci");
+    var normalizedCountry = normalizeCatalogValue_(src[keys[i]], "text");
+    if (!normalizedOaci || !normalizedCountry) continue;
+    out[normalizedOaci] = normalizedCountry;
+  }
   return out;
 }
 
@@ -996,6 +1079,7 @@ function mergeCatalogFromAar_(catalog, aar) {
 
   var oaci = resolveOtherChoice_(meta.logAirfield, meta.logAirfieldAutre);
   if (addCatalogValue_(catalog.oaci, oaci, "oaci")) added += 1;
+  if (addCatalogMapEntry_(catalog.oaciCountryMap, oaci, country)) added += 1;
 
   var operation = resolveOtherChoice_(meta.tacOperation, meta.tacOperationAutre);
   if (addCatalogValue_(catalog.operations, operation, "text")) added += 1;
@@ -1009,6 +1093,12 @@ function mergeCatalogFromAar_(catalog, aar) {
     catalog.oaci = normalizeCatalogArray_(catalog.oaci, "oaci");
     catalog.operations = normalizeCatalogArray_(catalog.operations, "text");
     catalog.exercises = normalizeCatalogArray_(catalog.exercises, "text");
+    catalog.oaciCountryMap = normalizeCatalogMap_(catalog.oaciCountryMap);
+    catalog.oaci = normalizeCatalogArray_(catalog.oaci.concat(Object.keys(catalog.oaciCountryMap || {})), "oaci");
+    var mappedCountries = [];
+    var mapKeys = Object.keys(catalog.oaciCountryMap || {});
+    for (var i = 0; i < mapKeys.length; i += 1) mappedCountries.push(catalog.oaciCountryMap[mapKeys[i]]);
+    catalog.countries = normalizeCatalogArray_(catalog.countries.concat(mappedCountries), "text");
   }
 
   return added;
@@ -1032,6 +1122,17 @@ function addCatalogValue_(arr, value, kind) {
     if (String(arr[i] || "").toUpperCase() === key) return false;
   }
   arr.push(normalized);
+  return true;
+}
+
+function addCatalogMapEntry_(map, oaciValue, countryValue) {
+  if (!map || typeof map !== "object") return false;
+  var oaci = normalizeCatalogValue_(oaciValue, "oaci");
+  var country = normalizeCatalogValue_(countryValue, "text");
+  if (!oaci || !country) return false;
+  var current = normalizeCatalogValue_(map[oaci], "text");
+  if (String(current || "").toUpperCase() === String(country).toUpperCase()) return false;
+  map[oaci] = country;
   return true;
 }
 

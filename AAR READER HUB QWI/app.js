@@ -133,6 +133,72 @@ function extractHashtags(meta) {
   return normalizeHashtagList(out);
 }
 
+const FACTS_LEGACY_ITEMS = [
+  { key: "what", label: "WHAT?" },
+  { key: "why", label: "WHY?" },
+  { key: "when", label: "WHEN?" },
+  { key: "where", label: "WHERE?" },
+  { key: "who", label: "WHO?" },
+  { key: "how", label: "HOW?" }
+];
+
+function sanitizeDocHtml(value) {
+  const raw = String(value || "");
+  if (!raw.trim()) return "";
+
+  const repaired = raw
+    .replace(/<\uFFFD+\//g, "</")
+    .replace(/<\uFFFD+/g, "<")
+    .replace(/<\/\uFFFD+/g, "</")
+    .replace(/\uFFFD/g, "");
+
+  if (!/[<>]/.test(repaired)) {
+    return esc(repaired).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
+  }
+
+  try {
+    const doc = new DOMParser().parseFromString(`<div>${repaired}</div>`, "text/html");
+    const root = doc.body.firstElementChild || doc.body;
+    root.querySelectorAll("script,style,iframe,object,embed,link,meta").forEach((node) => node.remove());
+    const allowed = new Set(["BR", "P", "DIV", "UL", "OL", "LI", "B", "STRONG", "I", "EM", "U", "H1", "H2", "H3", "SPAN"]);
+    const nodes = Array.from(root.querySelectorAll("*"));
+    nodes.forEach((node) => {
+      if (!allowed.has(node.tagName)) {
+        node.replaceWith(doc.createTextNode(node.textContent || ""));
+        return;
+      }
+      Array.from(node.attributes).forEach((attr) => node.removeAttribute(attr.name));
+    });
+    const text = (root.textContent || "").replace(/\u00A0/g, " ").trim();
+    if (!text) return "";
+    return root.innerHTML;
+  } catch {
+    return esc(cleanText(repaired)).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
+  }
+}
+
+function buildFactsContentFromLegacy(facts) {
+  const src = facts && typeof facts === "object" ? facts : {};
+  let html = "";
+  FACTS_LEGACY_ITEMS.forEach(({ key, label }) => {
+    const block = sanitizeDocHtml(src[key] || "");
+    if (!block) return;
+    html += `<h1>${esc(label)}</h1>${block}`;
+  });
+  const narrative = sanitizeDocHtml(src.narrative || "");
+  if (narrative) {
+    html += html ? `<h1>NARRATIF</h1>${narrative}` : narrative;
+  }
+  return sanitizeDocHtml(html);
+}
+
+function resolveFactsContent(facts) {
+  const src = facts && typeof facts === "object" ? facts : {};
+  const content = sanitizeDocHtml(src.content || "");
+  if (content) return content;
+  return buildFactsContentFromLegacy(src);
+}
+
 function htmlToText(html) {
   const src = String(html || "");
   if (!src) return "";
@@ -287,6 +353,7 @@ function normalizeAar(input) {
       tacExerciseAutre: meta.tacExerciseAutre || ""
     },
     facts: {
+      content: resolveFactsContent(a.facts),
       what: a.facts?.what || "",
       why: a.facts?.why || "",
       when: a.facts?.when || "",
@@ -392,10 +459,11 @@ function deriveMeta(a) {
     ? (meta.tacExercise === "AUTRE" ? meta.tacExerciseAutre : meta.tacExercise) || ""
     : "";
 
-  const factKeys = ["what", "why", "when", "where", "who", "how", "narrative"];
+  const factKeys = ["content", "what", "why", "when", "where", "who", "how", "narrative"];
   const recoKeys = ["doctrine", "organisation", "rh", "equipements", "soutien", "entrainement"];
-
-  const factsFilled = factKeys.reduce((n, k) => n + (nonEmpty(facts[k]) ? 1 : 0), 0);
+  const factsFilled = nonEmpty(facts.content)
+    ? 1
+    : factKeys.reduce((n, k) => n + (nonEmpty(facts[k]) ? 1 : 0), 0);
   const recosFilled = recoKeys.reduce((n, k) => n + (nonEmpty(recos[k]) ? 1 : 0), 0);
 
   const recoLabels = {
@@ -409,9 +477,13 @@ function deriveMeta(a) {
   const recoCats = recoKeys.filter((k) => nonEmpty(recos[k])).map((k) => recoLabels[k]);
   const qwiFilled = nonEmpty(a.qwi?.advice);
 
+  const factsSearchBlob = nonEmpty(facts.content)
+    ? facts.content
+    : [facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative].join(" ");
+
   const allText = [
     meta.title, rank, meta.nom, meta.prenom, unit,
-    facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative,
+    factsSearchBlob,
     a.analysis?.content,
     recos.doctrine, recos.organisation, recos.rh, recos.equipements, recos.soutien, recos.entrainement,
     a.qwi?.advice, reportKind, workflowStatus, fleet, country, airfield, hashtags.join(" "), tacDetail
@@ -1228,7 +1300,7 @@ function renderList() {
   }
 
   el.aarGrid.innerHTML = rows.map((r) => {
-    const excerpt = cleanText(r.mission?.facts?.narrative || r.mission?.analysis?.content || r.mission?.facts?.what || "");
+    const excerpt = cleanText(resolveFactsContent(r.mission?.facts) || r.mission?.analysis?.content || "");
     const tags = [classifTag(r.classification)];
     const workflowTag = workflowStatusTag(r.workflowStatus);
     if (workflowTag) tags.push(workflowTag);
@@ -1261,12 +1333,9 @@ function renderList() {
 
 /* ═══ RENDERING — DETAIL MODAL ═══ */
 function asDocHtml(value, emptyText = "N/A") {
-  const raw = String(value || "");
-  const text = htmlToText(raw).replace(/\r/g, "").trim();
-  if (!text) return `<span class="doc-na">${esc(emptyText)}</span>`;
-  return esc(text)
-    .replace(/\n{2,}/g, "<br><br>")
-    .replace(/\n/g, "<br>");
+  const html = sanitizeDocHtml(value);
+  if (!nonEmpty(html)) return `<span class="doc-na">${esc(emptyText)}</span>`;
+  return html;
 }
 
 function openDetail(id) {
@@ -1281,20 +1350,7 @@ function openDetail(id) {
   detailMetaParts.push(r.classification);
   el.detailMetaLine.textContent = detailMetaParts.join(" | ");
 
-  const factBlocks = [
-    { key: "what", label: "WHAT happened?", wide: true },
-    { key: "why", label: "WHY did it happen?" },
-    { key: "when", label: "WHEN did it happen?" },
-    { key: "where", label: "WHERE did it happen?" },
-    { key: "who", label: "WHO was involved?" },
-    { key: "how", label: "HOW did it happen?", wide: true }
-  ];
-
-  const factsHtml = factBlocks.map((item) => `
-    <div class="pdf-fact ${item.wide ? "is-wide" : ""}">
-      <label>${esc(item.label)}</label>
-      <div class="pdf-rich">${asDocHtml(m.facts?.[item.key])}</div>
-    </div>`).join("");
+  const factsHtml = asDocHtml(resolveFactsContent(m.facts));
 
   const recoLabels = {
     doctrine: "DOCTRINE",
@@ -1357,13 +1413,9 @@ function openDetail(id) {
         </section>
 
         <section class="pdf-doc-section">
-          <div class="pdf-section-title"><h3>01. FAITS (5W1H)</h3></div>
+          <div class="pdf-section-title"><h3>01. FAITS</h3></div>
           <div class="pdf-section-content">
-            <div class="pdf-facts-grid">${factsHtml}</div>
-            <div class="pdf-fact is-wide">
-              <label>NARRATIF</label>
-              <div class="pdf-rich">${asDocHtml(m.facts?.narrative)}</div>
-            </div>
+            <div class="pdf-rich">${factsHtml}</div>
           </div>
         </section>
       </article>

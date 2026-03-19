@@ -1014,6 +1014,14 @@
             color: var(--accent);
         }
 
+        .w6-label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
         .print-only-header {
             display: none;
         }
@@ -1939,49 +1947,17 @@
                 style="position: sticky; top: 0; background: var(--bg-main); z-index: 10; padding-bottom: 1rem; padding-top: 2rem;">
                 <h2 style="margin-bottom: 0.5rem;">2. FAITS</h2>
                 <div class="w6-tabs">
-                    <div id="tab-what" class="w6-tab" onclick="App.scrollToW6('section-what')">WHAT?</div>
-                    <div id="tab-why" class="w6-tab" onclick="App.scrollToW6('section-why')">WHY?</div>
-                    <div id="tab-when" class="w6-tab" onclick="App.scrollToW6('section-when')">WHEN?</div>
-                    <div id="tab-where" class="w6-tab" onclick="App.scrollToW6('section-where')">WHERE?</div>
-                    <div id="tab-who" class="w6-tab" onclick="App.scrollToW6('section-who')">WHO?</div>
-                    <div id="tab-how" class="w6-tab" onclick="App.scrollToW6('section-how')">HOW?</div>
+                    <div id="tab-what" class="w6-tab" onclick="App.insertFactsHeading('WHAT?', 'what')">WHAT?</div>
+                    <div id="tab-why" class="w6-tab" onclick="App.insertFactsHeading('WHY?', 'why')">WHY?</div>
+                    <div id="tab-when" class="w6-tab" onclick="App.insertFactsHeading('WHEN?', 'when')">WHEN?</div>
+                    <div id="tab-where" class="w6-tab" onclick="App.insertFactsHeading('WHERE?', 'where')">WHERE?</div>
+                    <div id="tab-who" class="w6-tab" onclick="App.insertFactsHeading('WHO?', 'who')">WHO?</div>
+                    <div id="tab-how" class="w6-tab" onclick="App.insertFactsHeading('HOW?', 'how')">HOW?</div>
                 </div>
             </div>
 
-            <style>
-                .w6-section {
-                    margin-bottom: 2rem;
-                    scroll-margin-top: 210px;
-                    /* Offset for sticky header */
-                }
-
-                .dorese-section {
-                    margin-bottom: 2rem;
-                    scroll-margin-top: 210px;
-                    /* Match W6 offset */
-                }
-
-                .w6-label {
-                    font-size: 0.8rem;
-                    font-weight: 700;
-                    color: var(--accent);
-                    margin-bottom: 0.5rem;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                }
-
-                .w6-label .info-trigger {
-                    text-transform: none;
-                    margin-left: 0.25rem;
-                }
-            </style>
-
-            <!-- WHAT -->
-            <div id="section-what" class="w6-section card" style="padding: 1rem;">
-                <div class="w6-label">WHAT / QUOI ?</div>
+            <div class="card" style="padding: 1rem;">
+                <div class="w6-label" style="margin-bottom: 0.6rem;">Saisie libre des faits</div>
                 <div class="editor-container">
                     <div class="editor-toolbar">
                         <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
@@ -1998,129 +1974,8 @@
                         <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
                             title="Bullet List">• List</button>
                     </div>
-                    <div id="fact-what" class="editor-content" contenteditable="true" onfocus="App.highlightW6('what')"
-                        onblur="App.highlightW6(null)" oninput="App.update('facts.what', this.innerHTML)"></div>
-                </div>
-            </div>
-
-            <!-- WHY -->
-            <div id="section-why" class="w6-section card" style="padding: 1rem;">
-                <div class="w6-label">WHY / POURQUOI ?</div>
-                <div class="editor-container">
-                    <div class="editor-toolbar">
-                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
-                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
-                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
-                            title="Underline">U</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
-                            title="Paragraphe">P</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
-                            title="Bullet List">• List</button>
-                    </div>
-                    <div id="fact-why" class="editor-content" contenteditable="true" onfocus="App.highlightW6('why')"
-                        onblur="App.highlightW6(null)" oninput="App.update('facts.why', this.innerHTML)"></div>
-                </div>
-            </div>
-
-            <!-- WHEN -->
-            <div id="section-when" class="w6-section card" style="padding: 1rem;">
-                <div class="w6-label">WHEN / QUAND ?</div>
-                <div class="editor-container">
-                    <div class="editor-toolbar">
-                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
-                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
-                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
-                            title="Underline">U</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
-                            title="Paragraphe">P</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
-                            title="Bullet List">• List</button>
-                    </div>
-                    <div id="fact-when" class="editor-content" contenteditable="true" onfocus="App.highlightW6('when')"
-                        onblur="App.highlightW6(null)" oninput="App.update('facts.when', this.innerHTML)"></div>
-                </div>
-            </div>
-
-            <!-- WHERE -->
-            <div id="section-where" class="w6-section card" style="padding: 1rem;">
-                <div class="w6-label">WHERE / OÙ ?</div>
-                <div class="editor-container">
-                    <div class="editor-toolbar">
-                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
-                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
-                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
-                            title="Underline">U</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
-                            title="Paragraphe">P</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
-                            title="Bullet List">• List</button>
-                    </div>
-                    <div id="fact-where" class="editor-content" contenteditable="true"
-                        onfocus="App.highlightW6('where')" onblur="App.highlightW6(null)"
-                        oninput="App.update('facts.where', this.innerHTML)"></div>
-                </div>
-            </div>
-
-            <!-- WHO -->
-            <div id="section-who" class="w6-section card" style="padding: 1rem;">
-                <div class="w6-label">WHO / QUI ?</div>
-                <div class="editor-container">
-                    <div class="editor-toolbar">
-                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
-                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
-                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
-                            title="Underline">U</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
-                            title="Paragraphe">P</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
-                            title="Bullet List">• List</button>
-                    </div>
-                    <div id="fact-who" class="editor-content" contenteditable="true" onfocus="App.highlightW6('who')"
-                        onblur="App.highlightW6(null)" oninput="App.update('facts.who', this.innerHTML)"></div>
-                </div>
-            </div>
-
-            <!-- HOW -->
-            <div id="section-how" class="w6-section card" style="padding: 1rem;">
-                <div class="w6-label">HOW / COMMENT ?</div>
-                <div class="editor-container">
-                    <div class="editor-toolbar">
-                        <button class="editor-btn btn-bold" onclick="App.exec('bold')" title="Bold">B</button>
-                        <button class="editor-btn btn-italic" onclick="App.exec('italic')" title="Italic">I</button>
-                        <button class="editor-btn btn-underline" onclick="App.exec('underline')"
-                            title="Underline">U</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h1')">H1</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h2')">H2</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'h3')">H3</button>
-                        <button class="editor-btn btn-h" onclick="App.exec('formatBlock', 'p')"
-                            title="Paragraphe">P</button>
-                        <div class="toolbar-sep"></div>
-                        <button class="editor-btn btn-list" onclick="App.exec('insertUnorderedList')"
-                            title="Bullet List">• List</button>
-                    </div>
-                    <div id="fact-how" class="editor-content" contenteditable="true" onfocus="App.highlightW6('how')"
-                        onblur="App.highlightW6(null)" oninput="App.update('facts.how', this.innerHTML)"></div>
+                    <div id="facts-content" class="editor-content" contenteditable="true"
+                        oninput="App.update('facts.content', this.innerHTML)"></div>
                 </div>
             </div>
         </div>
@@ -2369,31 +2224,8 @@
                                         <div class="section-title">
                                             <h2>01. FAITS</h2>
                                         </div>
-                                        <div class="section-content w6-grid">
-                                            <div class="w6-item full">
-                                                <label>WHAT happened?</label>
-                                                <div id="prev-what"></div>
-                                            </div>
-                                            <div class="w6-item">
-                                                <label>WHY did it happen?</label>
-                                                <div id="prev-why"></div>
-                                            </div>
-                                            <div class="w6-item">
-                                                <label>WHEN did it happen?</label>
-                                                <div id="prev-when"></div>
-                                            </div>
-                                            <div class="w6-item">
-                                                <label>WHERE did it happen?</label>
-                                                <div id="prev-where"></div>
-                                            </div>
-                                            <div class="w6-item">
-                                                <label>WHO was involved?</label>
-                                                <div id="prev-who"></div>
-                                            </div>
-                                            <div class="w6-item full">
-                                                <label>HOW did it happen?</label>
-                                                <div id="prev-how"></div>
-                                            </div>
+                                        <div class="section-content">
+                                            <div id="prev-facts"></div>
                                         </div>
                                     </section>
                                 </div>
@@ -2481,7 +2313,15 @@
             tacExerciseAutre: ""
         };
 
-        const FACTS_DEFAULTS = { what: "", why: "", when: "", where: "", who: "", how: "", narrative: "" };
+        const FACTS_DEFAULTS = { what: "", why: "", when: "", where: "", who: "", how: "", narrative: "", content: "" };
+        const FACTS_HEADING_ITEMS = [
+            { key: 'what', label: 'WHAT?' },
+            { key: 'why', label: 'WHY?' },
+            { key: 'when', label: 'WHEN?' },
+            { key: 'where', label: 'WHERE?' },
+            { key: 'who', label: 'WHO?' },
+            { key: 'how', label: 'HOW?' }
+        ];
         const ANALYSIS_DEFAULTS = { content: "" };
         const RECOS_DEFAULTS = { doctrine: "", organisation: "", rh: "", equipements: "", soutien: "", entrainement: "" };
         const QWI_DEFAULTS = { advice: "" };
@@ -2671,8 +2511,8 @@
                 qwi: { ...QWI_DEFAULTS }
             },
             missionConfig: { ...FALLBACK_MISSION_CONFIG },
-            baseMissionCatalog: { hashtags: [], countries: [], oaci: [], operations: [], exercises: [] },
-            dynamicMissionCatalog: { hashtags: [], countries: [], oaci: [], operations: [], exercises: [] },
+            baseMissionCatalog: { hashtags: [], countries: [], oaci: [], operations: [], exercises: [], oaciCountryMap: {} },
+            dynamicMissionCatalog: { hashtags: [], countries: [], oaci: [], operations: [], exercises: [], oaciCountryMap: {} },
             countryNameLookup: {},
             catalogRefreshInFlight: false,
             lastCatalogRefreshAt: 0,
@@ -2723,6 +2563,39 @@
 
                 if (!text && isOnlyEmptyMarkup) return '';
                 return normalized;
+            },
+
+            escapeHtmlText: (value) => {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            },
+
+            buildLegacyFactsContent: (facts) => {
+                const source = (facts && typeof facts === 'object') ? facts : {};
+                let html = '';
+                FACTS_HEADING_ITEMS.forEach((item) => {
+                    const raw = App.sanitizeRichHtml(source[item.key] || '');
+                    if (!raw) return;
+                    html += `<h1>${App.escapeHtmlText(item.label)}</h1>${raw}`;
+                });
+                const legacyNarrative = App.sanitizeRichHtml(source.narrative || '');
+                if (legacyNarrative) {
+                    html += html
+                        ? `<h1>NARRATIF</h1>${legacyNarrative}`
+                        : legacyNarrative;
+                }
+                return App.sanitizeRichHtml(html);
+            },
+
+            getFactsContentHtml: (facts) => {
+                const source = (facts && typeof facts === 'object') ? facts : {};
+                const content = App.sanitizeRichHtml(source.content || '');
+                if (content) return content;
+                return App.buildLegacyFactsContent(source);
             },
 
             isFilled: (value) => {
@@ -2838,13 +2711,18 @@
                     : (Array.isArray(external.allAirfields) && external.allAirfields.length)
                     ? external.allAirfields.filter(Boolean)
                     : Object.values(logAirfieldsByCountry || {}).flat().filter(Boolean);
+                const configuredOaciCountryMap = (externalCatalog.oaciCountryMap && typeof externalCatalog.oaciCountryMap === 'object')
+                    ? externalCatalog.oaciCountryMap
+                    : {};
+                const staticOaciCountryMap = App.buildOaciCountryMapFromByCountry(logAirfieldsByCountry);
                 const cachedCatalog = App.loadMissionCatalogFromStorage();
                 App.baseMissionCatalog = App.normalizeMissionCatalogObject({
                     hashtags: configuredHashtags || [],
                     countries: allCountries,
-                    oaci: configuredAllAirfields,
+                    oaci: [...configuredAllAirfields, ...Object.keys(configuredOaciCountryMap || {})],
                     operations: tacOperations,
-                    exercises: tacExercises
+                    exercises: tacExercises,
+                    oaciCountryMap: { ...staticOaciCountryMap, ...configuredOaciCountryMap }
                 });
                 App.dynamicMissionCatalog = App.compactDynamicMissionCatalog(cachedCatalog || {});
 
@@ -2854,6 +2732,7 @@
                     tacOperations: [],
                     tacExercises: [],
                     logAirfieldsByCountry,
+                    oaciCountryMap: {},
                     hashtags: [],
                     appsScript: {
                         webAppUrl: String(appsScriptCfg.webAppUrl || '').trim(),
@@ -2873,13 +2752,27 @@
                 App.data.recos = { ...RECOS_DEFAULTS, ...(App.data.recos || {}) };
                 App.data.qwi = { ...QWI_DEFAULTS, ...(App.data.qwi || {}) };
 
+                const normalizedFactsContent = App.sanitizeRichHtml(App.data.facts.content || '');
+                if (!normalizedFactsContent) {
+                    const migratedFactsContent = App.buildLegacyFactsContent(App.data.facts);
+                    if (migratedFactsContent) {
+                        App.data.facts.content = migratedFactsContent;
+                        repairedRichText = true;
+                    }
+                } else if (normalizedFactsContent !== App.data.facts.content) {
+                    App.data.facts.content = normalizedFactsContent;
+                    repairedRichText = true;
+                }
+
                 const richFields = [
+                    ['facts', 'content'],
                     ['facts', 'what'],
                     ['facts', 'why'],
                     ['facts', 'when'],
                     ['facts', 'where'],
                     ['facts', 'who'],
                     ['facts', 'how'],
+                    ['facts', 'narrative'],
                     ['analysis', 'content'],
                     ['recos', 'doctrine'],
                     ['recos', 'organisation'],
@@ -3118,7 +3011,8 @@
                         countries: App.normalizeCatalogTextArray(parsed.countries || []),
                         oaci: App.normalizeOaciArray(parsed.oaci || []),
                         operations: App.normalizeCatalogTextArray(parsed.operations || []),
-                        exercises: App.normalizeCatalogTextArray(parsed.exercises || [])
+                        exercises: App.normalizeCatalogTextArray(parsed.exercises || []),
+                        oaciCountryMap: App.normalizeOaciCountryMap(parsed.oaciCountryMap || {})
                     };
                 } catch (error) {
                     console.warn('Mission catalog parse failed:', error);
@@ -3164,15 +3058,50 @@
                 return App.normalizeCatalogTextArray(values).map((value) => String(value).toUpperCase());
             },
 
+            normalizeOaciCountryMap: (input) => {
+                const src = (input && typeof input === 'object') ? input : {};
+                const out = {};
+                Object.keys(src).forEach((rawOaci) => {
+                    const oaci = App.normalizeOaciArray([rawOaci])[0] || '';
+                    const country = App.normalizeCatalogTextArray([src[rawOaci]])[0] || '';
+                    if (!oaci || !country) return;
+                    out[oaci] = country;
+                });
+                return out;
+            },
+
+            buildOaciCountryMapFromByCountry: (byCountry) => {
+                const out = {};
+                const source = (byCountry && typeof byCountry === 'object') ? byCountry : {};
+                Object.keys(source).forEach((countryRaw) => {
+                    const country = App.normalizeCatalogTextArray([countryRaw])[0] || '';
+                    if (!country) return;
+                    (Array.isArray(source[countryRaw]) ? source[countryRaw] : []).forEach((airfieldRaw) => {
+                        const oaci = App.normalizeOaciArray([airfieldRaw])[0] || '';
+                        if (!oaci) return;
+                        out[oaci] = country;
+                    });
+                });
+                return out;
+            },
+
             normalizeMissionCatalogObject: (catalog) => {
                 const src = (catalog && typeof catalog === 'object') ? catalog : {};
-                return {
+                const out = {
                     hashtags: App.normalizeHashtagArray(src.hashtags || []),
                     countries: App.normalizeCatalogTextArray(src.countries || []),
                     oaci: App.normalizeOaciArray(src.oaci || []),
                     operations: App.normalizeCatalogTextArray(src.operations || []),
-                    exercises: App.normalizeCatalogTextArray(src.exercises || [])
+                    exercises: App.normalizeCatalogTextArray(src.exercises || []),
+                    oaciCountryMap: App.normalizeOaciCountryMap(src.oaciCountryMap || {})
                 };
+                const mapKeys = Object.keys(out.oaciCountryMap || {});
+                if (mapKeys.length) {
+                    out.oaci = App.normalizeOaciArray([...(out.oaci || []), ...mapKeys]);
+                    const mappedCountries = mapKeys.map((oaci) => out.oaciCountryMap[oaci]).filter(Boolean);
+                    out.countries = App.normalizeCatalogTextArray([...(out.countries || []), ...mappedCountries]);
+                }
+                return out;
             },
 
             compactDynamicMissionCatalog: (catalog) => {
@@ -3188,17 +3117,38 @@
                     countries: dropBaseValues(normalized.countries, base.countries, App.normalizeCatalogTextArray),
                     oaci: dropBaseValues(normalized.oaci, base.oaci, App.normalizeOaciArray),
                     operations: dropBaseValues(normalized.operations, base.operations, App.normalizeCatalogTextArray),
-                    exercises: dropBaseValues(normalized.exercises, base.exercises, App.normalizeCatalogTextArray)
+                    exercises: dropBaseValues(normalized.exercises, base.exercises, App.normalizeCatalogTextArray),
+                    oaciCountryMap: (() => {
+                        const out = {};
+                        const baseMap = App.normalizeOaciCountryMap(base.oaciCountryMap || {});
+                        const currentMap = App.normalizeOaciCountryMap(normalized.oaciCountryMap || {});
+                        Object.keys(currentMap).forEach((oaci) => {
+                            const country = currentMap[oaci];
+                            const baseCountry = baseMap[oaci] || '';
+                            if (App.normalizeKey(baseCountry) === App.normalizeKey(country)) return;
+                            out[oaci] = country;
+                        });
+                        return App.normalizeOaciCountryMap(out);
+                    })()
                 };
             },
 
             rebuildEffectiveMissionCatalog: (persist = true) => {
                 const base = App.normalizeMissionCatalogObject(App.baseMissionCatalog || {});
                 const dynamic = App.normalizeMissionCatalogObject(App.dynamicMissionCatalog || {});
+                const mergedOaciCountryMap = App.normalizeOaciCountryMap({
+                    ...(base.oaciCountryMap || {}),
+                    ...(dynamic.oaciCountryMap || {})
+                });
 
                 App.missionConfig.hashtags = App.normalizeHashtagArray([...(base.hashtags || []), ...(dynamic.hashtags || [])]);
                 App.missionConfig.allCountries = App.normalizeCatalogTextArray([...(base.countries || []), ...(dynamic.countries || [])]);
-                App.missionConfig.allAirfields = App.normalizeOaciArray([...(base.oaci || []), ...(dynamic.oaci || [])]);
+                App.missionConfig.oaciCountryMap = mergedOaciCountryMap;
+                App.missionConfig.allAirfields = App.normalizeOaciArray([
+                    ...(base.oaci || []),
+                    ...(dynamic.oaci || []),
+                    ...Object.keys(mergedOaciCountryMap || {})
+                ]);
                 App.missionConfig.tacOperations = App.normalizeCatalogTextArray([...(base.operations || []), ...(dynamic.operations || [])]);
                 App.missionConfig.tacExercises = App.normalizeCatalogTextArray([...(base.exercises || []), ...(dynamic.exercises || [])]);
 
@@ -3227,7 +3177,10 @@
                     countries: replace ? src.countries : [...currentDynamic.countries, ...src.countries],
                     oaci: replace ? src.oaci : [...currentDynamic.oaci, ...src.oaci],
                     operations: replace ? src.operations : [...currentDynamic.operations, ...src.operations],
-                    exercises: replace ? src.exercises : [...currentDynamic.exercises, ...src.exercises]
+                    exercises: replace ? src.exercises : [...currentDynamic.exercises, ...src.exercises],
+                    oaciCountryMap: replace
+                        ? src.oaciCountryMap
+                        : { ...(currentDynamic.oaciCountryMap || {}), ...(src.oaciCountryMap || {}) }
                 });
 
                 App.rebuildEffectiveMissionCatalog();
@@ -3851,11 +3804,13 @@
             getLogAirfieldsForCurrentCountry: () => {
                 const resolvedCountry = App.resolveCountryName(App.getEffectiveLogCountry());
                 const scoped = App.missionConfig.logAirfieldsByCountry[resolvedCountry] || [];
-                const dynamicOaci = (App.dynamicMissionCatalog && Array.isArray(App.dynamicMissionCatalog.oaci))
-                    ? App.dynamicMissionCatalog.oaci
-                    : [];
-                if (!resolvedCountry) return App.normalizeOaciArray(dynamicOaci);
-                return App.normalizeOaciArray([...(scoped || []), ...(dynamicOaci || [])]);
+                const oaciCountryMap = App.normalizeOaciCountryMap(App.missionConfig.oaciCountryMap || {});
+                if (!resolvedCountry) return [];
+                const countryKey = App.normalizeKey(resolvedCountry);
+                const mappedAirfields = Object.keys(oaciCountryMap).filter((oaci) => {
+                    return App.normalizeKey(oaciCountryMap[oaci]) === countryKey;
+                });
+                return App.normalizeOaciArray([...(scoped || []), ...(mappedAirfields || [])]);
             },
 
             renderLogAirfieldOptions: () => {
@@ -4319,6 +4274,44 @@
                 }
             },
 
+            insertFactsHeading: (label, key) => {
+                const editor = document.getElementById('facts-content');
+                if (!editor) return;
+
+                if (key) App.highlightW6(key);
+
+                const active = document.activeElement;
+                if (!active || (active !== editor && !editor.contains(active))) {
+                    App.placeCaretAtEnd(editor);
+                } else {
+                    try {
+                        editor.focus({ preventScroll: true });
+                    } catch (_) {
+                        editor.focus();
+                    }
+                }
+
+                const textExists = (editor.textContent || '').trim().length > 0;
+                const prefix = textExists ? '<p><br></p>' : '';
+                const html = `${prefix}<h1>${App.escapeHtmlText(label || '')}</h1><p><br></p>`;
+
+                let inserted = false;
+                if (typeof document.execCommand === 'function') {
+                    try {
+                        inserted = document.execCommand('insertHTML', false, html);
+                    } catch (_) {
+                        inserted = false;
+                    }
+                }
+
+                if (!inserted) {
+                    editor.innerHTML = `${editor.innerHTML || ''}${html}`;
+                    App.placeCaretAtEnd(editor);
+                }
+
+                App.update('facts.content', editor.innerHTML);
+            },
+
             scrollToDorese: (id) => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -4404,12 +4397,7 @@
                     el.classList.toggle('active', el.dataset.level === d.meta.classification);
                 });
 
-                document.getElementById('fact-what').innerHTML = d.facts.what || '';
-                document.getElementById('fact-why').innerHTML = d.facts.why || '';
-                document.getElementById('fact-when').innerHTML = d.facts.when || '';
-                document.getElementById('fact-where').innerHTML = d.facts.where || '';
-                document.getElementById('fact-who').innerHTML = d.facts.who || '';
-                document.getElementById('fact-how').innerHTML = d.facts.how || '';
+                document.getElementById('facts-content').innerHTML = App.getFactsContentHtml(d.facts);
 
                 document.getElementById('analysis-content').innerHTML = d.analysis.content || '';
 
@@ -4462,12 +4450,7 @@
 
                 setHtml('prev-redacteur', redacteurText());
 
-                setHtml('prev-what', d.facts.what);
-                setHtml('prev-why', d.facts.why);
-                setHtml('prev-when', d.facts.when);
-                setHtml('prev-where', d.facts.where);
-                setHtml('prev-who', d.facts.who);
-                setHtml('prev-how', d.facts.how);
+                setHtml('prev-facts', App.getFactsContentHtml(d.facts));
                 setHtml('prev-analysis', d.analysis.content);
 
                 // Render Recos in Preview

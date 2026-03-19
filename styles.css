@@ -768,6 +768,32 @@ body {
   line-height: 1.5;
 }
 
+.pdf-rich h1,
+.pdf-rich h2,
+.pdf-rich h3 {
+  margin: 12px 0 6px;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #0f172a;
+}
+
+.pdf-rich p,
+.pdf-rich div {
+  margin: 0 0 8px;
+}
+
+.pdf-rich ul,
+.pdf-rich ol {
+  margin: 0 0 10px 20px;
+}
+
+.pdf-rich li {
+  margin: 0 0 4px;
+}
+
 .doc-na {
   color: #64748b;
   font-style: italic;
