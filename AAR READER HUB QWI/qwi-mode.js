@@ -362,6 +362,41 @@
     return out;
   }
 
+  function normalizeOaciCountryMap(input, options = {}) {
+    const enforceScope = !!options.enforceScope;
+    const src = input && typeof input === "object" ? input : {};
+    const out = {};
+    Object.keys(src).forEach((rawOaci) => {
+      const oaci = String(CATALOG_DEFS.oaci.normalize(rawOaci) || "").trim();
+      const country = String(CATALOG_DEFS.countries.normalize(src[rawOaci]) || "").trim();
+      if (!oaci || !country) return;
+      if (enforceScope && !isScopedOaciValue(oaci)) return;
+      if (enforceScope && !isScopedCountryValue(country)) return;
+      out[oaci] = country;
+    });
+    return out;
+  }
+
+  function buildBaseOaciCountryMap(cfg) {
+    const out = {};
+    const byCountry = cfg && typeof cfg.logAirfieldsByCountry === "object" && cfg.logAirfieldsByCountry
+      ? cfg.logAirfieldsByCountry
+      : {};
+    Object.keys(byCountry).forEach((countryRaw) => {
+      const country = String(CATALOG_DEFS.countries.normalize(countryRaw) || "").trim();
+      if (!country) return;
+      const values = Array.isArray(byCountry[countryRaw]) ? byCountry[countryRaw] : [];
+      values.forEach((value) => {
+        const oaci = String(CATALOG_DEFS.oaci.normalize(value) || "").trim();
+        if (!oaci) return;
+        if (!isScopedOaciValue(oaci)) return;
+        if (!isScopedCountryValue(country)) return;
+        out[oaci] = country;
+      });
+    });
+    return out;
+  }
+
   function normalizeHashtag(value) {
     let tag = String(value || "").trim();
     if (!tag) return "";
@@ -384,8 +419,109 @@
     return out.sort((a, b) => a.localeCompare(b, "fr"));
   }
 
+  function normalizeCountryValue(value) {
+    return String(CATALOG_DEFS.countries.normalize(value) || "").trim();
+  }
+
+  function normalizeOaciValue(value) {
+    return String(CATALOG_DEFS.oaci.normalize(value) || "").trim();
+  }
+
+  function getCatalogMappedCountry(catalogLike, oaciValue) {
+    const oaci = normalizeOaciValue(oaciValue);
+    if (!oaci) return "";
+    const catalog = catalogLike && typeof catalogLike === "object" ? catalogLike : {};
+    const map = normalizeOaciCountryMap(catalog.oaciCountryMap || {});
+    return normalizeCountryValue(map[oaci] || "");
+  }
+
+  function setCatalogMappedCountry(catalogLike, oaciValue, countryValue) {
+    const catalog = catalogLike && typeof catalogLike === "object" ? catalogLike : createEmptyCatalog();
+    const oaci = normalizeOaciValue(oaciValue);
+    const country = normalizeCountryValue(countryValue);
+    if (!oaci || !country) return false;
+    const nextMap = normalizeOaciCountryMap({ ...(catalog.oaciCountryMap || {}), [oaci]: country });
+    const before = normalizeCountryValue((catalog.oaciCountryMap || {})[oaci] || "");
+    catalog.oaciCountryMap = nextMap;
+    return String(before).toUpperCase() !== String(country).toUpperCase();
+  }
+
+  function removeCatalogMappedOaci(catalogLike, oaciValue) {
+    const catalog = catalogLike && typeof catalogLike === "object" ? catalogLike : createEmptyCatalog();
+    const oaci = normalizeOaciValue(oaciValue);
+    if (!oaci) return false;
+    const map = { ...(catalog.oaciCountryMap || {}) };
+    if (!Object.prototype.hasOwnProperty.call(map, oaci)) return false;
+    delete map[oaci];
+    catalog.oaciCountryMap = normalizeOaciCountryMap(map);
+    return true;
+  }
+
+  function remapCatalogCountryValue(catalogLike, fromCountryValue, toCountryValue) {
+    const catalog = catalogLike && typeof catalogLike === "object" ? catalogLike : createEmptyCatalog();
+    const fromCountry = normalizeCountryValue(fromCountryValue);
+    const toCountry = normalizeCountryValue(toCountryValue);
+    if (!fromCountry || !toCountry) return false;
+    const nextMap = {};
+    let changed = false;
+    const map = normalizeOaciCountryMap(catalog.oaciCountryMap || {});
+    Object.keys(map).forEach((oaci) => {
+      const current = normalizeCountryValue(map[oaci]);
+      if (String(current).toUpperCase() === String(fromCountry).toUpperCase()) {
+        nextMap[oaci] = toCountry;
+        if (String(current).toUpperCase() !== String(toCountry).toUpperCase()) changed = true;
+      } else {
+        nextMap[oaci] = current;
+      }
+    });
+    if (!changed) return false;
+    catalog.oaciCountryMap = normalizeOaciCountryMap(nextMap);
+    return true;
+  }
+
+  function removeCatalogCountryMappings(catalogLike, countryValue) {
+    const catalog = catalogLike && typeof catalogLike === "object" ? catalogLike : createEmptyCatalog();
+    const country = normalizeCountryValue(countryValue);
+    if (!country) return false;
+    const map = normalizeOaciCountryMap(catalog.oaciCountryMap || {});
+    const nextMap = {};
+    let changed = false;
+    Object.keys(map).forEach((oaci) => {
+      const mappedCountry = normalizeCountryValue(map[oaci]);
+      if (String(mappedCountry).toUpperCase() === String(country).toUpperCase()) {
+        changed = true;
+        return;
+      }
+      nextMap[oaci] = mappedCountry;
+    });
+    if (!changed) return false;
+    catalog.oaciCountryMap = normalizeOaciCountryMap(nextMap);
+    return true;
+  }
+
+  function inferOaciCountryFromReports(oaciValue) {
+    const oaci = normalizeOaciValue(oaciValue);
+    if (!oaci) return "";
+    const counts = new Map();
+    (state.reports || []).forEach((record) => {
+      const meta = record?.mission?.meta || {};
+      const rowOaci = normalizeOaciValue(getMetaValueForCategory(meta, "oaci"));
+      if (!rowOaci) return;
+      if (String(rowOaci).toUpperCase() !== String(oaci).toUpperCase()) return;
+      const rowCountry = normalizeCountryValue(getMetaValueForCategory(meta, "countries"));
+      if (!rowCountry) return;
+      const key = rowCountry.toUpperCase();
+      counts.set(key, {
+        value: rowCountry,
+        count: Number(counts.get(key)?.count || 0) + 1
+      });
+    });
+    const ranked = [...counts.values()].sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "fr"));
+    return ranked.length ? ranked[0].value : "";
+  }
+
   function createEmptyCatalog() {
-    return { hashtags: [], countries: [], oaci: [], operations: [], exercises: [] };
+    return { hashtags: [], countries: [], oaci: [], operations: [], exercises: [], oaciCountryMap: {} };
   }
 
   function readAdminUiState() {
@@ -426,7 +562,8 @@
       countries: [...(src.countries || [])],
       oaci: [...(src.oaci || [])],
       operations: [...(src.operations || [])],
-      exercises: [...(src.exercises || [])]
+      exercises: [...(src.exercises || [])],
+      oaciCountryMap: { ...(src.oaciCountryMap || {}) }
     };
   }
 
@@ -466,6 +603,7 @@
     CATALOG_KEYS.forEach((key) => {
       out[key] = normalizeCatalogValues(key, src[key], options);
     });
+    out.oaciCountryMap = normalizeOaciCountryMap(src.oaciCountryMap, options);
     return out;
   }
 
@@ -479,12 +617,15 @@
       : Object.values(cfg.logAirfieldsByCountry || {}).flat();
     const scopedOaci = normalizeCatalogValues("oaci", allAirfields, { enforceScope: true });
 
+    const scopedOaciCountryMap = normalizeOaciCountryMap(buildBaseOaciCountryMap(cfg), { enforceScope: true });
+
     return normalizeCatalogObject({
       hashtags: cfg.hashtags || [],
       countries: scopedCountries,
       oaci: scopedOaci,
       operations: cfg.tacOperations || [],
-      exercises: cfg.tacExercises || []
+      exercises: cfg.tacExercises || [],
+      oaciCountryMap: scopedOaciCountryMap
     }, { enforceScope: true });
   }
 
@@ -497,6 +638,18 @@
       const baseSet = new Set((base[key] || []).map((value) => String(value || "").toUpperCase()));
       out[key] = (normalized[key] || []).filter((value) => !baseSet.has(String(value || "").toUpperCase()));
     });
+
+    const baseMap = base.oaciCountryMap || {};
+    const normalizedMap = normalized.oaciCountryMap || {};
+    const compactMap = {};
+    Object.keys(normalizedMap).forEach((oaci) => {
+      const country = String(normalizedMap[oaci] || "");
+      const baseCountry = String(baseMap[oaci] || "");
+      if (!country) return;
+      if (baseCountry && baseCountry.toUpperCase() === country.toUpperCase()) return;
+      compactMap[oaci] = country;
+    });
+    out.oaciCountryMap = compactMap;
 
     return normalizeCatalogObject(out);
   }
@@ -578,8 +731,13 @@
         const values = getMetaValuesForCategory(meta, key);
         if (values.length) out[key].push(...values);
       });
+      const mappedCountry = normalizeCountryValue(getMetaValueForCategory(meta, "countries"));
+      const mappedOaci = normalizeOaciValue(getMetaValueForCategory(meta, "oaci"));
+      if (mappedCountry && mappedOaci) out.oaciCountryMap[mappedOaci] = mappedCountry;
     });
     CATALOG_KEYS.forEach((key) => { out[key] = normalizeCatalogValues(key, out[key]); });
+    out.oaciCountryMap = normalizeOaciCountryMap(out.oaciCountryMap);
+    out.oaci = normalizeCatalogValues("oaci", [...(out.oaci || []), ...Object.keys(out.oaciCountryMap || {})]);
     return out;
   }
 
@@ -592,6 +750,16 @@
       });
       merged[key] = normalizeCatalogValues(key, values);
     });
+    const mergedMap = {};
+    catalogs.forEach((catalog) => {
+      if (!catalog || typeof catalog !== "object") return;
+      const map = normalizeOaciCountryMap(catalog.oaciCountryMap || {});
+      Object.keys(map).forEach((oaci) => {
+        mergedMap[oaci] = map[oaci];
+      });
+    });
+    merged.oaciCountryMap = mergedMap;
+    merged.oaci = normalizeCatalogValues("oaci", [...(merged.oaci || []), ...Object.keys(mergedMap)]);
     return merged;
   }
 
@@ -1321,7 +1489,7 @@
     const parts = [];
     if (row.fromOtherCount) parts.push(`${row.fromOtherCount} via AUTRE`);
     if (row.fromUnknownCount) parts.push(`${row.fromUnknownCount} hors referentiel`);
-    return parts.length ? parts.join(" · ") : `${row.count} AAR`;
+    return parts.length ? parts.join(" - ") : `${row.count} AAR`;
   }
 
   function getMappingOptionsForCandidate(category, sourceValue) {
@@ -1381,7 +1549,7 @@
     const known = getEffectiveCategorySet(category);
     const counts = new Map();
 
-    const registerCandidate = (record, candidate, sourceKind) => {
+    const registerCandidate = (record, candidate, sourceKind, relatedCountryValue = "") => {
       const normalizedCandidate = def.normalize(candidate);
       if (!normalizedCandidate) return;
       if (known.has(normalizedCandidate.toUpperCase())) return;
@@ -1394,13 +1562,23 @@
           fromOtherCount: 0,
           fromUnknownCount: 0,
           examples: [],
-          exampleKeys: new Set()
+          exampleKeys: new Set(),
+          countryCounts: new Map()
         };
         counts.set(key, entry);
       }
       entry.count += 1;
       if (sourceKind === "other") entry.fromOtherCount += 1;
       if (sourceKind === "unknown") entry.fromUnknownCount += 1;
+      if (category === "oaci") {
+        const relatedCountry = normalizeCountryValue(relatedCountryValue);
+        if (relatedCountry) {
+          const countryKey = relatedCountry.toUpperCase();
+          const countryEntry = entry.countryCounts.get(countryKey) || { value: relatedCountry, count: 0 };
+          countryEntry.count += 1;
+          entry.countryCounts.set(countryKey, countryEntry);
+        }
+      }
       const exampleKey = String(record?.id || buildAdminExampleLabel(record));
       if (!entry.exampleKeys.has(exampleKey) && entry.examples.length < 3) {
         entry.exampleKeys.add(exampleKey);
@@ -1418,9 +1596,13 @@
         if (ctx !== String(def.contextValue).trim().toUpperCase()) return;
       }
 
+      const relatedCountry = category === "oaci"
+        ? normalizeCountryValue(getMetaValueForCategory(meta, "countries"))
+        : "";
+
       if (def.arrayKey) {
         getMetaValuesForCategory(meta, category).forEach((value) => {
-          if (!known.has(String(value).toUpperCase())) registerCandidate(record, value, "unknown");
+          if (!known.has(String(value).toUpperCase())) registerCandidate(record, value, "unknown", relatedCountry);
         });
         return;
       }
@@ -1439,10 +1621,20 @@
         candidate = selected;
         sourceKind = "unknown";
       }
-      registerCandidate(record, candidate, sourceKind);
+      registerCandidate(record, candidate, sourceKind, relatedCountry);
     });
 
     return [...counts.values()]
+      .map((entry) => {
+        const countryOptions = [...(entry.countryCounts || new Map()).values()]
+          .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "fr"))
+          .map((row) => row.value);
+        return {
+          ...entry,
+          countryOptions,
+          preferredCountry: countryOptions[0] || ""
+        };
+      })
       .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "fr"));
   }
 
@@ -1525,7 +1717,33 @@
     return true;
   }
 
-  async function mapOtherCandidate(category, sourceValue, targetValue) {
+  async function resolveRequiredOaciCountry(sourceOaciValue, preferredCountryValue = "") {
+    let country = normalizeCountryValue(preferredCountryValue);
+    if (!country) country = getCatalogMappedCountry(getEffectiveCatalog(), sourceOaciValue);
+    if (!country) country = inferOaciCountryFromReports(sourceOaciValue);
+    if (country) return country;
+
+    const options = (getEffectiveCatalog().countries || []).slice(0, 15);
+    const typed = await askTextInput({
+      title: "Associer un pays au code OACI",
+      message: options.length
+        ? `Saisis le pays rattache a ce code OACI.\nExemples: ${options.join(", ")}`
+        : "Saisis le pays rattache a ce code OACI.",
+      inputValue: "",
+      inputPlaceholder: "Pays (obligatoire)",
+      confirmLabel: "Valider",
+      cancelLabel: "Annuler"
+    });
+    if (typed === null) return null;
+    country = normalizeCountryValue(typed);
+    if (!country) {
+      toast("Pays obligatoire pour un code OACI.");
+      return null;
+    }
+    return country;
+  }
+
+  async function mapOtherCandidate(category, sourceValue, targetValue, options = {}) {
     const def = CATALOG_DEFS[category];
     if (!def) return;
     const source = def.normalize(sourceValue);
@@ -1534,9 +1752,34 @@
       toast("Valeur source/cible invalide.");
       return;
     }
-    if (!getEffectiveCategorySet(category).has(String(target).toUpperCase())) {
-      ensureCategoryValueInCatalog(category, target);
+    const creatingOfficialFromSource = category === "oaci" && String(source).toUpperCase() === String(target).toUpperCase();
+    let mappedCountry = "";
+    if (creatingOfficialFromSource) {
+      mappedCountry = await resolveRequiredOaciCountry(source, options.countryValue || options.countryHint || "");
+      if (mappedCountry === null) return;
+      if (!mappedCountry) {
+        toast("Pays obligatoire pour officialiser un code OACI.");
+        return;
+      }
     }
+
+    const catalog = getCurrentCatalog();
+    let catalogChanged = false;
+    if (!(catalog[category] || []).some((value) => String(value).toUpperCase() === String(target).toUpperCase())) {
+      const nextValues = normalizeCatalogValues(category, [...(catalog[category] || []), target]);
+      catalogChanged = JSON.stringify(nextValues) !== JSON.stringify(catalog[category] || []) || catalogChanged;
+      catalog[category] = nextValues;
+    }
+    if (creatingOfficialFromSource) {
+      const nextCountries = normalizeCatalogValues("countries", [...(catalog.countries || []), mappedCountry]);
+      catalogChanged = JSON.stringify(nextCountries) !== JSON.stringify(catalog.countries || []) || catalogChanged;
+      catalog.countries = nextCountries;
+      if (setCatalogMappedCountry(catalog, target, mappedCountry)) catalogChanged = true;
+    }
+    if (catalogChanged) {
+      setCurrentCatalog(catalog, true);
+    }
+
     await applyRecordsMutation((record) => {
       const meta = record?.mission?.meta || {};
       if (def.arrayKey) {
@@ -1569,19 +1812,98 @@
     }
   }
 
-  async function addCatalogItem(category, value) {
+  async function dropOtherCandidate(category, sourceValue) {
     const def = CATALOG_DEFS[category];
     if (!def) return;
+    const source = def.normalize(sourceValue);
+    if (!source) {
+      toast("Valeur invalide.");
+      return;
+    }
+    const canDrop = await askConfirmation({
+      title: "Supprimer une valeur a classer",
+      message: `Supprimer '${source}' des AAR concernes ?\n\nCette action efface cette valeur dans les champs associes.`,
+      confirmLabel: "Supprimer",
+      cancelLabel: "Annuler",
+      kind: "danger"
+    });
+    if (!canDrop) return;
+
+    await applyRecordsMutation((record) => {
+      const meta = record?.mission?.meta || {};
+      if (def.contextKey && def.contextValue) {
+        const ctx = String(meta?.[def.contextKey] || "").trim().toUpperCase();
+        if (ctx !== String(def.contextValue).trim().toUpperCase()) return false;
+      }
+
+      if (def.arrayKey) {
+        const currentValues = getMetaValuesForCategory(meta, category);
+        if (!currentValues.length) return false;
+        const nextValues = currentValues.filter((value) => String(value).toUpperCase() !== String(source).toUpperCase());
+        if (nextValues.length === currentValues.length) return false;
+        meta[def.arrayKey] = normalizeCatalogValues(category, nextValues);
+        syncLegacyHashtagMeta(meta);
+        return true;
+      }
+
+      const selectedRaw = String(meta?.[def.selectKey] || "").trim();
+      const otherRaw = String(meta?.[def.otherKey] || "").trim();
+      const selected = def.normalize(selectedRaw);
+      const other = def.normalize(otherRaw);
+      const sourceUpper = String(source).toUpperCase();
+      const selectedIsSource = selected && String(selected).toUpperCase() === sourceUpper;
+      const otherIsSource = other && String(other).toUpperCase() === sourceUpper;
+
+      if (String(selectedRaw).toUpperCase() === "AUTRE") {
+        if (!otherIsSource) return false;
+        meta[def.selectKey] = "";
+        meta[def.otherKey] = "";
+        return true;
+      }
+
+      if (!selectedIsSource && !otherIsSource) return false;
+      if (selectedIsSource) meta[def.selectKey] = "";
+      if (otherIsSource || selectedIsSource) meta[def.otherKey] = "";
+      return true;
+    }, `${def.label}: suppression`);
+  }
+
+  async function addCatalogItem(category, value, options = {}) {
+    const def = CATALOG_DEFS[category];
+    if (!def) return false;
     const normalized = def.normalize(value);
     if (!normalized) {
       toast(`${def.label}: valeur invalide.`);
-      return;
+      return false;
     }
-    const changed = ensureCategoryValueInCatalog(category, normalized);
+
+    let mappedCountry = "";
+    if (category === "oaci") {
+      mappedCountry = await resolveRequiredOaciCountry(normalized, options.countryValue || "");
+      if (mappedCountry === null) return false;
+      if (!mappedCountry) {
+        toast("Pays obligatoire pour ajouter un code OACI.");
+        return false;
+      }
+    }
+
+    const catalog = getCurrentCatalog();
+    const nextValues = normalizeCatalogValues(category, [...(catalog[category] || []), normalized]);
+    let changed = JSON.stringify(nextValues) !== JSON.stringify(catalog[category] || []);
+    catalog[category] = nextValues;
+
+    if (category === "oaci") {
+      const nextCountries = normalizeCatalogValues("countries", [...(catalog.countries || []), mappedCountry]);
+      changed = JSON.stringify(nextCountries) !== JSON.stringify(catalog.countries || []) || changed;
+      catalog.countries = nextCountries;
+      if (setCatalogMappedCountry(catalog, normalized, mappedCountry)) changed = true;
+    }
+
+    if (changed) setCurrentCatalog(catalog, true);
     renderAdmin();
     if (!changed) {
       toast(`${def.label}: deja present.`);
-      return;
+      return false;
     }
     try {
       await withBusy(`${def.label}: synchronisation...`, async () => {
@@ -1591,6 +1913,7 @@
     } catch (error) {
       toast(`Ajout local OK, sync backend KO: ${error.message || error}`);
     }
+    return true;
   }
 
   async function renameCatalogItem(category, oldValue, nextValue) {
@@ -1608,6 +1931,16 @@
       return String(value).toUpperCase() === String(oldNorm).toUpperCase() ? nextNorm : value;
     }));
     catalog[category] = nextList;
+    if (category === "oaci") {
+      const previousMappedCountry = getCatalogMappedCountry(catalog, oldNorm);
+      const hadOldMapping = removeCatalogMappedOaci(catalog, oldNorm);
+      if (hadOldMapping && previousMappedCountry && !getCatalogMappedCountry(catalog, nextNorm)) {
+        setCatalogMappedCountry(catalog, nextNorm, previousMappedCountry);
+      }
+    }
+    if (category === "countries") {
+      remapCatalogCountryValue(catalog, oldNorm, nextNorm);
+    }
     setCurrentCatalog(catalog, true);
 
     await applyRecordsMutation((record) => {
@@ -1664,6 +1997,12 @@
       return String(item).toUpperCase() !== String(normalized).toUpperCase();
     });
     catalog[category] = normalizeCatalogValues(category, nextList);
+    if (category === "oaci") {
+      removeCatalogMappedOaci(catalog, normalized);
+    }
+    if (category === "countries") {
+      removeCatalogCountryMappings(catalog, normalized);
+    }
     setCurrentCatalog(catalog, true);
     renderAdmin();
 
@@ -1707,16 +2046,18 @@
           title: "Valeurs a classer",
           body: [
             "Cette liste montre les valeurs vues dans les AAR mais pas encore presentes dans le referentiel officiel.",
-            "Utilise 'Creer' si la valeur doit devenir officielle telle quelle. Utilise 'Rattacher' si c'est juste une variante d'une valeur deja existante."
-          ]
+            "Utilise 'Creer' si la valeur doit devenir officielle telle quelle. Utilise 'Rattacher' si c'est juste une variante d'une valeur deja existante. Utilise 'Supprimer' pour effacer cette valeur des AAR concernes.",
+            category === "oaci" ? "Pour un code OACI, renseigne toujours le pays associe avant de creer." : ""
+          ].filter(Boolean)
         };
       case "add":
         return {
           title: "Ajouter manuellement",
           body: [
             "Ajoute ici une valeur officielle meme si aucun AAR ne l'a encore proposee.",
-            "Une fois synchronisee, elle sera disponible pour les redacteurs dans la PWA AAR."
-          ]
+            "Une fois synchronisee, elle sera disponible pour les redacteurs dans la PWA AAR.",
+            category === "oaci" ? "Pour les codes OACI, le pays associe est obligatoire." : ""
+          ].filter(Boolean)
         };
       case "catalog":
         return {
@@ -1825,7 +2166,15 @@
             <div class="admin-list admin-list-pending">
               ${candidates.length ? candidates.map((row, idx) => {
                 const mapOptions = getMappingOptionsForCandidate(category, row.value);
-                const mapListId = `admin-map-list-${category}-${idx}`;
+                const mapSuggestKey = `admin-map-suggest-${category}-${idx}`;
+                const countrySuggestKey = `admin-country-suggest-${category}-${idx}`;
+                const countryOptions = category === "oaci"
+                  ? normalizeCatalogValues("countries", [
+                      ...(row.countryOptions || []),
+                      ...(getEffectiveCatalog().countries || [])
+                    ])
+                  : [];
+                const countryHint = category === "oaci" ? normalizeCountryValue(row.preferredCountry || "") : "";
                 return `
                   <div class="admin-item admin-item-pending">
                     <div class="admin-item-top">
@@ -1836,22 +2185,39 @@
                       <div class="admin-item-count">${row.count} AAR</div>
                     </div>
                     ${row.examples.length ? `<div class="admin-item-examples">${row.examples.map((example) => `<button class="admin-example-chip" data-admin-open-record="${esc(example.id || "")}" type="button">${esc(example.label || "")}</button>`).join("")}</div>` : ""}
+                    ${category === "oaci" ? `
+                      <div class="admin-row">
+                        <input
+                          class="admin-input"
+                          data-admin-country-input="${esc(category)}"
+                          data-admin-source="${esc(row.value)}"
+                          data-admin-idx="${idx}"
+                          data-admin-suggest-key="${esc(countrySuggestKey)}"
+                          data-admin-options="${esc(JSON.stringify(countryOptions))}"
+                          value="${esc(countryHint)}"
+                          placeholder="Pays associe (obligatoire pour creer)"
+                          autocomplete="off"
+                          spellcheck="false"
+                        >
+                        <div class="admin-suggest-menu" data-admin-suggest-menu="${esc(countrySuggestKey)}" hidden></div>
+                      </div>
+                    ` : ""}
                     <div class="admin-action-grid">
-                      <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Creer</button>
+                      <button class="admin-btn admin-btn-primary" data-admin-create-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-country-hint="${esc(countryHint)}" data-admin-idx="${idx}" type="button">Creer</button>
                       <input
                         class="admin-input admin-input-map"
                         data-admin-map-input="${esc(category)}"
                         data-admin-source="${esc(row.value)}"
                         data-admin-idx="${idx}"
-                        list="${esc(mapListId)}"
+                        data-admin-suggest-key="${esc(mapSuggestKey)}"
+                        data-admin-options="${esc(JSON.stringify(mapOptions))}"
                         placeholder="Rattacher a... (filtre en live)"
                         autocomplete="off"
                         spellcheck="false"
                       >
-                      <datalist id="${esc(mapListId)}">
-                        ${mapOptions.map((value) => `<option value="${esc(value)}"></option>`).join("")}
-                      </datalist>
+                      <div class="admin-suggest-menu" data-admin-suggest-menu="${esc(mapSuggestKey)}" hidden></div>
                       <button class="admin-btn" data-admin-map-btn="${esc(category)}" data-admin-source="${esc(row.value)}" data-admin-idx="${idx}" type="button">Rattacher</button>
+                      <button class="admin-btn admin-btn-danger" data-admin-drop-btn="${esc(category)}" data-admin-source="${esc(row.value)}" type="button">Supprimer</button>
                     </div>
                   </div>
                 `;
@@ -1872,6 +2238,20 @@
                 <input class="admin-input" data-admin-add-input="${esc(category)}" placeholder="Ajouter un ${singular}">
                 <button class="admin-btn admin-btn-primary" data-admin-add-btn="${esc(category)}" type="button">Ajouter</button>
               </div>
+              ${category === "oaci" ? `
+                <div class="admin-row">
+                  <input
+                    class="admin-input"
+                    data-admin-add-country-input="${esc(category)}"
+                    data-admin-suggest-key="admin-add-country-suggest-${esc(category)}"
+                    data-admin-options="${esc(JSON.stringify(getEffectiveCatalog().countries || []))}"
+                    placeholder="Pays associe au code OACI (obligatoire)"
+                    autocomplete="off"
+                    spellcheck="false"
+                  >
+                  <div class="admin-suggest-menu" data-admin-suggest-menu="admin-add-country-suggest-${esc(category)}" hidden></div>
+                </div>
+              ` : ""}
             </section>
 
             <section class="admin-panel">
@@ -1897,7 +2277,11 @@
                     <div class="admin-item-top">
                       <div>
                         <div class="admin-item-value">${esc(value)}</div>
-                        <div class="admin-item-meta">${isOfficialCatalogValue(category, value) ? "Officiel QWI" : "Socle AAR"}</div>
+                        <div class="admin-item-meta">${
+                          category === "oaci"
+                            ? `${isOfficialCatalogValue(category, value) ? "Officiel QWI" : "Socle AAR"} - ${esc(getCatalogMappedCountry(getEffectiveCatalog(), value) || "Pays non renseigne")}`
+                            : `${isOfficialCatalogValue(category, value) ? "Officiel QWI" : "Socle AAR"}`
+                        }</div>
                       </div>
                     </div>
                     ${isOfficialCatalogValue(category, value) ? `
@@ -1918,6 +2302,70 @@
 
   function bindAdminEvents(container) {
     if (!container) return;
+
+    const parseSuggestOptions = (input) => {
+      const raw = String(input.getAttribute("data-admin-options") || "[]").trim();
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        const seen = new Set();
+        const out = [];
+        (Array.isArray(parsed) ? parsed : []).forEach((value) => {
+          const normalized = normalizeTextValue(value);
+          if (!normalized) return;
+          const key = normalized.toUpperCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+          out.push(normalized);
+        });
+        return out.sort((a, b) => a.localeCompare(b, "fr"));
+      } catch (_) {
+        return [];
+      }
+    };
+
+    const getSuggestMenu = (input) => {
+      const key = String(input.getAttribute("data-admin-suggest-key") || "").trim();
+      if (!key) return null;
+      return container.querySelector(`[data-admin-suggest-menu="${key}"]`);
+    };
+
+    const hideSuggestMenu = (input) => {
+      const menu = getSuggestMenu(input);
+      if (!menu) return;
+      menu.hidden = true;
+      menu.innerHTML = "";
+    };
+
+    const renderSuggestMenu = (input) => {
+      const menu = getSuggestMenu(input);
+      if (!menu) return;
+      const all = parseSuggestOptions(input);
+      const query = normalizeTextValue(input.value).toUpperCase();
+      const filtered = query
+        ? all.filter((value) => String(value || "").toUpperCase().includes(query))
+        : all;
+      const items = filtered.slice(0, 30);
+      if (!items.length) {
+        hideSuggestMenu(input);
+        return;
+      }
+      menu.innerHTML = items.map((value) => `
+        <button class="admin-suggest-item" type="button" data-admin-suggest-value="${esc(value)}">${esc(value)}</button>
+      `).join("");
+      menu.hidden = false;
+      menu.querySelectorAll("[data-admin-suggest-value]").forEach((btn) => {
+        btn.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+        });
+        btn.addEventListener("click", () => {
+          const value = String(btn.getAttribute("data-admin-suggest-value") || "").trim();
+          input.value = value;
+          hideSuggestMenu(input);
+          input.focus({ preventScroll: true });
+        });
+      });
+    };
 
     container.querySelectorAll("[data-admin-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1949,13 +2397,39 @@
       });
     });
 
+    container.querySelectorAll("[data-admin-suggest-key]").forEach((input) => {
+      input.addEventListener("focus", () => {
+        renderSuggestMenu(input);
+      });
+      input.addEventListener("input", () => {
+        renderSuggestMenu(input);
+      });
+      input.addEventListener("blur", () => {
+        setTimeout(() => hideSuggestMenu(input), 120);
+      });
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          hideSuggestMenu(input);
+          return;
+        }
+        if (event.key === "ArrowDown") {
+          const menu = getSuggestMenu(input);
+          if (!menu || menu.hidden) renderSuggestMenu(input);
+        }
+      });
+    });
+
     container.querySelectorAll("[data-admin-add-input]").forEach((input) => {
       input.addEventListener("keydown", (event) => {
         if (event.key !== "Enter") return;
         event.preventDefault();
         const category = input.getAttribute("data-admin-add-input");
-        addCatalogItem(category, input.value).then(() => {
+        const countryInput = container.querySelector(`[data-admin-add-country-input="${category}"]`);
+        const countryValue = countryInput ? String(countryInput.value || "") : "";
+        addCatalogItem(category, input.value, { countryValue }).then((ok) => {
+          if (!ok) return;
           input.value = "";
+          if (countryInput) countryInput.value = "";
         });
       });
     });
@@ -1964,10 +2438,24 @@
       btn.addEventListener("click", () => {
         const category = btn.getAttribute("data-admin-add-btn");
         const input = container.querySelector(`[data-admin-add-input="${category}"]`);
+        const countryInput = container.querySelector(`[data-admin-add-country-input="${category}"]`);
         const value = input ? input.value : "";
-        addCatalogItem(category, value).then(() => {
+        const countryValue = countryInput ? String(countryInput.value || "") : "";
+        addCatalogItem(category, value, { countryValue }).then((ok) => {
+          if (!ok) return;
           if (input) input.value = "";
+          if (countryInput) countryInput.value = "";
         });
+      });
+    });
+
+    container.querySelectorAll("[data-admin-add-country-input]").forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        const category = input.getAttribute("data-admin-add-country-input");
+        const btn = container.querySelector(`[data-admin-add-btn="${category}"]`);
+        if (btn) btn.click();
       });
     });
 
@@ -1988,7 +2476,11 @@
       btn.addEventListener("click", async () => {
         const category = btn.getAttribute("data-admin-create-btn");
         const source = btn.getAttribute("data-admin-source") || "";
-        await mapOtherCandidate(category, source, source);
+        const idx = btn.getAttribute("data-admin-idx") || "";
+        const countryHint = btn.getAttribute("data-admin-country-hint") || "";
+        const countryInput = container.querySelector(`[data-admin-country-input="${category}"][data-admin-idx="${idx}"]`);
+        const countryValue = countryInput ? String(countryInput.value || "") : "";
+        await mapOtherCandidate(category, source, source, { countryValue, countryHint });
       });
     });
 
@@ -2028,6 +2520,17 @@
       });
     });
 
+    container.querySelectorAll("[data-admin-country-input]").forEach((input) => {
+      input.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        const category = input.getAttribute("data-admin-country-input");
+        const idx = input.getAttribute("data-admin-idx") || "";
+        const btn = container.querySelector(`[data-admin-create-btn="${category}"][data-admin-idx="${idx}"]`);
+        if (btn) btn.click();
+      });
+    });
+
     container.querySelectorAll("[data-admin-map-btn]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const category = btn.getAttribute("data-admin-map-btn");
@@ -2053,6 +2556,14 @@
         }
         await mapOtherCandidate(category, source, target);
         if (input) input.value = "";
+      });
+    });
+
+    container.querySelectorAll("[data-admin-drop-btn]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const category = btn.getAttribute("data-admin-drop-btn");
+        const source = btn.getAttribute("data-admin-source") || "";
+        await dropOtherCandidate(category, source);
       });
     });
 

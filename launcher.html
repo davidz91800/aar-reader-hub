@@ -1,0 +1,79 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AAR HUB Launcher</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0b1630;
+      color: #eaf2ff;
+      display: grid;
+      min-height: 100vh;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(760px, 100%);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+    h1 { margin: 0 0 12px; font-size: 1.6rem; }
+    p { margin: 8px 0; line-height: 1.5; color: #c6d8f2; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    a.btn {
+      display: inline-block;
+      text-decoration: none;
+      color: #061225;
+      background: #8dc2ff;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+    }
+    a.btn.secondary {
+      background: rgba(141, 194, 255, 0.12);
+      color: #dceaff;
+      border: 1px solid rgba(141, 194, 255, 0.35);
+    }
+    code {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 2px 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <h1>Ouverture AAR HUB</h1>
+    <p id="status">Preparation...</p>
+    <div class="actions" id="actions" style="display:none;">
+      <a class="btn" href="http://localhost:8080/index.html">Ouvrir localhost:8080</a>
+      <a class="btn secondary" href="http://localhost:18080/index.html">Ouvrir localhost:18080</a>
+      <a class="btn secondary" href="./0%20-%20OUVRIR%20AAR%20READER%20HUB.bat">Lancer le BAT local</a>
+      <a class="btn secondary" href="./index.html">Ouvrir quand meme index.html</a>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var status = document.getElementById('status');
+      var actions = document.getElementById('actions');
+      var isFileMode = location.protocol === 'file:';
+
+      if (!isFileMode) {
+        status.textContent = 'Redirection vers l\'application AAR Reader Hub...';
+        location.replace('./index.html');
+        return;
+      }
+
+      status.innerHTML = 'Mode local detecte (<code>file://</code>).<br>Lance le BAT local puis ouvre <code>http://localhost:8080/index.html</code> (ou <code>http://localhost:18080/index.html</code> si 8080 est deja pris).';
+      actions.style.display = 'flex';
+    })();
+  </script>
+</body>
+</html>

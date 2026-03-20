@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "aar-shell-v8";
+﻿const CACHE_NAME = "aar-shell-v11";
 const SHELL_URL = "./AAR.html";
 const CORE_ASSETS = [SHELL_URL];
 const OPTIONAL_ASSETS = [
@@ -6,8 +6,15 @@ const OPTIONAL_ASSETS = [
   "./manifest.webmanifest",
   "./mission-config.js",
   "./Logo QWI.png",
+  "./AAR.png",
+  "./apple-touch-icon.png",
+  "./favicon-32.png",
+  "./icon-192.png",
+  "./icon-512.png",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./icons/apple-touch-icon.png",
+  "./icons/favicon-32.png"
 ];
 
 async function putInCache(cache, url) {
@@ -99,9 +106,3 @@ self.addEventListener("fetch", (event) => {
     }
   })());
 });
-
-
-
-
-
-
