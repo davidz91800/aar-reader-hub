@@ -1301,20 +1301,23 @@ function renderList() {
 
   el.aarGrid.innerHTML = rows.map((r) => {
     const excerpt = cleanText(resolveFactsContent(r.mission?.facts) || r.mission?.analysis?.content || "");
+    const reportKindNorm = normalizeReportKind(r.reportKind);
+    const missionTypeNorm = String(r.missionType || "").trim().toUpperCase();
+    const missionTypeClass = missionTypeNorm.toLowerCase();
     const tags = [classifTag(r.classification)];
     const workflowTag = workflowStatusTag(r.workflowStatus);
     if (workflowTag) tags.push(workflowTag);
-    if (r.missionType) tags.push(`<span class="tag tag-${r.missionType.toLowerCase()}">${esc(r.missionType)}</span>`);
+    if (missionTypeNorm) tags.push(`<span class="tag tag-${missionTypeClass}">${esc(missionTypeNorm)}</span>`);
     if (r.fleet) tags.push(`<span class="tag tag-fleet">${esc(r.fleet)}</span>`);
     if (r.hashtags?.length) tags.push(...r.hashtags.slice(0, 3).map((tag) => `<span class="tag tag-dorese">${esc(tag)}</span>`));
     if (r.recoCats?.length) tags.push(...r.recoCats.slice(0, 3).map((c) => `<span class="tag tag-dorese">${esc(c)}</span>`));
 
     return `
-      <article class="aar-card card-report-${r.reportKind.toLowerCase()}" data-id="${r.id}" role="button" tabindex="0">
+      <article class="aar-card card-report-${reportKindNorm.toLowerCase()}" data-id="${r.id}" role="button" tabindex="0">
         <div class="card-top">
           <div class="card-title-wrap">
             <div class="card-title">${esc(r.title)}</div>
-            <div class="card-kind-badge card-kind-badge-${r.reportKind.toLowerCase()}">${esc(reportKindLabel(r.reportKind))}</div>
+            <div class="card-kind-badge card-kind-badge-${reportKindNorm.toLowerCase()}">${esc(reportKindLabel(reportKindNorm))}</div>
           </div>
           <div class="card-date">${formatDateFr(r.date)}</div>
         </div>
