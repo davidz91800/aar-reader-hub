@@ -850,10 +850,15 @@
     return `${REQUEST_PREFIX}${sessionId}`;
   }
 
-  function buildEditorUrl(sessionId) {
+  function buildEditorUrl(sessionId, options = {}) {
     const url = new URL(EDITOR_RELATIVE_URL, window.location.href);
     url.searchParams.set("externalEditor", "1");
     url.searchParams.set("session", sessionId);
+    const requestedStartTab = Number(options && options.startTab);
+    if (Number.isFinite(requestedStartTab)) {
+      const tab = Math.max(0, Math.min(5, Math.trunc(requestedStartTab)));
+      url.searchParams.set("startTab", String(tab));
+    }
     return url.toString();
   }
 
@@ -1304,7 +1309,7 @@
     }
   }
 
-  function openEditor(recordId = "") {
+  function openEditor(recordId = "", options = {}) {
     const record = recordId ? state.reports.find((x) => x.id === recordId) : null;
     const sessionId = newSessionId();
     const driveFileId = record ? String(record.driveFileId || "").trim() : "";
@@ -1322,7 +1327,7 @@
     localStorage.setItem(requestKey(sessionId), JSON.stringify(payload));
     sessions.set(sessionId, { recordId: record ? record.id : "", driveFileId });
 
-    const popup = window.open(buildEditorUrl(sessionId), "_blank");
+    const popup = window.open(buildEditorUrl(sessionId, options), "_blank");
     if (!popup) {
       sessions.delete(sessionId);
       localStorage.removeItem(requestKey(sessionId));
@@ -2679,6 +2684,7 @@
       actions.id = "detail-qwi-actions";
       actions.className = "detail-qwi-actions";
       actions.innerHTML = `
+        <button class="detail-qwi-btn" data-qwi-action="qwi-advice" type="button">Avis QWI</button>
         <button class="detail-qwi-btn" data-qwi-action="edit" type="button">Modifier</button>
         <button class="detail-qwi-btn" data-qwi-action="publish" type="button">Publier</button>
         <button class="detail-qwi-btn" data-qwi-action="delete" type="button">Supprimer</button>
@@ -2695,11 +2701,13 @@
     const recordId = state.openDetailId;
     const record = state.reports.find((x) => x.id === recordId) || null;
     const workflowStatus = getRecordWorkflowStatus(record);
+    const qwiAdviceBtn = actions.querySelector('[data-qwi-action="qwi-advice"]');
     const editBtn = actions.querySelector('[data-qwi-action="edit"]');
     const publishBtn = actions.querySelector('[data-qwi-action="publish"]');
     const deleteBtn = actions.querySelector('[data-qwi-action="delete"]');
     const newBtn = actions.querySelector('[data-qwi-action="new"]');
 
+    if (qwiAdviceBtn) qwiAdviceBtn.onclick = () => openEditor(recordId, { startTab: 4 });
     if (editBtn) editBtn.onclick = () => openEditor(recordId);
     if (publishBtn) {
       publishBtn.style.display = workflowStatus === "PENDING_QWI_REVIEW" ? "" : "none";

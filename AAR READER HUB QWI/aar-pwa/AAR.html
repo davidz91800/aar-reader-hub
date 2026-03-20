@@ -4230,7 +4230,14 @@
 
                 App.renderForm();
                 if (repairedOnLoad) App.save();
-                App.nav(0);
+                const requestedInitialTab = (() => {
+                    const raw = new URLSearchParams(window.location.search).get('startTab');
+                    if (raw === null) return 0;
+                    const parsed = Number(raw);
+                    if (!Number.isFinite(parsed)) return 0;
+                    return Math.max(0, Math.min(5, Math.trunc(parsed)));
+                })();
+                App.nav(requestedInitialTab);
                 App.loadRemoteMissionCatalog(true);
 
                 window.addEventListener('online', () => { App.loadRemoteMissionCatalog(); });
