@@ -1437,7 +1437,7 @@ function openDetail(id) {
           <div class="pdf-section-content">${recosHtml}</div>
         </section>
 
-        <section class="pdf-doc-section">
+        <section class="pdf-doc-section pdf-section-qwi-advice">
           <div class="pdf-section-title"><h3>04. AVIS QWI / WEAPONS SCHOOL</h3></div>
           <div class="pdf-section-content pdf-rich">${asDocHtml(m.qwi?.advice)}</div>
         </section>

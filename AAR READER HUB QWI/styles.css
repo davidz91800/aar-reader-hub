@@ -887,6 +887,11 @@ body {
     page-break-after: auto;
     break-after: auto;
   }
+  .pdf-section-qwi-advice {
+    page-break-before: always !important;
+    break-before: page !important;
+    margin-top: 0 !important;
+  }
 }
 
 /* Detail sections */
