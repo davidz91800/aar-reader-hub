@@ -1435,8 +1435,11 @@ function openDetail(id) {
           <div class="pdf-section-title pdf-success"><h3>03. RECOMMANDATIONS (DORESE)</h3></div>
           <div class="pdf-section-content">${recosHtml}</div>
         </section>
+      </article>
 
-        <section class="pdf-doc-section pdf-section-qwi-advice">
+      <article class="pdf-page">
+        <div class="doc-classification-badge" data-level="${esc(r.classification || "UNKNOWN")}">${esc(r.classification || "UNKNOWN")}</div>
+        <section class="pdf-doc-section">
           <div class="pdf-section-title"><h3>04. AVIS QWI / WEAPONS SCHOOL</h3></div>
           <div class="pdf-section-content pdf-rich">${asDocHtml(m.qwi?.advice)}</div>
         </section>
