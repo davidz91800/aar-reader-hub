@@ -77,11 +77,12 @@ function normalizeClassif(v) {
 }
 
 function normalizeReportKind(v) {
-  return String(v || "").trim().toUpperCase() === "FLASH" ? "FLASH" : "CONSOLIDE";
+  const raw = String(v || "").trim().toUpperCase();
+  return raw === "FLASH" || raw === "BAAP" ? "FLASH" : "CONSOLIDE";
 }
 
 function reportKindLabel(v) {
-  return normalizeReportKind(v) === "FLASH" ? "FLASH" : "WEAPONS SCHOOL";
+  return normalizeReportKind(v) === "FLASH" ? "BAAP" : "WEAPONS SCHOOL";
 }
 
 function normalizeWorkflowStatus(v) {
@@ -142,6 +143,28 @@ const FACTS_LEGACY_ITEMS = [
   { key: "how", label: "HOW?" }
 ];
 
+const BAAP_FACTS_ITEMS = [
+  { key: "airfield", heading: "AIRFIELD", factsKey: "baapAirfield" },
+  { key: "pilot", heading: "PILOT", factsKey: "baapPilot" },
+  { key: "loadmaster", heading: "LOADMASTER", factsKey: "baapLoadmaster" },
+  { key: "missionSupport", heading: "MISSION SUPPORT", factsKey: "baapMissionSupport" },
+  { key: "intel", heading: "INTEL", factsKey: "baapIntel" },
+  { key: "c2", heading: "C2", factsKey: "baapC2" }
+];
+
+function normalizeBaapSelection(values) {
+  const allowed = new Set(BAAP_FACTS_ITEMS.map((item) => item.key));
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const key = String(value || "").trim();
+    if (!allowed.has(key) || seen.has(key)) return;
+    seen.add(key);
+    out.push(key);
+  });
+  return out;
+}
+
 function sanitizeDocHtml(value) {
   const raw = String(value || "");
   if (!raw.trim()) return "";
@@ -192,11 +215,26 @@ function buildFactsContentFromLegacy(facts) {
   return sanitizeDocHtml(html);
 }
 
+function buildBaapFactsContent(facts) {
+  const src = facts && typeof facts === "object" ? facts : {};
+  if (normalizeReportKind(src.reportKind) !== "FLASH") return "";
+  const selected = new Set(normalizeBaapSelection(src.baapSelected || []));
+  let html = "";
+  BAAP_FACTS_ITEMS.forEach((item) => {
+    const value = sanitizeDocHtml(src[item.factsKey] || "");
+    if (!selected.has(item.key) && !value) return;
+    if (!value) return;
+    html += `<h1>${esc(item.heading)}</h1>${value}`;
+  });
+  return sanitizeDocHtml(html);
+}
+
 function resolveFactsContent(facts) {
   const src = facts && typeof facts === "object" ? facts : {};
-  const content = sanitizeDocHtml(src.content || "");
-  if (content) return content;
-  return buildFactsContentFromLegacy(src);
+  const main = sanitizeDocHtml(src.content || "") || buildFactsContentFromLegacy(src);
+  const baap = buildBaapFactsContent(src);
+  if (main && baap) return sanitizeDocHtml(`${main}<p><br></p>${baap}`);
+  return main || baap;
 }
 
 function htmlToText(html) {
@@ -319,6 +357,8 @@ async function hydrateReportsFromIndexedDb() {
 function normalizeAar(input) {
   const a = input && typeof input === "object" ? input : {};
   const meta = a.meta || {};
+  const reportKind = normalizeReportKind(meta.reportKind);
+  const factsSource = { ...(a.facts || {}), reportKind };
   return {
     meta: {
       title: meta.title || "",
@@ -331,7 +371,7 @@ function normalizeAar(input) {
       uniteAutre: meta.uniteAutre || "",
       classification: normalizeClassif(meta.classification || ""),
       // Extended fields from AAR PWA form
-      reportKind: normalizeReportKind(meta.reportKind),
+      reportKind,
       workflowStatus: normalizeWorkflowStatus(meta.workflowStatus),
       sentToQwiAt: meta.sentToQwiAt || "",
       publishedAt: meta.publishedAt || "",
@@ -353,14 +393,22 @@ function normalizeAar(input) {
       tacExerciseAutre: meta.tacExerciseAutre || ""
     },
     facts: {
-      content: resolveFactsContent(a.facts),
-      what: a.facts?.what || "",
-      why: a.facts?.why || "",
-      when: a.facts?.when || "",
-      where: a.facts?.where || "",
-      who: a.facts?.who || "",
-      how: a.facts?.how || "",
-      narrative: a.facts?.narrative || ""
+      reportKind,
+      content: resolveFactsContent(factsSource),
+      what: factsSource.what || "",
+      why: factsSource.why || "",
+      when: factsSource.when || "",
+      where: factsSource.where || "",
+      who: factsSource.who || "",
+      how: factsSource.how || "",
+      narrative: factsSource.narrative || "",
+      baapSelected: normalizeBaapSelection(factsSource.baapSelected || []),
+      baapAirfield: factsSource.baapAirfield || "",
+      baapPilot: factsSource.baapPilot || "",
+      baapLoadmaster: factsSource.baapLoadmaster || "",
+      baapMissionSupport: factsSource.baapMissionSupport || "",
+      baapIntel: factsSource.baapIntel || "",
+      baapC2: factsSource.baapC2 || ""
     },
     analysis: {
       content: a.analysis?.content || ""
@@ -459,7 +507,10 @@ function deriveMeta(a) {
     ? (meta.tacExercise === "AUTRE" ? meta.tacExerciseAutre : meta.tacExercise) || ""
     : "";
 
-  const factKeys = ["content", "what", "why", "when", "where", "who", "how", "narrative"];
+  const factKeys = [
+    "content", "what", "why", "when", "where", "who", "how", "narrative",
+    "baapAirfield", "baapPilot", "baapLoadmaster", "baapMissionSupport", "baapIntel", "baapC2"
+  ];
   const recoKeys = ["doctrine", "organisation", "rh", "equipements", "soutien", "entrainement"];
   const factsFilled = nonEmpty(facts.content)
     ? 1
@@ -477,9 +528,8 @@ function deriveMeta(a) {
   const recoCats = recoKeys.filter((k) => nonEmpty(recos[k])).map((k) => recoLabels[k]);
   const qwiFilled = nonEmpty(a.qwi?.advice);
 
-  const factsSearchBlob = nonEmpty(facts.content)
-    ? facts.content
-    : [facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative].join(" ");
+  const factsSearchBlob = resolveFactsContent(facts)
+    || [facts.what, facts.why, facts.when, facts.where, facts.who, facts.how, facts.narrative].join(" ");
 
   const allText = [
     meta.title, rank, meta.nom, meta.prenom, unit,
@@ -1269,7 +1319,7 @@ function classifTag(c) {
 
 function reportKindTag(kind) {
   const norm = normalizeReportKind(kind);
-  if (norm === "FLASH") return `<span class="tag tag-report tag-report-flash">FLASH</span>`;
+  if (norm === "FLASH") return `<span class="tag tag-report tag-report-flash">BAAP</span>`;
   return `<span class="tag tag-report tag-report-consolide">WEAPONS SCHOOL</span>`;
 }
 
