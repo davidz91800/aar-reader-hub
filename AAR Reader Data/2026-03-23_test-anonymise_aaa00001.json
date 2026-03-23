@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "title": "VOL TEST ANONYMISE - CONVOI LOGISTIQUE",
+    "date": "2026-03-23",
+    "grade": "CNE",
+    "gradeAutre": "",
+    "nom": "DUPONT",
+    "prenom": "Jean",
+    "unite": "ET 2/61 FRANCHE-COMTE",
+    "uniteAutre": "",
+    "flotte": "C-130J",
+    "flotteAutre": "",
+    "classification": "NON PROTEGE",
+    "missionType": "LOG",
+    "logCountry": "FRANCE",
+    "logCountryAutre": "",
+    "logAirfield": "LFPB",
+    "logAirfieldAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": "",
+    "identityAnonymized": true,
+    "identityVisibility": "QWI_ONLY",
+    "reportKind": "CONSOLIDE",
+    "hashtag": "#TRANSPORT",
+    "hashtagAutre": "",
+    "hashtags": ["#TRANSPORT"]
+  },
+  "facts": {
+    "content": "<h1>WHAT?</h1><p>Convoi logistique vers LFPB avec chargement palette.</p><h1>WHY?</h1><p>Soutien logistique exercice ORION.</p>"
+  },
+  "analysis": {
+    "content": "Analyse complète du vol test anonymisé pour vérification rendu hub."
+  },
+  "recos": {
+    "doctrine": "Revoir les procédures de chargement palette.",
+    "organisation": "",
+    "rh": "",
+    "equipements": "Vérifier les sangles de maintien.",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
