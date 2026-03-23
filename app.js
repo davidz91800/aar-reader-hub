@@ -108,6 +108,9 @@ function isIdentityAnonymized(meta) {
   const unite = String((src.unite === "AUTRE" ? src.uniteAutre : src.unite) || "").trim().toUpperCase();
   if (nom === "ANONYME" || prenom === "ANONYME") return true;
   if (grade === "ANONYMISE" || unite === "ANONYMISE") return true;
+  // Legacy fallback: detect old AARs marked only via #ANONYME hashtag (not displayed, just detected)
+  const hashtags = Array.isArray(src.hashtags) ? src.hashtags : [];
+  if (hashtags.some((h) => String(h || "").trim().toUpperCase().replace(/\s+/g, "") === "#ANONYME")) return true;
   return false;
 }
 
