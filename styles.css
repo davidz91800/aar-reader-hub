@@ -159,6 +159,8 @@ body {
 
 /* â•â•â• FILTERS BAR â•â•â• */
 .filters-bar {
+  position: relative;
+  z-index: 40;
   padding: 0.75rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -167,6 +169,7 @@ body {
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   border-bottom: 1px solid var(--border);
+  overflow: visible;
 }
 
 /* Search */
@@ -199,13 +202,16 @@ body {
 
 /* Chips */
 .filter-chips {
+  position: relative;
   display: flex;
   gap: 0.4rem;
   overflow-x: auto;
+  overflow-y: visible;
   padding-bottom: 2px;
   -webkit-overflow-scrolling: touch;
 }
 .filter-chips::-webkit-scrollbar { display: none; }
+.filter-chips.panel-open { overflow: visible; }
 
 .chip-select {
   flex-shrink: 0;
@@ -235,11 +241,207 @@ body {
   color: var(--accent-2);
 }
 
+.chip-multiselect {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chip-multiselect-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-right: 0.8rem;
+  min-width: 170px;
+  max-width: 250px;
+}
+
+#filter-hashtag-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-multiselect-caret {
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.chip-multiselect-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  width: min(380px, 90vw);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(14, 23, 41, 0.97);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.5);
+  padding: 0.65rem;
+  z-index: 420;
+}
+
+.chip-multiselect-search-wrap {
+  margin-bottom: 0.5rem;
+}
+
+.chip-multiselect-search {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card-2);
+  color: var(--text);
+  padding: 0 0.65rem;
+  font-size: 0.8rem;
+}
+
+.chip-multiselect-search:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.chip-multiselect-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.chip-multiselect-action {
+  flex: 1;
+  height: 31px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(24, 37, 61, 0.92);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.chip-multiselect-action:hover {
+  color: var(--text);
+  border-color: rgba(78, 106, 155, 0.45);
+}
+
+.chip-multiselect-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.chip-multiselect-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--accent-2);
+  padding: 0.16rem 0.5rem;
+  font-size: 0.72rem;
+  max-width: 100%;
+}
+
+.chip-multiselect-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-multiselect-chip-remove {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip-multiselect-meta {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-bottom: 0.35rem;
+}
+
+.chip-multiselect-options {
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  border-top: 1px solid rgba(78, 106, 155, 0.22);
+  padding-top: 0.2rem;
+  display: block;
+}
+
+.chip-multiselect-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-bottom: 1px solid rgba(78, 106, 155, 0.22);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.28rem 0.15rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chip-multiselect-option:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--text);
+}
+
+.chip-multiselect-option.is-active {
+  background: rgba(96, 165, 250, 0.16);
+  color: var(--text);
+}
+
+.chip-multiselect-option.is-selected {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent-2);
+}
+
+.chip-multiselect-option-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-multiselect-option-main::before {
+  content: "✓";
+  display: inline-block;
+  width: 0.75rem;
+  color: var(--accent-2);
+  opacity: 0;
+}
+
+.chip-multiselect-option.is-selected .chip-multiselect-option-main::before {
+  opacity: 1;
+}
+
+.chip-multiselect-option-meta {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.chip-multiselect-empty {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  padding: 0.4rem 0.15rem 0.2rem;
+}
+
 /* â•â•â• MAIN CONTENT â•â•â• */
 #main-content {
   flex: 1;
   overflow: visible;
   position: relative;
+  z-index: 1;
   min-height: 0;
 }
 .view {
@@ -432,8 +634,10 @@ body {
 .tag-report-consolide { color: #7dd3fc; border-color: rgba(56,189,248,0.3); background: rgba(56,189,248,0.08); }
 /* Fleet tags */
 .tag-fleet { color: var(--accent-2); border-color: rgba(96,165,250,0.35); background: rgba(96,165,250,0.08); }
+/* Hashtags (#) */
+.tag-hashtag { color: #cbd5e1; border-color: rgba(148,163,184,0.36); background: rgba(71,85,105,0.2); }
 /* Reco DORESE */
-.tag-dorese { color: var(--text-muted); border-color: var(--border); background: rgba(20,40,70,0.5); }
+.tag-dorese { color: #f9a8d4; border-color: rgba(244,114,182,0.42); background: rgba(190,24,93,0.18); }
 
 @keyframes flashSweep {
   0%, 58% { transform: translateX(-120%); opacity: 0; }

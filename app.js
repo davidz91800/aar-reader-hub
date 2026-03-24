@@ -24,6 +24,8 @@ let autoResyncInFlight = false;
 let lastAutoResyncAt = 0;
 let driveCooldownUntil = 0;
 let driveCooldownReason = "";
+let pendingRestoredHashtagFilters = null;
+let pendingRestoredOaciFilter = "ALL";
 
 /* ═══ UTILITIES ═══ */
 function esc(v) {
@@ -160,6 +162,610 @@ function getVisibleRecordHashtags(record) {
     out.push(tag);
   });
   return out;
+}
+
+function normalizeHashtagFilterSelection(values) {
+  return normalizeHashtagList(values).filter((tag) => !isInternalHiddenHashtag(tag));
+}
+
+function normalizeSavedHashtagFilters(saved) {
+  if (!saved || typeof saved !== "object") return [];
+  if (Array.isArray(saved.hashtags)) {
+    return normalizeHashtagFilterSelection(saved.hashtags);
+  }
+  const legacy = String(saved.hashtag || "").trim();
+  if (!legacy || legacy === "ALL") return [];
+  return normalizeHashtagFilterSelection([legacy]);
+}
+
+function getSelectedHashtagFilters() {
+  return Array.isArray(el.filterHashtagValues) ? el.filterHashtagValues : [];
+}
+
+function getVisibleHashtagRowsState() {
+  return Array.isArray(el.filterHashtagVisibleRows) ? el.filterHashtagVisibleRows : [];
+}
+
+function setHashtagActiveIndex(nextIndex, opts = {}) {
+  const options = opts && typeof opts === "object" ? opts : {};
+  const render = options.render !== false;
+  const rows = getVisibleHashtagRowsState();
+  if (!rows.length) {
+    el.filterHashtagActiveIndex = -1;
+    el.filterHashtagActiveKey = "";
+    return;
+  }
+  let idx = Number(nextIndex);
+  if (!Number.isFinite(idx)) idx = 0;
+  if (idx < 0) idx = rows.length - 1;
+  if (idx >= rows.length) idx = 0;
+  el.filterHashtagActiveIndex = idx;
+  el.filterHashtagActiveKey = rows[idx].key;
+  if (render) renderHashtagFilterOptions();
+}
+
+function commitHashtagOption(tag) {
+  const normalized = normalizeHashtagFilterSelection([tag])[0];
+  if (!normalized) return;
+  const current = getSelectedHashtagFilters();
+  const currentMap = new Map(current.map((value) => [String(value || "").toUpperCase(), value]));
+  const key = normalized.toUpperCase();
+  if (currentMap.has(key)) currentMap.delete(key);
+  else currentMap.set(key, normalized);
+  setHashtagFilterSelection([...currentMap.values()]);
+}
+
+function getHashtagUsageMapFromReports() {
+  const usage = new Map();
+  (Array.isArray(state.reports) ? state.reports : []).forEach((report) => {
+    getVisibleRecordHashtags(report).forEach((tag) => {
+      const key = String(tag || "").toUpperCase();
+      const current = usage.get(key) || { tag, count: 0 };
+      current.count += 1;
+      usage.set(key, current);
+    });
+  });
+  return usage;
+}
+
+function updateHashtagFilterChipState() {
+  const selected = getSelectedHashtagFilters();
+  if (el.filterHashtagTrigger) {
+    el.filterHashtagTrigger.classList.toggle("has-value", selected.length > 0);
+  }
+}
+
+function updateHashtagFilterLabel() {
+  if (!el.filterHashtagLabel) return;
+  const selected = getSelectedHashtagFilters();
+  if (!selected.length) {
+    el.filterHashtagLabel.textContent = "Hashtag: Tous";
+    return;
+  }
+  if (selected.length === 1) {
+    el.filterHashtagLabel.textContent = `Hashtag: ${selected[0]}`;
+    return;
+  }
+  const preview = selected.slice(0, 2).join(" · ");
+  const extra = selected.length - 2;
+  el.filterHashtagLabel.textContent = extra > 0 ? `Hashtags: ${preview} +${extra}` : `Hashtags: ${preview}`;
+}
+
+function getVisibleHashtagFilterOptions() {
+  const options = Array.isArray(el.filterHashtagAvailableValues) ? el.filterHashtagAvailableValues : [];
+  const usageMap = el.filterHashtagUsageMap instanceof Map ? el.filterHashtagUsageMap : new Map();
+  const rawQuery = String(el.filterHashtagSearch?.value || "").trim();
+  const normalizedRows = options.map((tag) => {
+    const key = String(tag || "").toUpperCase();
+    const usage = usageMap.get(key);
+    return {
+      tag,
+      key,
+      count: Number(usage?.count || 0),
+      haystack: stripDiacritics(String(tag || "").toLowerCase()).replace(/#/g, " ")
+    };
+  });
+  if (!rawQuery) {
+    return normalizedRows.sort((a, b) => (b.count - a.count) || a.tag.localeCompare(b.tag, "fr"));
+  }
+  const terms = stripDiacritics(rawQuery.toLowerCase())
+    .replace(/#/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!terms.length) {
+    return normalizedRows.sort((a, b) => (b.count - a.count) || a.tag.localeCompare(b.tag, "fr"));
+  }
+  const filteredRows = normalizedRows
+    .map((row) => {
+      let score = 0;
+      for (const term of terms) {
+        const idx = row.haystack.indexOf(term);
+        if (idx < 0) return null;
+        score += idx === 0 ? 120 : Math.max(12, 72 - idx);
+      }
+      if (row.haystack.startsWith(terms[0])) score += 24;
+      return { ...row, score };
+    })
+    .filter(Boolean);
+  return filteredRows.sort((a, b) => (b.score - a.score) || (b.count - a.count) || a.tag.localeCompare(b.tag, "fr"));
+}
+
+function renderHashtagFilterSelectedChips(visibleRows) {
+  const selected = getSelectedHashtagFilters();
+  const total = Array.isArray(el.filterHashtagAvailableValues) ? el.filterHashtagAvailableValues.length : 0;
+  const visibleCount = Array.isArray(visibleRows) ? visibleRows.length : total;
+
+  if (el.filterHashtagMeta) {
+    el.filterHashtagMeta.textContent = `${selected.length} selectionne(s) · ${visibleCount} visible(s) / ${total}`;
+  }
+
+  if (!el.filterHashtagSelected) return;
+  if (!selected.length) {
+    el.filterHashtagSelected.hidden = true;
+    el.filterHashtagSelected.innerHTML = "";
+    return;
+  }
+  el.filterHashtagSelected.hidden = false;
+  el.filterHashtagSelected.innerHTML = selected.map((tag) => `
+    <span class="chip-multiselect-chip" title="${esc(tag)}">
+      <span class="chip-multiselect-chip-label">${esc(tag)}</span>
+      <button type="button" class="chip-multiselect-chip-remove" data-remove-tag="${esc(tag)}" aria-label="Retirer ${esc(tag)}">×</button>
+    </span>
+  `).join("");
+}
+
+function setHashtagFilterPanelOpen(open) {
+  const shouldOpen = Boolean(open);
+  if (!el.filterHashtagPanel) return;
+  if (shouldOpen) setOaciFilterPanelOpen(false);
+  el.filterHashtagPanel.hidden = !shouldOpen;
+  const oaciOpen = Boolean(el.filterOaciPanel && !el.filterOaciPanel.hidden);
+  if (el.filterChips) el.filterChips.classList.toggle("panel-open", shouldOpen || oaciOpen);
+  if (el.filterHashtagTrigger) {
+    el.filterHashtagTrigger.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+  }
+  if (shouldOpen) {
+    if (!Number.isFinite(el.filterHashtagActiveIndex)) el.filterHashtagActiveIndex = -1;
+    renderHashtagFilterOptions();
+    if (el.filterHashtagSearch) {
+      window.setTimeout(() => el.filterHashtagSearch?.focus(), 0);
+    }
+  } else if (el.filterHashtagSearch) {
+    el.filterHashtagSearch.value = "";
+  }
+}
+
+function renderHashtagFilterOptions() {
+  if (!el.filterHashtagOptions) return;
+  const selectedKeys = new Set(getSelectedHashtagFilters().map((tag) => String(tag || "").toUpperCase()));
+  const visibleOptions = getVisibleHashtagFilterOptions();
+  const previousActiveKey = String(el.filterHashtagActiveKey || "").toUpperCase();
+  let activeIndex = visibleOptions.findIndex((row) => row.key === previousActiveKey);
+  if (activeIndex < 0) {
+    const currentActiveIndex = Number(el.filterHashtagActiveIndex);
+    if (Number.isFinite(currentActiveIndex) && currentActiveIndex >= 0 && currentActiveIndex < visibleOptions.length) {
+      activeIndex = currentActiveIndex;
+    }
+  }
+  if (activeIndex < 0 && visibleOptions.length) activeIndex = 0;
+  el.filterHashtagVisibleRows = visibleOptions;
+  el.filterHashtagActiveIndex = visibleOptions.length ? activeIndex : -1;
+  el.filterHashtagActiveKey = visibleOptions.length ? visibleOptions[activeIndex].key : "";
+  renderHashtagFilterSelectedChips(visibleOptions);
+  if (!visibleOptions.length) {
+    el.filterHashtagOptions.innerHTML = '<div class="chip-multiselect-empty">Aucun hashtag trouve.</div>';
+    return;
+  }
+  el.filterHashtagOptions.innerHTML = visibleOptions.map((row, index) => {
+    const selectedClass = selectedKeys.has(row.key) ? " is-selected" : "";
+    const activeClass = index === activeIndex ? " is-active" : "";
+    return `
+      <button type="button" class="chip-multiselect-option${selectedClass}${activeClass}" data-tag-value="${esc(row.tag)}" data-row-index="${index}">
+        <span class="chip-multiselect-option-main">${esc(row.tag)}</span>
+        <span class="chip-multiselect-option-meta">${row.count} AAR</span>
+      </button>`;
+  }).join("");
+}
+
+function setHashtagFilterSelection(values, opts = {}) {
+  const options = opts && typeof opts === "object" ? opts : {};
+  const renderOptions = options.renderOptions !== false;
+  const rerenderView = options.rerenderView !== false;
+  const persist = options.persist !== false;
+  const available = Array.isArray(el.filterHashtagAvailableValues) ? el.filterHashtagAvailableValues : [];
+  const availableMap = new Map(available.map((tag) => [String(tag || "").toUpperCase(), tag]));
+  const normalized = normalizeHashtagFilterSelection(values);
+  const next = normalized
+    .map((tag) => availableMap.get(String(tag || "").toUpperCase()))
+    .filter(Boolean);
+  el.filterHashtagValues = next;
+  updateHashtagFilterLabel();
+  updateHashtagFilterChipState();
+  if (renderOptions) renderHashtagFilterOptions();
+  if (rerenderView) renderCurrentView();
+  if (persist) saveFiltersState();
+}
+
+function populateHashtagFilterOptions(values) {
+  el.filterHashtagAvailableValues = normalizeHashtagFilterSelection(values);
+  el.filterHashtagUsageMap = getHashtagUsageMapFromReports();
+  const selected = pendingRestoredHashtagFilters !== null
+    ? pendingRestoredHashtagFilters
+    : getSelectedHashtagFilters();
+  pendingRestoredHashtagFilters = null;
+  setHashtagFilterSelection(selected, { renderOptions: true, rerenderView: false, persist: false });
+}
+
+function bindHashtagFilterEvents() {
+  if (!el.filterHashtagWrap || !el.filterHashtagTrigger || !el.filterHashtagPanel) return;
+
+  el.filterHashtagTrigger.addEventListener("click", () => {
+    const shouldOpen = el.filterHashtagPanel.hidden;
+    setHashtagFilterPanelOpen(shouldOpen);
+  });
+
+  if (el.filterHashtagSearch) {
+    el.filterHashtagSearch.addEventListener("input", () => {
+      el.filterHashtagActiveIndex = 0;
+      renderHashtagFilterOptions();
+    });
+    el.filterHashtagSearch.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const base = Number.isFinite(el.filterHashtagActiveIndex) ? el.filterHashtagActiveIndex : -1;
+        setHashtagActiveIndex(base + 1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const base = Number.isFinite(el.filterHashtagActiveIndex) ? el.filterHashtagActiveIndex : 0;
+        setHashtagActiveIndex(base - 1);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const rows = getVisibleHashtagRowsState();
+        if (!rows.length) return;
+        const idx = Number.isFinite(el.filterHashtagActiveIndex) ? el.filterHashtagActiveIndex : 0;
+        const row = rows[Math.max(0, Math.min(idx, rows.length - 1))];
+        if (!row) return;
+        commitHashtagOption(row.tag);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setHashtagFilterPanelOpen(false);
+      }
+    });
+  }
+
+  if (el.filterHashtagOptions) {
+    el.filterHashtagOptions.addEventListener("click", (event) => {
+      const button = event.target instanceof Element ? event.target.closest("[data-tag-value]") : null;
+      if (!(button instanceof HTMLElement)) return;
+      const rowIndex = Number(button.dataset.rowIndex);
+      if (Number.isFinite(rowIndex)) el.filterHashtagActiveIndex = rowIndex;
+      const tag = String(button.dataset.tagValue || "").trim();
+      if (!tag) return;
+      commitHashtagOption(tag);
+    });
+  }
+
+  if (el.filterHashtagSelectAll) {
+    el.filterHashtagSelectAll.addEventListener("click", () => {
+      const current = getSelectedHashtagFilters();
+      const merged = [...current, ...getVisibleHashtagFilterOptions().map((row) => row.tag)];
+      setHashtagFilterSelection(merged);
+    });
+  }
+
+  if (el.filterHashtagClear) {
+    el.filterHashtagClear.addEventListener("click", () => {
+      setHashtagFilterSelection([]);
+    });
+  }
+
+  if (el.filterHashtagInvert) {
+    el.filterHashtagInvert.addEventListener("click", () => {
+      const selectedMap = new Map(
+        getSelectedHashtagFilters().map((tag) => [String(tag || "").toUpperCase(), tag])
+      );
+      const visible = getVisibleHashtagFilterOptions().map((row) => row.tag);
+      visible.forEach((tag) => {
+        const key = String(tag || "").toUpperCase();
+        if (selectedMap.has(key)) selectedMap.delete(key);
+        else selectedMap.set(key, tag);
+      });
+      setHashtagFilterSelection([...selectedMap.values()]);
+    });
+  }
+
+  if (el.filterHashtagSelected) {
+    el.filterHashtagSelected.addEventListener("click", (event) => {
+      const btn = event.target instanceof Element ? event.target.closest("[data-remove-tag]") : null;
+      if (!(btn instanceof HTMLElement)) return;
+      const removeTag = String(btn.dataset.removeTag || "").trim();
+      if (!removeTag) return;
+      const removeKey = removeTag.toUpperCase();
+      setHashtagFilterSelection(
+        getSelectedHashtagFilters().filter((tag) => String(tag || "").toUpperCase() !== removeKey)
+      );
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!el.filterHashtagPanel || el.filterHashtagPanel.hidden) return;
+    if (el.filterHashtagWrap.contains(event.target)) return;
+    setHashtagFilterPanelOpen(false);
+  });
+}
+
+function normalizeOaciValue(v) {
+  const raw = stripDiacritics(String(v || "").toUpperCase()).trim();
+  if (!raw || raw === "N/A") return "";
+  const compact = raw.replace(/\s+/g, " ");
+  const matched = compact.match(/\b[A-Z]{4}\b/);
+  return matched ? matched[0] : compact;
+}
+
+function normalizeSavedOaciFilter(saved) {
+  if (!saved || typeof saved !== "object") return "ALL";
+  const normalized = normalizeOaciValue(saved.oaci);
+  return normalized || "ALL";
+}
+
+function getSelectedOaciFilter() {
+  const normalized = normalizeOaciValue(el.filterOaciSelectedValue);
+  return normalized || "ALL";
+}
+
+function getVisibleOaciRowsState() {
+  return Array.isArray(el.filterOaciVisibleRows) ? el.filterOaciVisibleRows : [];
+}
+
+function setOaciActiveIndex(nextIndex, opts = {}) {
+  const options = opts && typeof opts === "object" ? opts : {};
+  const render = options.render !== false;
+  const rows = getVisibleOaciRowsState();
+  if (!rows.length) {
+    el.filterOaciActiveIndex = -1;
+    el.filterOaciActiveKey = "";
+    return;
+  }
+  let idx = Number(nextIndex);
+  if (!Number.isFinite(idx)) idx = 0;
+  if (idx < 0) idx = rows.length - 1;
+  if (idx >= rows.length) idx = 0;
+  el.filterOaciActiveIndex = idx;
+  el.filterOaciActiveKey = rows[idx].key;
+  if (render) renderOaciFilterOptions();
+}
+
+function updateOaciFilterLabel() {
+  if (!el.filterOaciLabel) return;
+  const selected = getSelectedOaciFilter();
+  el.filterOaciLabel.textContent = selected === "ALL" ? "Code OACI: Tous" : `Code OACI: ${selected}`;
+}
+
+function updateOaciFilterChipState() {
+  const selected = getSelectedOaciFilter();
+  if (el.filterOaciTrigger) {
+    el.filterOaciTrigger.classList.toggle("has-value", selected !== "ALL");
+  }
+}
+
+function getOaciUsageMapFromReports() {
+  const usage = new Map();
+  (Array.isArray(state.reports) ? state.reports : []).forEach((report) => {
+    const value = normalizeOaciValue(report?.airfield);
+    if (!value) return;
+    const key = String(value || "").toUpperCase();
+    const current = usage.get(key) || { value, count: 0 };
+    current.count += 1;
+    usage.set(key, current);
+  });
+  return usage;
+}
+
+function getVisibleOaciFilterOptions() {
+  const options = Array.isArray(el.filterOaciAvailableValues) ? el.filterOaciAvailableValues : [];
+  const usageMap = el.filterOaciUsageMap instanceof Map ? el.filterOaciUsageMap : new Map();
+  const allCount = Array.isArray(state.reports) ? state.reports.length : 0;
+  const allRow = {
+    value: "ALL",
+    key: "__ALL__",
+    count: allCount,
+    haystack: "tous all reset reinitialiser reinitialisation"
+  };
+  const rawQuery = String(el.filterOaciSearch?.value || "").trim();
+  const normalizedRows = options.map((value) => {
+    const key = String(value || "").toUpperCase();
+    const usage = usageMap.get(key);
+    return {
+      value,
+      key,
+      count: Number(usage?.count || 0),
+      haystack: stripDiacritics(String(value || "").toLowerCase())
+    };
+  });
+
+  if (!rawQuery) {
+    return [allRow, ...normalizedRows.sort((a, b) => (b.count - a.count) || a.value.localeCompare(b.value, "fr"))];
+  }
+
+  const terms = stripDiacritics(rawQuery.toLowerCase())
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!terms.length) {
+    return [allRow, ...normalizedRows.sort((a, b) => (b.count - a.count) || a.value.localeCompare(b.value, "fr"))];
+  }
+
+  const filteredRows = normalizedRows
+    .map((row) => {
+      let score = 0;
+      for (const term of terms) {
+        const idx = row.haystack.indexOf(term);
+        if (idx < 0) return null;
+        score += idx === 0 ? 120 : Math.max(12, 72 - idx);
+      }
+      if (row.haystack.startsWith(terms[0])) score += 24;
+      return { ...row, score };
+    })
+    .filter(Boolean);
+
+  const sorted = filteredRows.sort((a, b) => (b.score - a.score) || (b.count - a.count) || a.value.localeCompare(b.value, "fr"));
+  const includeAll = terms.every((term) => allRow.haystack.includes(term));
+  return includeAll ? [allRow, ...sorted] : sorted;
+}
+
+function setOaciFilterPanelOpen(open) {
+  const shouldOpen = Boolean(open);
+  if (!el.filterOaciPanel) return;
+  if (shouldOpen) setHashtagFilterPanelOpen(false);
+  el.filterOaciPanel.hidden = !shouldOpen;
+  const hashtagOpen = Boolean(el.filterHashtagPanel && !el.filterHashtagPanel.hidden);
+  if (el.filterChips) el.filterChips.classList.toggle("panel-open", shouldOpen || hashtagOpen);
+  if (el.filterOaciTrigger) {
+    el.filterOaciTrigger.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+  }
+  if (shouldOpen) {
+    if (!Number.isFinite(el.filterOaciActiveIndex)) el.filterOaciActiveIndex = -1;
+    renderOaciFilterOptions();
+    if (el.filterOaciSearch) {
+      window.setTimeout(() => el.filterOaciSearch?.focus(), 0);
+    }
+  } else if (el.filterOaciSearch) {
+    el.filterOaciSearch.value = "";
+  }
+}
+
+function renderOaciFilterOptions() {
+  if (!el.filterOaciOptions) return;
+  const visibleOptions = getVisibleOaciFilterOptions();
+  const selected = getSelectedOaciFilter();
+  const selectedKey = selected === "ALL" ? "__ALL__" : selected.toUpperCase();
+  const previousActiveKey = String(el.filterOaciActiveKey || "").toUpperCase();
+  let activeIndex = visibleOptions.findIndex((row) => row.key === previousActiveKey);
+  if (activeIndex < 0) {
+    const currentActiveIndex = Number(el.filterOaciActiveIndex);
+    if (Number.isFinite(currentActiveIndex) && currentActiveIndex >= 0 && currentActiveIndex < visibleOptions.length) {
+      activeIndex = currentActiveIndex;
+    }
+  }
+  if (activeIndex < 0 && visibleOptions.length) activeIndex = 0;
+
+  el.filterOaciVisibleRows = visibleOptions;
+  el.filterOaciActiveIndex = visibleOptions.length ? activeIndex : -1;
+  el.filterOaciActiveKey = visibleOptions.length ? visibleOptions[activeIndex].key : "";
+
+  if (!visibleOptions.length) {
+    el.filterOaciOptions.innerHTML = '<div class="chip-multiselect-empty">Aucun code OACI trouve.</div>';
+    return;
+  }
+
+  el.filterOaciOptions.innerHTML = visibleOptions.map((row, index) => {
+    const selectedClass = row.key === selectedKey ? " is-selected" : "";
+    const activeClass = index === activeIndex ? " is-active" : "";
+    const label = row.key === "__ALL__" ? "Tous les codes OACI" : row.value;
+    return `
+      <button type="button" class="chip-multiselect-option${selectedClass}${activeClass}" data-oaci-value="${esc(row.value)}" data-row-index="${index}">
+        <span class="chip-multiselect-option-main">${esc(label)}</span>
+        <span class="chip-multiselect-option-meta">${row.count} AAR</span>
+      </button>`;
+  }).join("");
+}
+
+function setOaciFilterSelection(value, opts = {}) {
+  const options = opts && typeof opts === "object" ? opts : {};
+  const renderOptions = options.renderOptions !== false;
+  const rerenderView = options.rerenderView !== false;
+  const persist = options.persist !== false;
+  const closePanel = options.closePanel === true;
+
+  const available = Array.isArray(el.filterOaciAvailableValues) ? el.filterOaciAvailableValues : [];
+  const availableMap = new Map(available.map((entry) => [String(entry || "").toUpperCase(), entry]));
+  const normalized = normalizeOaciValue(value);
+  const next = normalized && availableMap.has(normalized.toUpperCase())
+    ? availableMap.get(normalized.toUpperCase())
+    : "ALL";
+
+  el.filterOaciSelectedValue = next;
+  updateOaciFilterLabel();
+  updateOaciFilterChipState();
+  if (renderOptions) renderOaciFilterOptions();
+  if (rerenderView) renderCurrentView();
+  if (persist) saveFiltersState();
+  if (closePanel) setOaciFilterPanelOpen(false);
+}
+
+function populateOaciFilterOptions(values) {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const normalized = normalizeOaciValue(value);
+    if (!normalized) return;
+    const key = normalized.toUpperCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(normalized);
+  });
+  el.filterOaciAvailableValues = out.sort((a, b) => a.localeCompare(b, "fr"));
+  el.filterOaciUsageMap = getOaciUsageMapFromReports();
+  const selected = pendingRestoredOaciFilter !== null
+    ? pendingRestoredOaciFilter
+    : getSelectedOaciFilter();
+  pendingRestoredOaciFilter = null;
+  setOaciFilterSelection(selected, { renderOptions: true, rerenderView: false, persist: false });
+}
+
+function bindOaciFilterEvents() {
+  if (!el.filterOaciWrap || !el.filterOaciTrigger || !el.filterOaciPanel) return;
+
+  el.filterOaciTrigger.addEventListener("click", () => {
+    const shouldOpen = el.filterOaciPanel.hidden;
+    setOaciFilterPanelOpen(shouldOpen);
+  });
+
+  if (el.filterOaciSearch) {
+    el.filterOaciSearch.addEventListener("input", () => {
+      el.filterOaciActiveIndex = 0;
+      renderOaciFilterOptions();
+    });
+    el.filterOaciSearch.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const base = Number.isFinite(el.filterOaciActiveIndex) ? el.filterOaciActiveIndex : -1;
+        setOaciActiveIndex(base + 1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const base = Number.isFinite(el.filterOaciActiveIndex) ? el.filterOaciActiveIndex : 0;
+        setOaciActiveIndex(base - 1);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const rows = getVisibleOaciRowsState();
+        if (!rows.length) return;
+        const idx = Number.isFinite(el.filterOaciActiveIndex) ? el.filterOaciActiveIndex : 0;
+        const row = rows[Math.max(0, Math.min(idx, rows.length - 1))];
+        if (!row) return;
+        setOaciFilterSelection(row.value, { closePanel: true });
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setOaciFilterPanelOpen(false);
+      }
+    });
+  }
+
+  if (el.filterOaciOptions) {
+    el.filterOaciOptions.addEventListener("click", (event) => {
+      const button = event.target instanceof Element ? event.target.closest("[data-oaci-value]") : null;
+      if (!(button instanceof HTMLElement)) return;
+      const rowIndex = Number(button.dataset.rowIndex);
+      if (Number.isFinite(rowIndex)) el.filterOaciActiveIndex = rowIndex;
+      const value = String(button.dataset.oaciValue || "").trim();
+      if (!value) return;
+      setOaciFilterSelection(value, { closePanel: true });
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!el.filterOaciPanel || el.filterOaciPanel.hidden) return;
+    if (el.filterOaciWrap.contains(event.target)) return;
+    setOaciFilterPanelOpen(false);
+  });
 }
 
 
@@ -1204,14 +1810,14 @@ function saveFiltersState() {
   try {
     const payload = {
       search: String(el.searchInput?.value || ""),
-      missionType: String(el.filterMissionType?.value || "ALL"),
+      oaci: String(getSelectedOaciFilter() || "ALL"),
       reportKind: String(el.filterReportKind?.value || "ALL"),
       classif: String(el.filterClassif?.value || "ALL"),
       fleet: String(el.filterFleet?.value || "ALL"),
       unit: String(el.filterUnit?.value || "ALL"),
       country: String(el.filterCountry?.value || "ALL"),
       operation: String(el.filterOperation?.value || "ALL"),
-      hashtag: String(el.filterHashtag?.value || "ALL"),
+      hashtags: getSelectedHashtagFilters(),
       sort: String(el.filterSort?.value || "DATE_DESC")
     };
     localStorage.setItem(FILTERS_STATE_KEY, JSON.stringify(payload));
@@ -1237,14 +1843,14 @@ function restoreFiltersState(savedState) {
   const saved = savedState && typeof savedState === "object" ? savedState : null;
   if (!saved) return;
   if (el.searchInput) el.searchInput.value = String(saved.search || "");
-  restoreSelectValue(el.filterMissionType, saved.missionType);
+  pendingRestoredOaciFilter = normalizeSavedOaciFilter(saved);
   restoreSelectValue(el.filterReportKind, saved.reportKind);
   restoreSelectValue(el.filterClassif, saved.classif);
   restoreSelectValue(el.filterFleet, saved.fleet);
   restoreSelectValue(el.filterUnit, saved.unit);
   restoreSelectValue(el.filterCountry, saved.country);
   restoreSelectValue(el.filterOperation, saved.operation);
-  restoreSelectValue(el.filterHashtag, saved.hashtag);
+  pendingRestoredHashtagFilters = normalizeSavedHashtagFilters(saved);
   restoreSelectValue(el.filterSort, saved.sort || "DATE_DESC");
 }
 
@@ -1343,12 +1949,22 @@ function getUniqueArrayValues(key) {
   return [...vals].sort((a, b) => a.localeCompare(b, "fr"));
 }
 
+function getUniqueOaciValues() {
+  const vals = new Set();
+  for (const r of state.reports) {
+    const v = normalizeOaciValue(r.airfield);
+    if (v) vals.add(v);
+  }
+  return [...vals].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
 function populateDynamicFilters() {
   fillSelectOptions(el.filterFleet, "Flotte: Toutes", getUniqueValues("fleet"));
   fillSelectOptions(el.filterUnit, "Unité: Toutes", getUniqueValues("unit"));
   fillSelectOptions(el.filterCountry, "Pays: Tous", getUniqueValues("country"));
   fillSelectOptions(el.filterOperation, "Operation / exercice: Tous", getUniqueValues("tacDetail"));
-  fillSelectOptions(el.filterHashtag, "Hashtag: Tous", getUniqueArrayValues("hashtags"));
+  populateOaciFilterOptions(getUniqueOaciValues());
+  populateHashtagFilterOptions(getUniqueArrayValues("hashtags"));
 }
 
 function fillSelectOptions(selectEl, allLabel, values) {
@@ -1373,25 +1989,30 @@ function updateChipState(sel) {
 function filtered() {
   const q = (el.searchInput?.value || "").trim().toLowerCase();
   const classif = el.filterClassif?.value || "ALL";
-  const mType = el.filterMissionType?.value || "ALL";
+  const oaci = getSelectedOaciFilter();
   const reportKind = el.filterReportKind?.value || "ALL";
   const fleet = el.filterFleet?.value || "ALL";
   const unit = el.filterUnit?.value || "ALL";
   const country = el.filterCountry?.value || "ALL";
   const operation = el.filterOperation?.value || "ALL";
-  const hashtag = el.filterHashtag?.value || "ALL";
+  const hashtags = getSelectedHashtagFilters();
   const sort = el.filterSort?.value || "DATE_DESC";
 
   let rows = state.reports;
 
   if (classif !== "ALL") rows = rows.filter((r) => r.classification === classif);
-  if (mType !== "ALL") rows = rows.filter((r) => r.missionType === mType);
+  if (oaci !== "ALL") rows = rows.filter((r) => normalizeOaciValue(r.airfield) === oaci);
   if (reportKind !== "ALL") rows = rows.filter((r) => r.reportKind === reportKind);
   if (fleet !== "ALL") rows = rows.filter((r) => r.fleet === fleet);
   if (unit !== "ALL") rows = rows.filter((r) => r.unit === unit);
   if (country !== "ALL") rows = rows.filter((r) => r.country === country);
   if (operation !== "ALL") rows = rows.filter((r) => r.tacDetail === operation);
-  if (hashtag !== "ALL") rows = rows.filter((r) => getVisibleRecordHashtags(r).includes(hashtag));
+  if (hashtags.length) {
+    rows = rows.filter((r) => {
+      const recordTags = new Set(getVisibleRecordHashtags(r).map((tag) => String(tag || "").toUpperCase()));
+      return hashtags.every((tag) => recordTags.has(String(tag || "").toUpperCase()));
+    });
+  }
 
   if (q) {
     rows = rows.filter((r) => [
@@ -1472,7 +2093,7 @@ function renderList() {
     if (anonymized) tags.push(`<span class="tag tag-log">ANONYME</span>`);
     if (missionTypeNorm) tags.push(`<span class="tag tag-${missionTypeClass}">${esc(missionTypeNorm)}</span>`);
     if (r.fleet) tags.push(`<span class="tag tag-fleet">${esc(r.fleet)}</span>`);
-    if (visibleHashtags.length) tags.push(...visibleHashtags.slice(0, 3).map((tag) => `<span class="tag tag-dorese">${esc(tag)}</span>`));
+    if (visibleHashtags.length) tags.push(...visibleHashtags.slice(0, 3).map((tag) => `<span class="tag tag-hashtag">${esc(tag)}</span>`));
     if (r.recoCats?.length) tags.push(...r.recoCats.slice(0, 3).map((c) => `<span class="tag tag-dorese">${esc(c)}</span>`));
 
     return `
@@ -1664,7 +2285,7 @@ function setSelectFilter(selectEl, value) {
 function drilldownFromAnalyze(type, value) {
   if (!type || !value) return;
 
-  if (type === "missionType") setSelectFilter(el.filterMissionType, value);
+  if (type === "oaci") setOaciFilterSelection(value);
   else if (type === "classification") setSelectFilter(el.filterClassif, value);
   else if (type === "country") setSelectFilter(el.filterCountry, value);
   else if (type === "unit") setSelectFilter(el.filterUnit, value);
@@ -1713,7 +2334,7 @@ function renderAnalyze() {
   const classifTop = topMap(state.reports, (r) => [r.classification], 5);
   const unitTop = topMap(state.reports, (r) => [r.unit || "N/A"], 10);
   const recoTop = topMap(state.reports, (r) => r.recoCats || [], 6);
-  const mTypeTop = topMap(state.reports, (r) => [r.missionType].filter(Boolean), 10);
+  const oaciTop = topMap(state.reports, (r) => [normalizeOaciValue(r.airfield)].filter(Boolean), 30);
   const countryTop = topMap(state.reports, (r) => [r.country].filter(Boolean), 30);
   const opsExTop = topMap(state.reports, (r) => [r.tacDetail].filter(Boolean), 30);
 
@@ -1723,7 +2344,7 @@ function renderAnalyze() {
       <article class="stat-card"><div class="stat-label">Avis QWI</div><div class="stat-value">${totals.qwi}</div></article>
     </div>
     <div class="analyze-grid">
-      ${mTypeTop.length ? `<section class="analyze-box"><h4>Logistique / Tactique</h4>${barsHtml(mTypeTop, { drilldown: "missionType", formatLabel: (k) => (k === "LOG" ? "Logistique (LOG)" : k === "TAC" ? "Tactique (TAC)" : k) })}</section>` : ""}
+      ${oaciTop.length ? `<section class="analyze-box"><h4>Par code OACI</h4>${barsHtml(oaciTop, { drilldown: "oaci" })}</section>` : ""}
       ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop, { drilldown: "country" })}</section>` : ""}
       ${opsExTop.length ? `<section class="analyze-box"><h4>Par operation / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
       <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop, { drilldown: "classification" })}</section>
@@ -1740,6 +2361,8 @@ function setView(view) {
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   const target = document.getElementById(`view-${view}`);
   if (target) target.classList.add("active");
+  setHashtagFilterPanelOpen(false);
+  setOaciFilterPanelOpen(false);
   renderCurrentView();
 }
 
@@ -1757,17 +2380,34 @@ function renderAll() {
 async function init() {
   Object.assign(el, {
     syncBtn: document.getElementById("sync-btn"),
+    filtersBar: document.getElementById("filters-bar"),
+    filterChips: document.getElementById("filter-chips"),
 
     searchInput: document.getElementById("search-input"),
-    filterMissionType: document.getElementById("filter-mission-type"),
+    filterOaciWrap: document.getElementById("filter-oaci-wrap"),
+    filterOaciTrigger: document.getElementById("filter-oaci-trigger"),
+    filterOaciLabel: document.getElementById("filter-oaci-label"),
+    filterOaciPanel: document.getElementById("filter-oaci-panel"),
+    filterOaciSearch: document.getElementById("filter-oaci-search"),
+    filterOaciOptions: document.getElementById("filter-oaci-options"),
     filterReportKind: document.getElementById("filter-report-kind"),
     filterClassif: document.getElementById("filter-classif"),
-  filterFleet: document.getElementById("filter-fleet"),
-  filterUnit: document.getElementById("filter-unit"),
-  filterCountry: document.getElementById("filter-country"),
-  filterOperation: document.getElementById("filter-operation"),
-  filterHashtag: document.getElementById("filter-hashtag"),
-  filterSort: document.getElementById("filter-sort"),
+    filterFleet: document.getElementById("filter-fleet"),
+    filterUnit: document.getElementById("filter-unit"),
+    filterCountry: document.getElementById("filter-country"),
+    filterOperation: document.getElementById("filter-operation"),
+    filterSort: document.getElementById("filter-sort"),
+    filterHashtagWrap: document.getElementById("filter-hashtag-wrap"),
+    filterHashtagTrigger: document.getElementById("filter-hashtag-trigger"),
+    filterHashtagLabel: document.getElementById("filter-hashtag-label"),
+    filterHashtagPanel: document.getElementById("filter-hashtag-panel"),
+    filterHashtagSearch: document.getElementById("filter-hashtag-search"),
+    filterHashtagOptions: document.getElementById("filter-hashtag-options"),
+    filterHashtagSelectAll: document.getElementById("filter-hashtag-select-all"),
+    filterHashtagClear: document.getElementById("filter-hashtag-clear"),
+    filterHashtagInvert: document.getElementById("filter-hashtag-invert"),
+    filterHashtagSelected: document.getElementById("filter-hashtag-selected"),
+    filterHashtagMeta: document.getElementById("filter-hashtag-meta"),
     aarGrid: document.getElementById("aar-grid"),
     aarCount: document.getElementById("aar-count"),
     viewList: document.getElementById("view-list"),
@@ -1782,6 +2422,21 @@ async function init() {
     toast: document.getElementById("toast")
   });
 
+  el.filterOaciAvailableValues = [];
+  el.filterOaciSelectedValue = "ALL";
+  el.filterOaciUsageMap = new Map();
+  el.filterOaciVisibleRows = [];
+  el.filterOaciActiveIndex = -1;
+  el.filterOaciActiveKey = "";
+  bindOaciFilterEvents();
+
+  el.filterHashtagAvailableValues = [];
+  el.filterHashtagValues = [];
+  el.filterHashtagUsageMap = new Map();
+  el.filterHashtagVisibleRows = [];
+  el.filterHashtagActiveIndex = -1;
+  el.filterHashtagActiveKey = "";
+  bindHashtagFilterEvents();
   restoreFiltersState(readFiltersState());
 
   // Sync button
@@ -1810,11 +2465,20 @@ async function init() {
     });
   }
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && state.openDetailId) closeDetail();
+    if (e.key !== "Escape") return;
+    if (el.filterHashtagPanel && !el.filterHashtagPanel.hidden) {
+      setHashtagFilterPanelOpen(false);
+      return;
+    }
+    if (el.filterOaciPanel && !el.filterOaciPanel.hidden) {
+      setOaciFilterPanelOpen(false);
+      return;
+    }
+    if (state.openDetailId) closeDetail();
   });
 
   // Filter events
-  const allFilters = [el.searchInput, el.filterMissionType, el.filterReportKind, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterOperation, el.filterHashtag, el.filterSort];
+  const allFilters = [el.searchInput, el.filterReportKind, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterOperation, el.filterSort];
   allFilters.forEach((n) => {
     if (!n) return;
     n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); saveFiltersState(); });
