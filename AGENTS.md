@@ -3,13 +3,13 @@
 ## Role
 Ce dossier (`D - AAR READER HUB`) est le hub principal NON QWI (lecture/filtrage/analyse/impression).
 
-## Points de schema a maintenir (maj 2026-03-23)
+## Points de schema a maintenir (maj 2026-03-24)
 - Afficher `BAAP` pour le type AAR technique `FLASH`.
 - Respecter l'anonymisation emise par `C - AAR PWA`:
   - si `meta.identityAnonymized=true` (ou `meta.identityVisibility=QWI_ONLY`), ne pas afficher `grade/nom/prenom/unite` dans le hub NON QWI.
   - garde-fou compatibilite backend: si les flags d'anonymisation sont absents mais que les champs neutres (`ANONYME` / `ANONYMISE`) sont presents, traiter quand meme le dossier comme anonymise.
   - garde-fou de marquage: si `meta.hashtags` contient `#ANONYME`, traiter le dossier comme anonymise.
-  - contrainte UX: `#ANONYME` est un marqueur interne et ne doit pas apparaitre dans les hashtags visibles (cartes, filtres, detail).
+  - contrainte UX: `#ANONYME` est un marqueur interne et ne doit pas apparaitre dans les hashtags visibles (cartes, filtres, detail); filtrage applique des l'extraction des hashtags.
   - garde-fou legacy: si le nom de fichier source contient `anonymise`, forcer aussi le rendu anonymise cote NON QWI.
   - libelle redacteur en mode anonymise: afficher une seule valeur `ANONYME` (pas de duplication type `ANONYMISE ANONYME ANONYME`).
   - tag visuel en carte: afficher `ANONYME` (style `LOG`) quand le dossier est anonymise.
