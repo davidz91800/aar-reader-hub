@@ -1,6 +1,6 @@
-/* ═══════════════════════════════════════════════════════════
-   AAR Reader Hub — Application Logic (v2 — Refonte)
-   ═══════════════════════════════════════════════════════════ */
+﻿/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   AAR Reader Hub - Application Logic (v2 - Refonte)
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 const DB_NAME = "aar_reader_hub_v1";
 const STORE = "reports";
@@ -26,8 +26,10 @@ let driveCooldownUntil = 0;
 let driveCooldownReason = "";
 let pendingRestoredHashtagFilters = null;
 let pendingRestoredOaciFilter = "ALL";
+let pendingRestoredCountryFilter = "ALL";
+const DORESE_FILTER_VALUES = ["DOCTRINE", "ORGANISATION", "RH", "EQUIPEMENTS", "SOUTIEN", "ENTRAINEMENT"];
 
-/* ═══ UTILITIES ═══ */
+/* â•â•â• UTILITIES â•â•â• */
 function esc(v) {
   return String(v || "")
     .replace(/&/g, "&amp;")
@@ -76,6 +78,30 @@ function normalizeClassif(v) {
   if (raw.includes("DIFFUSION RESTREINTE")) return "DIFFUSION RESTREINTE";
   if (raw.includes("SECRET SPECIAL FRANCE")) return "SECRET SPECIAL FRANCE";
   return raw;
+}
+function normalizeDoreseCategory(v) {
+  const raw = stripDiacritics(String(v || "")).toUpperCase().replace(/\s+/g, " ").trim();
+  if (!raw) return "";
+  if (raw === "RH") return "RH";
+  if (raw.startsWith("DOCTR")) return "DOCTRINE";
+  if (raw.startsWith("ORGANI")) return "ORGANISATION";
+  if (raw.startsWith("EQUIPE")) return "EQUIPEMENTS";
+  if (raw.startsWith("SOUT")) return "SOUTIEN";
+  if (raw.startsWith("ENTRAIN")) return "ENTRAINEMENT";
+  return "";
+}
+
+function isRecordInSelectedPeriod(record, period) {
+  const normalized = String(period || "LAST_6M").trim().toUpperCase();
+  if (normalized === "ALL") return true;
+  const dateIso = String(record?.date || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return false;
+  const rowDate = new Date(`${dateIso}T00:00:00`);
+  if (!Number.isFinite(rowDate.getTime())) return false;
+  const minDate = new Date();
+  minDate.setMonth(minDate.getMonth() - 6);
+  minDate.setHours(0, 0, 0, 0);
+  return rowDate >= minDate;
 }
 
 function normalizeReportKind(v) {
@@ -246,7 +272,7 @@ function updateHashtagFilterLabel() {
     el.filterHashtagLabel.textContent = `Hashtag: ${selected[0]}`;
     return;
   }
-  const preview = selected.slice(0, 2).join(" · ");
+  const preview = selected.slice(0, 2).join("  -  ");
   const extra = selected.length - 2;
   el.filterHashtagLabel.textContent = extra > 0 ? `Hashtags: ${preview} +${extra}` : `Hashtags: ${preview}`;
 }
@@ -296,7 +322,7 @@ function renderHashtagFilterSelectedChips(visibleRows) {
   const visibleCount = Array.isArray(visibleRows) ? visibleRows.length : total;
 
   if (el.filterHashtagMeta) {
-    el.filterHashtagMeta.textContent = `${selected.length} selectionne(s) · ${visibleCount} visible(s) / ${total}`;
+    el.filterHashtagMeta.textContent = `${selected.length} selectionne(s)  -  ${visibleCount} visible(s) / ${total}`;
   }
 
   if (!el.filterHashtagSelected) return;
@@ -309,7 +335,7 @@ function renderHashtagFilterSelectedChips(visibleRows) {
   el.filterHashtagSelected.innerHTML = selected.map((tag) => `
     <span class="chip-multiselect-chip" title="${esc(tag)}">
       <span class="chip-multiselect-chip-label">${esc(tag)}</span>
-      <button type="button" class="chip-multiselect-chip-remove" data-remove-tag="${esc(tag)}" aria-label="Retirer ${esc(tag)}">×</button>
+      <button type="button" class="chip-multiselect-chip-remove" data-remove-tag="${esc(tag)}" aria-label="Retirer ${esc(tag)}">x</button>
     </span>
   `).join("");
 }
@@ -317,10 +343,14 @@ function renderHashtagFilterSelectedChips(visibleRows) {
 function setHashtagFilterPanelOpen(open) {
   const shouldOpen = Boolean(open);
   if (!el.filterHashtagPanel) return;
-  if (shouldOpen) setOaciFilterPanelOpen(false);
+  if (shouldOpen) {
+    setOaciFilterPanelOpen(false);
+    setCountryFilterPanelOpen(false);
+  }
   el.filterHashtagPanel.hidden = !shouldOpen;
   const oaciOpen = Boolean(el.filterOaciPanel && !el.filterOaciPanel.hidden);
-  if (el.filterChips) el.filterChips.classList.toggle("panel-open", shouldOpen || oaciOpen);
+  const countryOpen = Boolean(el.filterCountryPanel && !el.filterCountryPanel.hidden);
+  if (el.filterChips) el.filterChips.classList.toggle("panel-open", shouldOpen || oaciOpen || countryOpen);
   if (el.filterHashtagTrigger) {
     el.filterHashtagTrigger.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
   }
@@ -615,10 +645,14 @@ function getVisibleOaciFilterOptions() {
 function setOaciFilterPanelOpen(open) {
   const shouldOpen = Boolean(open);
   if (!el.filterOaciPanel) return;
-  if (shouldOpen) setHashtagFilterPanelOpen(false);
+  if (shouldOpen) {
+    setHashtagFilterPanelOpen(false);
+    setCountryFilterPanelOpen(false);
+  }
   el.filterOaciPanel.hidden = !shouldOpen;
   const hashtagOpen = Boolean(el.filterHashtagPanel && !el.filterHashtagPanel.hidden);
-  if (el.filterChips) el.filterChips.classList.toggle("panel-open", shouldOpen || hashtagOpen);
+  const countryOpen = Boolean(el.filterCountryPanel && !el.filterCountryPanel.hidden);
+  if (el.filterChips) el.filterChips.classList.toggle("panel-open", shouldOpen || hashtagOpen || countryOpen);
   if (el.filterOaciTrigger) {
     el.filterOaciTrigger.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
   }
@@ -768,6 +802,286 @@ function bindOaciFilterEvents() {
   });
 }
 
+function normalizeCountryValue(v) {
+  const raw = String(v || "").trim();
+  if (!raw || raw === "N/A") return "";
+  return raw;
+}
+
+function normalizeCountryKey(v) {
+  return stripDiacritics(String(v || "").toUpperCase().trim());
+}
+
+function normalizeSavedCountryFilter(saved) {
+  if (!saved || typeof saved !== "object") return "ALL";
+  const normalized = normalizeCountryValue(saved.country);
+  return normalized || "ALL";
+}
+
+function getSelectedCountryFilter() {
+  const normalized = normalizeCountryValue(el.filterCountrySelectedValue);
+  return normalized || "ALL";
+}
+
+function getVisibleCountryRowsState() {
+  return Array.isArray(el.filterCountryVisibleRows) ? el.filterCountryVisibleRows : [];
+}
+
+function setCountryActiveIndex(nextIndex, opts = {}) {
+  const options = opts && typeof opts === "object" ? opts : {};
+  const render = options.render !== false;
+  const rows = getVisibleCountryRowsState();
+  if (!rows.length) {
+    el.filterCountryActiveIndex = -1;
+    el.filterCountryActiveKey = "";
+    return;
+  }
+  let idx = Number(nextIndex);
+  if (!Number.isFinite(idx)) idx = 0;
+  if (idx < 0) idx = rows.length - 1;
+  if (idx >= rows.length) idx = 0;
+  el.filterCountryActiveIndex = idx;
+  el.filterCountryActiveKey = rows[idx].key;
+  if (render) renderCountryFilterOptions();
+}
+
+function updateCountryFilterLabel() {
+  if (!el.filterCountryLabel) return;
+  const selected = getSelectedCountryFilter();
+  el.filterCountryLabel.textContent = selected === "ALL" ? "Pays: Tous" : `Pays: ${selected}`;
+}
+
+function updateCountryFilterChipState() {
+  const selected = getSelectedCountryFilter();
+  if (el.filterCountryTrigger) {
+    el.filterCountryTrigger.classList.toggle("has-value", selected !== "ALL");
+  }
+}
+
+function getCountryUsageMapFromReports() {
+  const usage = new Map();
+  (Array.isArray(state.reports) ? state.reports : []).forEach((report) => {
+    const value = normalizeCountryValue(report?.country);
+    if (!value) return;
+    const key = normalizeCountryKey(value);
+    const current = usage.get(key) || { value, count: 0 };
+    current.count += 1;
+    usage.set(key, current);
+  });
+  return usage;
+}
+
+function getVisibleCountryFilterOptions() {
+  const options = Array.isArray(el.filterCountryAvailableValues) ? el.filterCountryAvailableValues : [];
+  const usageMap = el.filterCountryUsageMap instanceof Map ? el.filterCountryUsageMap : new Map();
+  const allCount = Array.isArray(state.reports) ? state.reports.length : 0;
+  const allRow = {
+    value: "ALL",
+    key: "__ALL__",
+    count: allCount,
+    haystack: "tous all reset reinitialiser reinitialisation"
+  };
+  const rawQuery = String(el.filterCountrySearch?.value || "").trim();
+  const normalizedRows = options.map((value) => {
+    const key = normalizeCountryKey(value);
+    const usage = usageMap.get(key);
+    return {
+      value,
+      key,
+      count: Number(usage?.count || 0),
+      haystack: stripDiacritics(String(value || "").toLowerCase())
+    };
+  });
+
+  if (!rawQuery) {
+    return [allRow, ...normalizedRows.sort((a, b) => (b.count - a.count) || a.value.localeCompare(b.value, "fr"))];
+  }
+
+  const terms = stripDiacritics(rawQuery.toLowerCase())
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!terms.length) {
+    return [allRow, ...normalizedRows.sort((a, b) => (b.count - a.count) || a.value.localeCompare(b.value, "fr"))];
+  }
+
+  const filteredRows = normalizedRows
+    .map((row) => {
+      let score = 0;
+      for (const term of terms) {
+        const idx = row.haystack.indexOf(term);
+        if (idx < 0) return null;
+        score += idx === 0 ? 120 : Math.max(12, 72 - idx);
+      }
+      if (row.haystack.startsWith(terms[0])) score += 24;
+      return { ...row, score };
+    })
+    .filter(Boolean);
+
+  const sorted = filteredRows.sort((a, b) => (b.score - a.score) || (b.count - a.count) || a.value.localeCompare(b.value, "fr"));
+  const includeAll = terms.every((term) => allRow.haystack.includes(term));
+  return includeAll ? [allRow, ...sorted] : sorted;
+}
+
+function setCountryFilterPanelOpen(open) {
+  const shouldOpen = Boolean(open);
+  if (!el.filterCountryPanel) return;
+  if (shouldOpen) {
+    setHashtagFilterPanelOpen(false);
+    setOaciFilterPanelOpen(false);
+  }
+  el.filterCountryPanel.hidden = !shouldOpen;
+  const hashtagOpen = Boolean(el.filterHashtagPanel && !el.filterHashtagPanel.hidden);
+  const oaciOpen = Boolean(el.filterOaciPanel && !el.filterOaciPanel.hidden);
+  if (el.filterChips) el.filterChips.classList.toggle("panel-open", shouldOpen || hashtagOpen || oaciOpen);
+  if (el.filterCountryTrigger) {
+    el.filterCountryTrigger.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+  }
+  if (shouldOpen) {
+    if (!Number.isFinite(el.filterCountryActiveIndex)) el.filterCountryActiveIndex = -1;
+    renderCountryFilterOptions();
+    if (el.filterCountrySearch) {
+      window.setTimeout(() => el.filterCountrySearch?.focus(), 0);
+    }
+  } else if (el.filterCountrySearch) {
+    el.filterCountrySearch.value = "";
+  }
+}
+
+function renderCountryFilterOptions() {
+  if (!el.filterCountryOptions) return;
+  const visibleOptions = getVisibleCountryFilterOptions();
+  const selected = getSelectedCountryFilter();
+  const selectedKey = selected === "ALL" ? "__ALL__" : normalizeCountryKey(selected);
+  const previousActiveKey = String(el.filterCountryActiveKey || "").toUpperCase();
+  let activeIndex = visibleOptions.findIndex((row) => row.key === previousActiveKey);
+  if (activeIndex < 0) {
+    const currentActiveIndex = Number(el.filterCountryActiveIndex);
+    if (Number.isFinite(currentActiveIndex) && currentActiveIndex >= 0 && currentActiveIndex < visibleOptions.length) {
+      activeIndex = currentActiveIndex;
+    }
+  }
+  if (activeIndex < 0 && visibleOptions.length) activeIndex = 0;
+
+  el.filterCountryVisibleRows = visibleOptions;
+  el.filterCountryActiveIndex = visibleOptions.length ? activeIndex : -1;
+  el.filterCountryActiveKey = visibleOptions.length ? visibleOptions[activeIndex].key : "";
+
+  if (!visibleOptions.length) {
+    el.filterCountryOptions.innerHTML = '<div class="chip-multiselect-empty">Aucun pays trouve.</div>';
+    return;
+  }
+
+  el.filterCountryOptions.innerHTML = visibleOptions.map((row, index) => {
+    const selectedClass = row.key === selectedKey ? " is-selected" : "";
+    const activeClass = index === activeIndex ? " is-active" : "";
+    const label = row.key === "__ALL__" ? "Tous les pays" : row.value;
+    return `
+      <button type="button" class="chip-multiselect-option${selectedClass}${activeClass}" data-country-value="${esc(row.value)}" data-row-index="${index}">
+        <span class="chip-multiselect-option-main">${esc(label)}</span>
+        <span class="chip-multiselect-option-meta">${row.count} AAR</span>
+      </button>`;
+  }).join("");
+}
+
+function setCountryFilterSelection(value, opts = {}) {
+  const options = opts && typeof opts === "object" ? opts : {};
+  const renderOptions = options.renderOptions !== false;
+  const rerenderView = options.rerenderView !== false;
+  const persist = options.persist !== false;
+  const closePanel = options.closePanel === true;
+
+  const available = Array.isArray(el.filterCountryAvailableValues) ? el.filterCountryAvailableValues : [];
+  const availableMap = new Map(available.map((entry) => [normalizeCountryKey(entry), entry]));
+  const normalized = normalizeCountryValue(value);
+  const next = normalized && availableMap.has(normalizeCountryKey(normalized))
+    ? availableMap.get(normalizeCountryKey(normalized))
+    : "ALL";
+
+  el.filterCountrySelectedValue = next;
+  updateCountryFilterLabel();
+  updateCountryFilterChipState();
+  if (renderOptions) renderCountryFilterOptions();
+  if (rerenderView) renderCurrentView();
+  if (persist) saveFiltersState();
+  if (closePanel) setCountryFilterPanelOpen(false);
+}
+
+function populateCountryFilterOptions(values) {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(values) ? values : []).forEach((value) => {
+    const normalized = normalizeCountryValue(value);
+    if (!normalized) return;
+    const key = normalizeCountryKey(normalized);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(normalized);
+  });
+  el.filterCountryAvailableValues = out.sort((a, b) => a.localeCompare(b, "fr"));
+  el.filterCountryUsageMap = getCountryUsageMapFromReports();
+  const selected = pendingRestoredCountryFilter !== null
+    ? pendingRestoredCountryFilter
+    : getSelectedCountryFilter();
+  pendingRestoredCountryFilter = null;
+  setCountryFilterSelection(selected, { renderOptions: true, rerenderView: false, persist: false });
+}
+
+function bindCountryFilterEvents() {
+  if (!el.filterCountryWrap || !el.filterCountryTrigger || !el.filterCountryPanel) return;
+
+  el.filterCountryTrigger.addEventListener("click", () => {
+    const shouldOpen = el.filterCountryPanel.hidden;
+    setCountryFilterPanelOpen(shouldOpen);
+  });
+
+  if (el.filterCountrySearch) {
+    el.filterCountrySearch.addEventListener("input", () => {
+      el.filterCountryActiveIndex = 0;
+      renderCountryFilterOptions();
+    });
+    el.filterCountrySearch.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const base = Number.isFinite(el.filterCountryActiveIndex) ? el.filterCountryActiveIndex : -1;
+        setCountryActiveIndex(base + 1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const base = Number.isFinite(el.filterCountryActiveIndex) ? el.filterCountryActiveIndex : 0;
+        setCountryActiveIndex(base - 1);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const rows = getVisibleCountryRowsState();
+        if (!rows.length) return;
+        const idx = Number.isFinite(el.filterCountryActiveIndex) ? el.filterCountryActiveIndex : 0;
+        const row = rows[Math.max(0, Math.min(idx, rows.length - 1))];
+        if (!row) return;
+        setCountryFilterSelection(row.value, { closePanel: true });
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        setCountryFilterPanelOpen(false);
+      }
+    });
+  }
+
+  if (el.filterCountryOptions) {
+    el.filterCountryOptions.addEventListener("click", (event) => {
+      const button = event.target instanceof Element ? event.target.closest("[data-country-value]") : null;
+      if (!(button instanceof HTMLElement)) return;
+      const rowIndex = Number(button.dataset.rowIndex);
+      if (Number.isFinite(rowIndex)) el.filterCountryActiveIndex = rowIndex;
+      const value = String(button.dataset.countryValue || "").trim();
+      if (!value) return;
+      setCountryFilterSelection(value, { closePanel: true });
+    });
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!el.filterCountryPanel || el.filterCountryPanel.hidden) return;
+    if (el.filterCountryWrap.contains(event.target)) return;
+    setCountryFilterPanelOpen(false);
+  });
+}
+
 
 
 function extractHashtags(meta) {
@@ -827,13 +1141,14 @@ function sanitizeDocHtml(value) {
     .replace(/<\uFFFD+/g, "<")
     .replace(/<\/\uFFFD+/g, "</")
     .replace(/\uFFFD/g, "");
+  const normalized = decodeEntitiesDeep(repaired);
 
-  if (!/[<>]/.test(repaired)) {
-    return esc(repaired).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
+  if (!/[<>]/.test(normalized)) {
+    return esc(normalized).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
   }
 
   try {
-    const doc = new DOMParser().parseFromString(`<div>${repaired}</div>`, "text/html");
+    const doc = new DOMParser().parseFromString(`<div>${normalized}</div>`, "text/html");
     const root = doc.body.firstElementChild || doc.body;
     root.querySelectorAll("script,style,iframe,object,embed,link,meta").forEach((node) => node.remove());
     const allowed = new Set(["BR", "P", "DIV", "UL", "OL", "LI", "B", "STRONG", "I", "EM", "U", "H1", "H2", "H3", "SPAN"]);
@@ -849,7 +1164,7 @@ function sanitizeDocHtml(value) {
     if (!text) return "";
     return root.innerHTML;
   } catch {
-    return esc(cleanText(repaired)).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
+    return esc(cleanText(normalized)).replace(/\n{2,}/g, "<br><br>").replace(/\n/g, "<br>");
   }
 }
 
@@ -924,6 +1239,16 @@ function decodeEntities(text) {
   return ta.value;
 }
 
+function decodeEntitiesDeep(text, maxPasses = 3) {
+  let out = String(text || "");
+  for (let i = 0; i < maxPasses; i += 1) {
+    const next = decodeEntities(out);
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 function normalizeTextPayload(text, typeHint = "") {
   let out = String(text || "");
   if (!out) return "";
@@ -935,7 +1260,7 @@ function normalizeTextPayload(text, typeHint = "") {
 }
 
 function formatDateFr(iso) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const parts = String(iso).split("-");
   if (parts.length !== 3) return iso;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -1038,7 +1363,7 @@ async function hydrateReportsFromIndexedDb() {
   }
 }
 
-/* ═══ AAR DATA MODEL ═══ */
+/* â•â•â• AAR DATA MODEL â•â•â• */
 function normalizeAar(input) {
   const a = input && typeof input === "object" ? input : {};
   const meta = a.meta || {};
@@ -1167,7 +1492,7 @@ function parseTextForAars(text) {
   return out;
 }
 
-/* ═══ DERIVE META (enriched for filters) ═══ */
+/* â•â•â• DERIVE META (enriched for filters) â•â•â• */
 function deriveMeta(a) {
   const meta = a.meta || {};
   const facts = a.facts || {};
@@ -1181,7 +1506,7 @@ function deriveMeta(a) {
   const rank = identityAnonymized ? "" : rankRaw;
   const unit = identityAnonymized ? "" : unitRaw;
   const name = identityAnonymized ? "" : nameRaw;
-  const redacteur = identityAnonymized ? "Anonymisé" : ([rank, name].filter(Boolean).join(" ").trim() || "N/A");
+  const redacteur = identityAnonymized ? "Anonymise" : ([rank, name].filter(Boolean).join(" ").trim() || "N/A");
 
   // Extended computed fields
   const reportKind = normalizeReportKind(meta.reportKind);
@@ -1265,7 +1590,7 @@ function buildRecord(aar, source, sourceName = "") {
   const forceAnonymizedByFileName = /(^|[_\-\s])anonymis(?:e)?([_\-\s]|$)/i.test(String(sourceName || ""));
   if (forceAnonymizedByFileName && meta.identityAnonymized !== true) {
     meta.identityAnonymized = true;
-    meta.redacteur = "Anonymisé";
+    meta.redacteur = "Anonymise";
     meta.nom = "";
     meta.prenom = "";
     meta.unit = "";
@@ -1294,7 +1619,7 @@ function isRecordAnonymized(record) {
   return false;
 }
 
-/* ═══ DRIVE / STATIC SYNC (unchanged logic) ═══ */
+/* â•â•â• DRIVE / STATIC SYNC (unchanged logic) â•â•â• */
 function normalizeDriveId(raw) {
   const src = String(raw || "").trim();
   if (!src) return "";
@@ -1321,6 +1646,10 @@ function getDriveConfig() {
   const apiKeyRaw = String(g.apiKey || "").trim();
   const folderIdRaw = normalizeDriveId(g.folderId);
   const indexFileIdRaw = normalizeDriveId(g.indexFileId);
+  const timeoutMsRaw = Number(a.timeoutMs);
+  const appsScriptTimeoutMs = Number.isFinite(timeoutMsRaw)
+    ? Math.max(5000, Math.min(120000, Math.round(timeoutMsRaw)))
+    : 20000;
   return {
     autoSyncOnStartup: cfg.autoSyncOnStartup !== false,
     apiKey: isPlaceholderValue(apiKeyRaw) ? "" : apiKeyRaw,
@@ -1328,7 +1657,8 @@ function getDriveConfig() {
     indexFileId: isPlaceholderValue(indexFileIdRaw) ? "" : indexFileIdRaw,
     appsScriptEnabled: a.enabled === true,
     appsScriptWebAppUrl: String(a.webAppUrl || "").trim(),
-    appsScriptAccessKey: String(a.accessKey || "").trim()
+    appsScriptAccessKey: String(a.accessKey || "").trim(),
+    appsScriptTimeoutMs
   };
 }
 
@@ -1406,22 +1736,22 @@ async function fetchJsonOrThrow(url, timeoutMs = 20000) {
   try {
     response = await fetch(url, { cache: "no-store", signal: controller.signal });
   } catch (e) {
-    if (e && e.name === "AbortError") throw new Error(`Timeout réseau (${Math.round(timeoutMs / 1000)}s)`);
+    if (e && e.name === "AbortError") throw new Error(`Timeout reseau (${Math.round(timeoutMs / 1000)}s)`);
     throw e;
   } finally { clearTimeout(timer); }
 
   if (!response.ok) {
     const txt = await response.text().catch(() => "");
     const compact = txt.replace(/\s+/g, " ").trim();
-    if (isGoogleAntiBotMessage(compact)) throw new Error("Google bloque temporairement les téléchargements. Réessaye dans 2-10 minutes.");
+    if (isGoogleAntiBotMessage(compact)) throw new Error("Google bloque temporairement les telechargements. Reessaye dans 2-10 minutes.");
     if (/referer/i.test(compact) && /(null|empty|blocked|not\s+allowed)/i.test(compact)) throw new Error("API key bloquee par referer.");
     if (response.status === 403) throw new Error(`Acces Drive refuse (403): ${compact.slice(0, 180)}`);
     throw new Error(`HTTP ${response.status} ${response.statusText} ${compact.slice(0, 180)}`);
   }
   const raw = await response.text();
   const trimmed = raw.trim();
-  if (!trimmed) throw new Error("Réponse vide");
-  if (/^\s*<!doctype html/i.test(trimmed) || /^\s*<html/i.test(trimmed)) throw new Error("Fichier non accessible publiquement (réponse HTML).");
+  if (!trimmed) throw new Error("Reponse vide");
+  if (/^\s*<!doctype html/i.test(trimmed) || /^\s*<html/i.test(trimmed)) throw new Error("Fichier non accessible publiquement (reponse HTML).");
   const payload = trimmed.replace(/^\)\]\}'\s*\n?/, "");
   try { return JSON.parse(payload); } catch { throw new Error("JSON invalide."); }
 }
@@ -1493,23 +1823,23 @@ function setSubtitle(msg) { /* no-op: subtitle removed */ }
 
 async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = false } = {}) {
   const staticCfg = getStaticConfig();
-  if (!staticCfg.enabled) throw new Error("Source statique désactivée.");
-  setSubtitle("Synchronisation en cours…");
+  if (!staticCfg.enabled) throw new Error("Source statique desactivee.");
+  setSubtitle("Synchronisation en cours...");
   setSyncing(true);
   try {
     const files = await listStaticFilesFromIndex(staticCfg.indexUrl);
     if (!files.length) {
       if (state.reports.length) {
-        setSubtitle(`${state.reports.length} AAR · source statique vide`);
-        if (!silent) toast("Aucun fichier dans l'index statique, cache conservé.");
+        setSubtitle(`${state.reports.length} AAR  -  source statique vide`);
+        if (!silent) toast("Aucun fichier dans l'index statique, cache conserve.");
         return;
       }
       try { await dbReplaceAll([]); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
       state.reports = [];
       renderAll();
-      setSubtitle("0 AAR · source statique");
+      setSubtitle("0 AAR  -  source statique");
       saveLastSync();
-      if (!silent) toast("Aucun AAR trouvé.");
+      if (!silent) toast("Aucun AAR trouve.");
       return;
     }
     const existingByPath = new Map(
@@ -1537,8 +1867,8 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
       await yieldToUiEvery(idx + 1);
     }
     if (!records.length && state.reports.length) {
-      setSubtitle(`${state.reports.length} AAR · echec sync`);
-      if (!silent) toast("Sync en échec : cache conservé.");
+      setSubtitle(`${state.reports.length} AAR  -  echec sync`);
+      if (!silent) toast("Sync en echec : cache conserve.");
       return;
     }
     const sorted = sortReports(records);
@@ -1552,7 +1882,7 @@ async function syncFromStaticRepo({ silent = false, preserveCacheOnShrink = fals
     await yieldToUi();
     renderAll();
     saveLastSync();
-    setSubtitle(`${sorted.length} AAR · source statique`);
+    setSubtitle(`${sorted.length} AAR  -  source statique`);
     if (!silent) {
       if (errors.length) toast(`Sync OK : ${sorted.length} AAR, ${errors.length} erreur(s).`);
       else toast(`Sync OK : ${sorted.length} AAR.`);
@@ -1583,7 +1913,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
     if (!silent) toast("Config invalide : indexFileId, ou apiKey+folderId.");
     return;
   }
-  setSubtitle("Synchronisation Drive…");
+  setSubtitle("Synchronisation Drive...");
   setSyncing(true);
   try {
     const files = hasIndexMode ? await listDriveFilesFromIndex(cfg.indexFileId) : await listDriveFiles(cfg.apiKey, cfg.folderId);
@@ -1592,7 +1922,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       if (staticCfg.enabled) {
         try {
           await syncFromStaticRepo({ silent: true, preserveCacheOnShrink: true });
-          setSubtitle(`${state.reports.length} AAR · source statique (Drive vide)`);
+          setSubtitle(`${state.reports.length} AAR  -  source statique (Drive vide)`);
           if (!silent) toast("Drive vide : bascule sur source statique.");
           return;
         } catch {}
@@ -1605,9 +1935,9 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       try { await dbReplaceAll([]); } catch (e) { console.warn("IndexedDB write unavailable:", e?.message || e); }
       state.reports = [];
       renderAll();
-      setSubtitle("0 AAR · Google Drive");
+      setSubtitle("0 AAR  -  Google Drive");
       saveLastSync();
-      if (!silent) toast("Aucun AAR trouvé sur Drive.");
+      if (!silent) toast("Aucun AAR trouve sur Drive.");
       return;
     }
     const existingDriveById = new Map(
@@ -1623,7 +1953,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       if (sameVersion) { records.push(existing); continue; }
       if (blockedByGoogle) {
         if (existing) records.push(existing);
-        else errors.push(`${f.name || f.id}: sauté (blocage Google).`);
+        else errors.push(`${f.name || f.id}: saute (blocage Google).`);
         continue;
       }
       try {
@@ -1643,8 +1973,8 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
       await yieldToUiEvery(idx + 1);
     }
     if (!records.length && state.reports.length) {
-      setSubtitle(`${state.reports.length} AAR · échec sync Drive`);
-      if (!silent) toast("Sync Drive en échec : cache conservé.");
+      setSubtitle(`${state.reports.length} AAR  -  echec sync Drive`);
+      if (!silent) toast("Sync Drive en echec : cache conserve.");
       return;
     }
     const sorted = sortReports(records);
@@ -1653,7 +1983,7 @@ async function syncFromGoogleDrive({ silent = false } = {}) {
     await yieldToUi();
     renderAll();
     saveLastSync();
-    setSubtitle(blockedByGoogle ? `${sorted.length} AAR · Drive (blocage détecté)` : `${sorted.length} AAR · Google Drive`);
+    setSubtitle(blockedByGoogle ? `${sorted.length} AAR  -  Drive (blocage detecte)` : `${sorted.length} AAR  -  Google Drive`);
     if (!silent) {
       if (errors.length) toast(`Sync OK : ${sorted.length} AAR, ${errors.length} erreur(s).`);
       else toast(`Sync OK : ${sorted.length} AAR.`);
@@ -1673,7 +2003,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
   const cfg = getDriveConfig();
   if (!hasAppsScriptSource(cfg)) throw new Error("Apps Script non configure.");
 
-  setSubtitle("Synchronisation Apps Script…");
+  setSubtitle("Synchronisation Apps Script...");
   setSyncing(true);
   try {
     const url = new URL(cfg.appsScriptWebAppUrl);
@@ -1682,7 +2012,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
     if (cfg.folderId) url.searchParams.set("folderId", cfg.folderId);
     url.searchParams.set("_ts", String(Date.now()));
 
-    const payload = await fetchJsonOrThrow(url.toString());
+    const payload = await fetchJsonOrThrow(url.toString(), cfg.appsScriptTimeoutMs);
     const files = Array.isArray(payload?.files) ? payload.files : [];
     const visibleFiles = SHOW_PENDING_QWI_REVIEW
       ? files
@@ -1712,7 +2042,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
     });
     if (sameRemoteState) {
       saveLastSync();
-      setSubtitle(`${state.reports.length} AAR · Apps Script`);
+      setSubtitle(`${state.reports.length} AAR  -  Apps Script`);
       return;
     }
 
@@ -1747,7 +2077,7 @@ async function syncFromAppsScript({ silent = false } = {}) {
     await yieldToUi();
     renderAll();
     saveLastSync();
-    setSubtitle(`${state.reports.length} AAR · Apps Script`);
+    setSubtitle(`${state.reports.length} AAR  -  Apps Script`);
     if (!silent) {
       if (errors.length) toast(`Sync Apps Script OK : ${state.reports.length} AAR, ${errors.length} erreur(s).`);
       else toast(`Sync Apps Script OK : ${state.reports.length} AAR.`);
@@ -1759,7 +2089,17 @@ async function syncFromAppsScript({ silent = false } = {}) {
 
 async function syncPreferred({ silent = false } = {}) {
   const driveCfg = getDriveConfig();
-  if (hasAppsScriptSource(driveCfg)) { await syncFromAppsScript({ silent }); return; }
+  if (hasAppsScriptSource(driveCfg)) {
+    try {
+      await syncFromAppsScript({ silent });
+      return;
+    } catch (e) {
+      const staticCfg = getStaticConfig();
+      const hasFallback = hasDriveSource(driveCfg) || staticCfg.enabled;
+      console.warn("Sync Apps Script indisponible, tentative de fallback:", e?.message || e);
+      if (!hasFallback) throw e;
+    }
+  }
   if (hasDriveSource(driveCfg)) { await syncFromGoogleDrive({ silent }); return; }
   await syncFromStaticRepo({ silent });
 }
@@ -1811,11 +2151,13 @@ function saveFiltersState() {
     const payload = {
       search: String(el.searchInput?.value || ""),
       oaci: String(getSelectedOaciFilter() || "ALL"),
+      period: String(el.filterPeriod?.value || "LAST_6M"),
       reportKind: String(el.filterReportKind?.value || "ALL"),
       classif: String(el.filterClassif?.value || "ALL"),
+      dorese: String(el.filterDorese?.value || "ALL"),
       fleet: String(el.filterFleet?.value || "ALL"),
       unit: String(el.filterUnit?.value || "ALL"),
-      country: String(el.filterCountry?.value || "ALL"),
+      country: String(getSelectedCountryFilter() || "ALL"),
       operation: String(el.filterOperation?.value || "ALL"),
       hashtags: getSelectedHashtagFilters(),
       sort: String(el.filterSort?.value || "DATE_DESC")
@@ -1844,11 +2186,13 @@ function restoreFiltersState(savedState) {
   if (!saved) return;
   if (el.searchInput) el.searchInput.value = String(saved.search || "");
   pendingRestoredOaciFilter = normalizeSavedOaciFilter(saved);
+  pendingRestoredCountryFilter = normalizeSavedCountryFilter(saved);
+  restoreSelectValue(el.filterPeriod, saved.period || "LAST_6M");
   restoreSelectValue(el.filterReportKind, saved.reportKind);
   restoreSelectValue(el.filterClassif, saved.classif);
+  restoreSelectValue(el.filterDorese, saved.dorese);
   restoreSelectValue(el.filterFleet, saved.fleet);
   restoreSelectValue(el.filterUnit, saved.unit);
-  restoreSelectValue(el.filterCountry, saved.country);
   restoreSelectValue(el.filterOperation, saved.operation);
   pendingRestoredHashtagFilters = normalizeSavedHashtagFilters(saved);
   restoreSelectValue(el.filterSort, saved.sort || "DATE_DESC");
@@ -1890,7 +2234,7 @@ function showFileModeHelp() {
     </section>`;
 }
 
-/* ═══ IndexedDB ═══ */
+/* â•â•â• IndexedDB â•â•â• */
 function openDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -1925,7 +2269,7 @@ async function dbReplaceAll(records) {
   });
 }
 
-/* ═══ DYNAMIC FILTER OPTIONS ═══ */
+/* â•â•â• DYNAMIC FILTER OPTIONS â•â•â• */
 function getUniqueValues(key) {
   const vals = new Set();
   for (const r of state.reports) {
@@ -1960,8 +2304,9 @@ function getUniqueOaciValues() {
 
 function populateDynamicFilters() {
   fillSelectOptions(el.filterFleet, "Flotte: Toutes", getUniqueValues("fleet"));
-  fillSelectOptions(el.filterUnit, "Unité: Toutes", getUniqueValues("unit"));
-  fillSelectOptions(el.filterCountry, "Pays: Tous", getUniqueValues("country"));
+  fillSelectOptions(el.filterUnit, "Unite: Toutes", getUniqueValues("unit"));
+  fillSelectOptions(el.filterDorese, "DORESE: Tous", DORESE_FILTER_VALUES);
+  populateCountryFilterOptions(getUniqueValues("country"));
   fillSelectOptions(el.filterOperation, "Operation / exercice: Tous", getUniqueValues("tacDetail"));
   populateOaciFilterOptions(getUniqueOaciValues());
   populateHashtagFilterOptions(getUniqueArrayValues("hashtags"));
@@ -1985,27 +2330,31 @@ function updateChipState(sel) {
   sel.classList.toggle("has-value", sel.value !== "ALL");
 }
 
-/* ═══ FILTER & SORT ═══ */
+/* â•â•â• FILTER & SORT â•â•â• */
 function filtered() {
   const q = (el.searchInput?.value || "").trim().toLowerCase();
+  const period = el.filterPeriod?.value || "LAST_6M";
   const classif = el.filterClassif?.value || "ALL";
+  const dorese = normalizeDoreseCategory(el.filterDorese?.value || "ALL") || "ALL";
   const oaci = getSelectedOaciFilter();
   const reportKind = el.filterReportKind?.value || "ALL";
   const fleet = el.filterFleet?.value || "ALL";
   const unit = el.filterUnit?.value || "ALL";
-  const country = el.filterCountry?.value || "ALL";
+  const country = getSelectedCountryFilter();
   const operation = el.filterOperation?.value || "ALL";
   const hashtags = getSelectedHashtagFilters();
   const sort = el.filterSort?.value || "DATE_DESC";
 
   let rows = state.reports;
 
+  rows = rows.filter((r) => isRecordInSelectedPeriod(r, period));
   if (classif !== "ALL") rows = rows.filter((r) => r.classification === classif);
+  if (dorese !== "ALL") rows = rows.filter((r) => Array.isArray(r.recoCats) && r.recoCats.some((cat) => normalizeDoreseCategory(cat) === dorese));
   if (oaci !== "ALL") rows = rows.filter((r) => normalizeOaciValue(r.airfield) === oaci);
   if (reportKind !== "ALL") rows = rows.filter((r) => r.reportKind === reportKind);
   if (fleet !== "ALL") rows = rows.filter((r) => r.fleet === fleet);
   if (unit !== "ALL") rows = rows.filter((r) => r.unit === unit);
-  if (country !== "ALL") rows = rows.filter((r) => r.country === country);
+  if (country !== "ALL") rows = rows.filter((r) => normalizeCountryKey(r.country) === normalizeCountryKey(country));
   if (operation !== "ALL") rows = rows.filter((r) => r.tacDetail === operation);
   if (hashtags.length) {
     rows = rows.filter((r) => {
@@ -2016,7 +2365,7 @@ function filtered() {
 
   if (q) {
     rows = rows.filter((r) => [
-      r.title, isRecordAnonymized(r) ? "Anonymisé" : r.redacteur, isRecordAnonymized(r) ? "" : r.nom, isRecordAnonymized(r) ? "" : r.prenom, isRecordAnonymized(r) ? "" : r.unit,
+      r.title, isRecordAnonymized(r) ? "Anonymise" : r.redacteur, isRecordAnonymized(r) ? "" : r.nom, isRecordAnonymized(r) ? "" : r.prenom, isRecordAnonymized(r) ? "" : r.unit,
       r.reportKind,
       r.classification, r.fleet, r.country, r.airfield, ...getVisibleRecordHashtags(r),
       r.missionType, r.tacDetail,
@@ -2035,7 +2384,7 @@ function filtered() {
   return rows;
 }
 
-/* ═══ RENDERING — LIST VIEW ═══ */
+/* â•â•â• RENDERING - LIST VIEW â•â•â• */
 function classifTag(c) {
   const norm = normalizeClassif(c);
   if (norm === "NON PROTEGE") return `<span class="tag tag-np">NP</span>`;
@@ -2069,9 +2418,9 @@ function renderList() {
   if (!rows.length) {
     el.aarGrid.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📋</div>
-        <h3>${state.reports.length ? "Aucun AAR ne correspond aux filtres" : "Aucun AAR chargé"}</h3>
-        <p>${state.reports.length ? "Essaie de modifier tes critères de recherche." : "Clique sur le bouton ↻ pour synchroniser les données."}</p>
+        <div class="empty-icon">[LIST]</div>
+        <h3>${state.reports.length ? "Aucun AAR ne correspond aux filtres" : "Aucun AAR charge"}</h3>
+        <p>${state.reports.length ? "Essaie de modifier tes criteres de recherche." : "Clique sur le bouton reload pour synchroniser les donnees."}</p>
       </div>`;
     return;
   }
@@ -2083,7 +2432,7 @@ function renderList() {
     const missionTypeNorm = String(r.missionType || "").trim().toUpperCase();
     const missionTypeClass = missionTypeNorm.toLowerCase();
     const visibleHashtags = getVisibleRecordHashtags(r);
-    const metaParts = [anonymized ? "Anonymisé" : r.redacteur];
+    const metaParts = [anonymized ? "Anonymise" : r.redacteur];
     if (!anonymized && r.unit) metaParts.push(r.unit);
     if (r.country) metaParts.push(r.country);
     if (r.airfield) metaParts.push(r.airfield);
@@ -2105,7 +2454,7 @@ function renderList() {
           </div>
           <div class="card-date">${formatDateFr(r.date)}</div>
         </div>
-        <div class="card-meta">${esc(metaParts.join(" · "))}</div>
+        <div class="card-meta">${esc(metaParts.join("  -  "))}</div>
         ${excerpt ? `<div class="card-excerpt">${esc(excerpt.slice(0, 200))}</div>` : ""}
         <div class="card-tags">${tags.join("")}</div>
       </article>`;
@@ -2118,7 +2467,7 @@ function renderList() {
   });
 }
 
-/* ═══ RENDERING — DETAIL MODAL ═══ */
+/* â•â•â• RENDERING - DETAIL MODAL â•â•â• */
 function asDocHtml(value, emptyText = "N/A") {
   const html = sanitizeDocHtml(value);
   if (!nonEmpty(html)) return `<span class="doc-na">${esc(emptyText)}</span>`;
@@ -2165,7 +2514,7 @@ function openDetail(id) {
   if (r.tacDetail) missionParts.push(`Detail: ${r.tacDetail}`);
   const missionContextHtml = missionParts.length ? esc(missionParts.join(" | ")) : '<span class="doc-na">N/A</span>';
   const redacteur = anonymized
-    ? (["Anonymisé", r.fleet].filter(Boolean).join(" | ") || "Anonymisé")
+    ? (["Anonymise", r.fleet].filter(Boolean).join(" | ") || "Anonymise")
     : ([r.redacteur, r.unit, r.fleet].filter(Boolean).join(" | ") || "N/A");
   const pageTitle = r.title || "AFTER ACTION REVIEW";
 
@@ -2252,7 +2601,7 @@ function closeDetail() {
   state.openDetailId = null;
 }
 
-/* ═══ RENDERING — ANALYZE VIEW ═══ */
+/* â•â•â• RENDERING - ANALYZE VIEW â•â•â• */
 function topMap(reports, mapper, n) {
   const map = new Map();
   reports.forEach((r) => mapper(r).forEach((k) => { if (!k) return; map.set(k, (map.get(k) || 0) + 1); }));
@@ -2260,7 +2609,7 @@ function topMap(reports, mapper, n) {
 }
 
 function barsHtml(rows, opts = {}) {
-  if (!rows.length) return '<p style="color:var(--text-muted)">Aucune donnée.</p>';
+  if (!rows.length) return '<p style="color:var(--text-muted)">Aucune donnee.</p>';
   const {
     drilldown = "",
     formatLabel = (k) => k,
@@ -2287,17 +2636,19 @@ function drilldownFromAnalyze(type, value) {
 
   if (type === "oaci") setOaciFilterSelection(value);
   else if (type === "classification") setSelectFilter(el.filterClassif, value);
-  else if (type === "country") setSelectFilter(el.filterCountry, value);
+  else if (type === "country") setCountryFilterSelection(value);
   else if (type === "unit") setSelectFilter(el.filterUnit, value);
   else if (type === "operation") setSelectFilter(el.filterOperation, value);
   else if (type === "reco") {
-    if (el.searchInput) el.searchInput.value = value;
+    const doreseValue = normalizeDoreseCategory(value);
+    if (doreseValue) setSelectFilter(el.filterDorese, doreseValue);
+    else if (el.searchInput) el.searchInput.value = value;
   }
 
   setView("list");
   if (el.viewList) el.viewList.scrollTop = 0;
   saveFiltersState();
-  toast(`Filtre appliqué : ${value}`);
+  toast(`Filtre applique : ${value}`);
 }
 
 function bindAnalyzeDrilldown() {
@@ -2319,9 +2670,9 @@ function renderAnalyze() {
   if (!state.reports.length) {
     el.viewAnalyze.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📊</div>
+        <div class="empty-icon">[STATS]</div>
         <h3>Aucun AAR pour analyse</h3>
-        <p>Synchronise les données pour voir les statistiques.</p>
+        <p>Synchronise les donnees pour voir les statistiques.</p>
       </div>`;
     return;
   }
@@ -2348,13 +2699,13 @@ function renderAnalyze() {
       ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop, { drilldown: "country" })}</section>` : ""}
       ${opsExTop.length ? `<section class="analyze-box"><h4>Par operation / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
       <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop, { drilldown: "classification" })}</section>
-      <section class="analyze-box"><h4>Par unité</h4>${barsHtml(unitTop, { drilldown: "unit" })}</section>
-      <section class="analyze-box"><h4>Par catégorie DORESE</h4>${barsHtml(recoTop, { drilldown: "reco" })}</section>
+      <section class="analyze-box"><h4>Par unite</h4>${barsHtml(unitTop, { drilldown: "unit" })}</section>
+      <section class="analyze-box"><h4>Par categorie DORESE</h4>${barsHtml(recoTop, { drilldown: "reco" })}</section>
     </div>`;
   bindAnalyzeDrilldown();
 }
 
-/* ═══ VIEW SWITCHING ═══ */
+/* â•â•â• VIEW SWITCHING â•â•â• */
 function setView(view) {
   state.mode = view;
   document.querySelectorAll(".toggle-btn").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
@@ -2362,6 +2713,7 @@ function setView(view) {
   const target = document.getElementById(`view-${view}`);
   if (target) target.classList.add("active");
   setHashtagFilterPanelOpen(false);
+  setCountryFilterPanelOpen(false);
   setOaciFilterPanelOpen(false);
   renderCurrentView();
 }
@@ -2376,7 +2728,7 @@ function renderAll() {
   renderCurrentView();
 }
 
-/* ═══ INIT ═══ */
+/* â•â•â• INIT â•â•â• */
 async function init() {
   Object.assign(el, {
     syncBtn: document.getElementById("sync-btn"),
@@ -2390,11 +2742,18 @@ async function init() {
     filterOaciPanel: document.getElementById("filter-oaci-panel"),
     filterOaciSearch: document.getElementById("filter-oaci-search"),
     filterOaciOptions: document.getElementById("filter-oaci-options"),
+    filterPeriod: document.getElementById("filter-period"),
     filterReportKind: document.getElementById("filter-report-kind"),
     filterClassif: document.getElementById("filter-classif"),
+    filterDorese: document.getElementById("filter-dorese"),
     filterFleet: document.getElementById("filter-fleet"),
     filterUnit: document.getElementById("filter-unit"),
-    filterCountry: document.getElementById("filter-country"),
+    filterCountryWrap: document.getElementById("filter-country-wrap"),
+    filterCountryTrigger: document.getElementById("filter-country-trigger"),
+    filterCountryLabel: document.getElementById("filter-country-label"),
+    filterCountryPanel: document.getElementById("filter-country-panel"),
+    filterCountrySearch: document.getElementById("filter-country-search"),
+    filterCountryOptions: document.getElementById("filter-country-options"),
     filterOperation: document.getElementById("filter-operation"),
     filterSort: document.getElementById("filter-sort"),
     filterHashtagWrap: document.getElementById("filter-hashtag-wrap"),
@@ -2429,6 +2788,14 @@ async function init() {
   el.filterOaciActiveIndex = -1;
   el.filterOaciActiveKey = "";
   bindOaciFilterEvents();
+
+  el.filterCountryAvailableValues = [];
+  el.filterCountrySelectedValue = "ALL";
+  el.filterCountryUsageMap = new Map();
+  el.filterCountryVisibleRows = [];
+  el.filterCountryActiveIndex = -1;
+  el.filterCountryActiveKey = "";
+  bindCountryFilterEvents();
 
   el.filterHashtagAvailableValues = [];
   el.filterHashtagValues = [];
@@ -2474,11 +2841,15 @@ async function init() {
       setOaciFilterPanelOpen(false);
       return;
     }
+    if (el.filterCountryPanel && !el.filterCountryPanel.hidden) {
+      setCountryFilterPanelOpen(false);
+      return;
+    }
     if (state.openDetailId) closeDetail();
   });
 
   // Filter events
-  const allFilters = [el.searchInput, el.filterReportKind, el.filterClassif, el.filterFleet, el.filterUnit, el.filterCountry, el.filterOperation, el.filterSort];
+  const allFilters = [el.searchInput, el.filterPeriod, el.filterReportKind, el.filterClassif, el.filterDorese, el.filterFleet, el.filterUnit, el.filterOperation, el.filterSort];
   allFilters.forEach((n) => {
     if (!n) return;
     n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); saveFiltersState(); });
@@ -2490,15 +2861,15 @@ async function init() {
   const staticCfg = getStaticConfig();
   if (hasAppsScriptSource(cfg)) setSubtitle("Source : Apps Script");
   else if (hasDriveSource(cfg)) setSubtitle("Source : Google Drive");
-  else if (staticCfg.enabled) setSubtitle("Source : données statiques");
-  else setSubtitle("Source non configurée");
+  else if (staticCfg.enabled) setSubtitle("Source : donnees statiques");
+  else setSubtitle("Source non configuree");
 
   state.reports = readReportsSnapshot();
   renderAll();
   saveFiltersState();
   hydrateReportsFromIndexedDb();
 
-  // Detect file:// protocol — fetch won't work
+  // Detect file:// protocol - fetch won't work
   if (location.protocol === "file:") {
     showFileModeHelp();
     return;
@@ -2520,5 +2891,11 @@ async function init() {
 }
 
 init();
+
+
+
+
+
+
 
 

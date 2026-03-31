@@ -22,6 +22,7 @@ Ce dossier (`D - AAR READER HUB`) est le hub principal NON QWI (lecture/filtrage
   - `facts.baapMissionSupport`,
   - `facts.baapIntel`,
   - `facts.baapC2`.
+- Le rendu texte (`facts/analysis/recos`) doit decoder les entites HTML (y compris doubles, ex: `&amp;#039;`) avant echappement final pour eviter les artefacts visuels.
 - La lecture des hashtags (`meta.hashtags`) doit rester compatible avec le referentiel dynamique des boutons `1. FAITS` (`catalog.factsHashtags`) et leur mapping d'infobulle (`catalog.factsHashtagTooltipMap`).
 - Les cles d'infobulles associees aux boutons `#` peuvent etre `BAAP_ROLE_*` ou dynamiques `FACTS_HASHTAG_*` (a ne pas filtrer/casser lors des lectures catalogue).
 - Le filtre `Hashtag` du HUB NON QWI est en multi-selection avec recherche texte:
@@ -36,6 +37,17 @@ Ce dossier (`D - AAR READER HUB`) est le hub principal NON QWI (lecture/filtrage
   - selection unique (pas de multi-selection),
   - recherche texte + navigation clavier (`fleche bas` / `fleche haut` / `Entree`),
   - persistance locale via la cle filtre `oaci`.
+- Le filtre `Pays` adopte la meme UX que `Code OACI`:
+  - selection unique (pas de multi-selection),
+  - recherche texte + navigation clavier (`fleche bas` / `fleche haut` / `Entree`),
+  - persistance locale via la cle filtre `country`.
+- Le filtre `Periode` encadre le volume affiche:
+  - valeur par defaut: `6 derniers mois`,
+  - option explicite: `Tout historique`,
+  - persistance locale via la cle filtre `period`.
+- Le filtre `DORESE` est independant du filtre `Classification`:
+  - valeurs exposees: `DOCTRINE`, `ORGANISATION`, `RH`, `EQUIPEMENTS`, `SOUTIEN`, `ENTRAINEMENT`,
+  - comportement: filtre sur la presence de la categorie DORESE choisie dans `recoCats`.
 - Rendu visuel des tags en cartes:
   - hashtags `#...` en style gris neutre (`tag-hashtag`),
   - categories DORESE en rose (`tag-dorese`).
@@ -62,5 +74,8 @@ Quand tu modifies ce hub:
 ## Contexte d'exploitation
 - Pipeline nominal: e-mail AAR -> Apps Script ingest -> Drive -> hubs.
 - Le hub non QWI lit en priorite via Apps Script (`action=listAars`).
+- `listAars` doit rester tolerant aux JSON UTF-8 BOM (`\uFEFF`) pour eviter des AAR presents sur Drive mais absents en lecture.
+- Le timeout reseau Apps Script est parametre par `config.js -> appsScript.timeoutMs` (borne entre 5s et 120s, fallback 20s).
+- En cas d'echec Apps Script, le hub tente automatiquement un fallback vers Google Drive, puis source statique si active.
 - Le push GitHub reste pour le code front, pas pour les donnees metier.
 - `AAR_ACCESS_KEY` doit matcher avec `C - AAR PWA/mission-config.js` et `../E - AAR READER HUB QWI/config.js`.
