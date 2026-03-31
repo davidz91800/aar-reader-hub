@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -8,14 +8,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="AAR_Reader">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260324e">
-  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=20260324e">
-  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png?v=20260324e">
-  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260324e">
+  <link rel="manifest" href="./manifest.webmanifest?v=20260326h">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=20260326h">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png?v=20260326h">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20260326h">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260324e">
+  <link rel="stylesheet" href="./styles.css?v=20260326h">
 </head>
 <body>
 
@@ -61,7 +61,7 @@
       <div id="filter-oaci-wrap" class="chip-multiselect chip-singleselect" title="Code OACI">
         <button id="filter-oaci-trigger" type="button" class="chip-select chip-multiselect-trigger" aria-haspopup="true" aria-expanded="false">
           <span id="filter-oaci-label">Code OACI: Tous</span>
-          <span class="chip-multiselect-caret" aria-hidden="true">▾</span>
+          <span class="chip-multiselect-caret" aria-hidden="true">&#9662;</span>
         </button>
         <div id="filter-oaci-panel" class="chip-multiselect-panel" hidden>
           <div class="chip-multiselect-search-wrap">
@@ -70,6 +70,10 @@
           <div id="filter-oaci-options" class="chip-multiselect-options"></div>
         </div>
       </div>
+      <select id="filter-period" class="chip-select" title="Periode">
+        <option value="LAST_6M">Periode: 6 derniers mois</option>
+        <option value="ALL">Periode: Tout historique</option>
+      </select>
       <select id="filter-report-kind" class="chip-select" title="Type d'AAR">
         <option value="ALL">Format: Tous</option>
         <option value="FLASH">AAR BAAP</option>
@@ -81,22 +85,37 @@
         <option value="DIFFUSION RESTREINTE">DIFFUSION RESTREINTE</option>
         <option value="SECRET SPECIAL FRANCE">SECRET SPECIAL FRANCE</option>
       </select>
+      <select id="filter-dorese" class="chip-select" title="DORESE">
+        <option value="ALL">DORESE: Tous</option>
+        <option value="DOCTRINE">Doctrine</option>
+        <option value="ORGANISATION">Organisation</option>
+        <option value="RH">RH</option>
+        <option value="EQUIPEMENTS">Equipements</option>
+        <option value="SOUTIEN">Soutien</option>
+        <option value="ENTRAINEMENT">Entrainement</option>
+      </select>
       <select id="filter-fleet" class="chip-select" title="Flotte">
         <option value="ALL">Flotte: Toutes</option>
       </select>
       <select id="filter-unit" class="chip-select" title="Unite">
         <option value="ALL">Unite: Toutes</option>
       </select>
-      <select id="filter-country" class="chip-select" title="Pays">
-        <option value="ALL">Pays: Tous</option>
-      </select>
-      <select id="filter-operation" class="chip-select" title="Operation / exercice">
-        <option value="ALL">Operation / exercice: Tous</option>
-      </select>
+      <div id="filter-country-wrap" class="chip-multiselect chip-singleselect" title="Pays">
+        <button id="filter-country-trigger" type="button" class="chip-select chip-multiselect-trigger" aria-haspopup="true" aria-expanded="false">
+          <span id="filter-country-label">Pays: Tous</span>
+          <span class="chip-multiselect-caret" aria-hidden="true">&#9662;</span>
+        </button>
+        <div id="filter-country-panel" class="chip-multiselect-panel" hidden>
+          <div class="chip-multiselect-search-wrap">
+            <input id="filter-country-search" type="search" class="chip-multiselect-search" placeholder="Rechercher un pays..." autocomplete="off">
+          </div>
+          <div id="filter-country-options" class="chip-multiselect-options"></div>
+        </div>
+      </div>
       <div id="filter-hashtag-wrap" class="chip-multiselect" title="Hashtag">
         <button id="filter-hashtag-trigger" type="button" class="chip-select chip-multiselect-trigger" aria-haspopup="true" aria-expanded="false">
           <span id="filter-hashtag-label">Hashtag: Tous</span>
-          <span class="chip-multiselect-caret" aria-hidden="true">▾</span>
+          <span class="chip-multiselect-caret" aria-hidden="true">&#9662;</span>
         </button>
         <div id="filter-hashtag-panel" class="chip-multiselect-panel" hidden>
           <div class="chip-multiselect-search-wrap">
@@ -159,7 +178,7 @@
 
   <script>
     (function clearLegacyHubCaches() {
-    const appVersion = "20260324e";
+    const appVersion = "20260326h";
       try {
         if (localStorage.getItem("aar_hub_ui_version") !== appVersion) {
           localStorage.setItem("aar_hub_ui_version", appVersion);
@@ -180,8 +199,17 @@
       } catch {}
     })();
   </script>
-  <script src="./config.js?v=20260324e"></script>
-  <script src="./app.js?v=20260324e"></script>
+  <script src="./config.js?v=20260326h"></script>
+  <script src="./app.js?v=20260326h"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 

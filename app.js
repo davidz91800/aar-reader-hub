@@ -2158,7 +2158,6 @@ function saveFiltersState() {
       fleet: String(el.filterFleet?.value || "ALL"),
       unit: String(el.filterUnit?.value || "ALL"),
       country: String(getSelectedCountryFilter() || "ALL"),
-      operation: String(el.filterOperation?.value || "ALL"),
       hashtags: getSelectedHashtagFilters(),
       sort: String(el.filterSort?.value || "DATE_DESC")
     };
@@ -2193,7 +2192,6 @@ function restoreFiltersState(savedState) {
   restoreSelectValue(el.filterDorese, saved.dorese);
   restoreSelectValue(el.filterFleet, saved.fleet);
   restoreSelectValue(el.filterUnit, saved.unit);
-  restoreSelectValue(el.filterOperation, saved.operation);
   pendingRestoredHashtagFilters = normalizeSavedHashtagFilters(saved);
   restoreSelectValue(el.filterSort, saved.sort || "DATE_DESC");
 }
@@ -2307,7 +2305,6 @@ function populateDynamicFilters() {
   fillSelectOptions(el.filterUnit, "Unite: Toutes", getUniqueValues("unit"));
   fillSelectOptions(el.filterDorese, "DORESE: Tous", DORESE_FILTER_VALUES);
   populateCountryFilterOptions(getUniqueValues("country"));
-  fillSelectOptions(el.filterOperation, "Operation / exercice: Tous", getUniqueValues("tacDetail"));
   populateOaciFilterOptions(getUniqueOaciValues());
   populateHashtagFilterOptions(getUniqueArrayValues("hashtags"));
 }
@@ -2341,7 +2338,6 @@ function filtered() {
   const fleet = el.filterFleet?.value || "ALL";
   const unit = el.filterUnit?.value || "ALL";
   const country = getSelectedCountryFilter();
-  const operation = el.filterOperation?.value || "ALL";
   const hashtags = getSelectedHashtagFilters();
   const sort = el.filterSort?.value || "DATE_DESC";
 
@@ -2355,7 +2351,6 @@ function filtered() {
   if (fleet !== "ALL") rows = rows.filter((r) => r.fleet === fleet);
   if (unit !== "ALL") rows = rows.filter((r) => r.unit === unit);
   if (country !== "ALL") rows = rows.filter((r) => normalizeCountryKey(r.country) === normalizeCountryKey(country));
-  if (operation !== "ALL") rows = rows.filter((r) => r.tacDetail === operation);
   if (hashtags.length) {
     rows = rows.filter((r) => {
       const recordTags = new Set(getVisibleRecordHashtags(r).map((tag) => String(tag || "").toUpperCase()));
@@ -2638,7 +2633,6 @@ function drilldownFromAnalyze(type, value) {
   else if (type === "classification") setSelectFilter(el.filterClassif, value);
   else if (type === "country") setCountryFilterSelection(value);
   else if (type === "unit") setSelectFilter(el.filterUnit, value);
-  else if (type === "operation") setSelectFilter(el.filterOperation, value);
   else if (type === "reco") {
     const doreseValue = normalizeDoreseCategory(value);
     if (doreseValue) setSelectFilter(el.filterDorese, doreseValue);
@@ -2687,7 +2681,6 @@ function renderAnalyze() {
   const recoTop = topMap(state.reports, (r) => r.recoCats || [], 6);
   const oaciTop = topMap(state.reports, (r) => [normalizeOaciValue(r.airfield)].filter(Boolean), 30);
   const countryTop = topMap(state.reports, (r) => [r.country].filter(Boolean), 30);
-  const opsExTop = topMap(state.reports, (r) => [r.tacDetail].filter(Boolean), 30);
 
   el.viewAnalyze.innerHTML = `
     <div class="stats-grid">
@@ -2697,7 +2690,6 @@ function renderAnalyze() {
     <div class="analyze-grid">
       ${oaciTop.length ? `<section class="analyze-box"><h4>Par code OACI</h4>${barsHtml(oaciTop, { drilldown: "oaci" })}</section>` : ""}
       ${countryTop.length ? `<section class="analyze-box"><h4>Par pays</h4>${barsHtml(countryTop, { drilldown: "country" })}</section>` : ""}
-      ${opsExTop.length ? `<section class="analyze-box"><h4>Par operation / exercice</h4>${barsHtml(opsExTop, { drilldown: "operation" })}</section>` : ""}
       <section class="analyze-box"><h4>Par classification</h4>${barsHtml(classifTop, { drilldown: "classification" })}</section>
       <section class="analyze-box"><h4>Par unite</h4>${barsHtml(unitTop, { drilldown: "unit" })}</section>
       <section class="analyze-box"><h4>Par categorie DORESE</h4>${barsHtml(recoTop, { drilldown: "reco" })}</section>
@@ -2754,7 +2746,6 @@ async function init() {
     filterCountryPanel: document.getElementById("filter-country-panel"),
     filterCountrySearch: document.getElementById("filter-country-search"),
     filterCountryOptions: document.getElementById("filter-country-options"),
-    filterOperation: document.getElementById("filter-operation"),
     filterSort: document.getElementById("filter-sort"),
     filterHashtagWrap: document.getElementById("filter-hashtag-wrap"),
     filterHashtagTrigger: document.getElementById("filter-hashtag-trigger"),
@@ -2849,7 +2840,7 @@ async function init() {
   });
 
   // Filter events
-  const allFilters = [el.searchInput, el.filterPeriod, el.filterReportKind, el.filterClassif, el.filterDorese, el.filterFleet, el.filterUnit, el.filterOperation, el.filterSort];
+  const allFilters = [el.searchInput, el.filterPeriod, el.filterReportKind, el.filterClassif, el.filterDorese, el.filterFleet, el.filterUnit, el.filterSort];
   allFilters.forEach((n) => {
     if (!n) return;
     n.addEventListener("input", () => { updateChipState(n); renderCurrentView(); saveFiltersState(); });
@@ -2891,6 +2882,7 @@ async function init() {
 }
 
 init();
+
 
 
 
