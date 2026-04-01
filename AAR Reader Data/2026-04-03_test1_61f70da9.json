@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "title": "TEST1",
+    "date": "2026-04-03",
+    "grade": "CDT",
+    "gradeAutre": "",
+    "nom": "ZEMMOUR",
+    "prenom": "David",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "flotte": "C130J",
+    "flotteAutre": "",
+    "classification": "NON PROTEGE",
+    "missionType": "",
+    "logCountry": "Afghanistan",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "hashtag": "#airfield",
+    "hashtagAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "",
+    "why": "",
+    "when": "",
+    "where": "",
+    "who": "",
+    "how": "",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": "éééééé"
+  },
+  "recos": {
+    "doctrine": "ééééé",
+    "organisation": "ééééé",
+    "rh": "ééééé",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
