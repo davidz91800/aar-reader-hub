@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "title": "TEST2",
+    "date": "2026-04-03",
+    "grade": "AUTRE",
+    "gradeAutre": "ANONYMISE",
+    "nom": "ANONYME",
+    "prenom": "ANONYME",
+    "unite": "AUTRE",
+    "uniteAutre": "ANONYMISE",
+    "flotte": "C130J",
+    "flotteAutre": "",
+    "classification": "NON PROTEGE",
+    "missionType": "",
+    "logCountry": "Afghanistan",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "hashtag": "#airfield",
+    "hashtagAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "",
+    "why": "",
+    "when": "",
+    "where": "",
+    "who": "",
+    "how": "",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": "éééééé"
+  },
+  "recos": {
+    "doctrine": "ééééé",
+    "organisation": "ééééé",
+    "rh": "ééééé",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
