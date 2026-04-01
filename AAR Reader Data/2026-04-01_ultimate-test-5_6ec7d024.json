@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "title": "ULTIMATE TEST 5",
+    "date": "2026-04-01",
+    "grade": "",
+    "gradeAutre": "",
+    "nom": "ZEMMOUR",
+    "prenom": "David",
+    "unite": "CIET 340",
+    "uniteAutre": "",
+    "flotte": "",
+    "flotteAutre": "",
+    "classification": "DIFFUSION RESTREINTE",
+    "missionType": "",
+    "logCountry": "France",
+    "logCountryAutre": "",
+    "logAirfield": "",
+    "logAirfieldAutre": "",
+    "hashtag": "",
+    "hashtagAutre": "",
+    "tacContext": "",
+    "tacOperation": "",
+    "tacOperationAutre": "",
+    "tacExercise": "",
+    "tacExerciseAutre": ""
+  },
+  "facts": {
+    "what": "",
+    "why": "",
+    "when": "",
+    "where": "",
+    "who": "",
+    "how": "",
+    "narrative": ""
+  },
+  "analysis": {
+    "content": ""
+  },
+  "recos": {
+    "doctrine": "",
+    "organisation": "",
+    "rh": "",
+    "equipements": "",
+    "soutien": "",
+    "entrainement": ""
+  },
+  "qwi": {
+    "advice": ""
+  }
+}
